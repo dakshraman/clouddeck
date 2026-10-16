@@ -13,6 +13,17 @@ CloudDeck lets you manage websites, SSL certificates, and server services from a
 
 **Security principle:** the HTTP-facing web app never runs as root. Only the small Go agent has privileges, it executes typed commands (no shell string interpolation), and it writes an audit log for every action.
 
+## Quickstart (one command, any Linux server)
+
+```sh
+curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+```
+
+Installs the agent (static binary) and panel (self-contained bundle, no distro packages needed: everything is fetched with `curl` and unpacked with `tar`). Works on x86_64 and aarch64, with systemd or plain init fallback. Prints the panel URL and a generated admin password when done.
+
+- Flags: `--version vX.Y.Z`, `--prefix`, `--panel-port`, `--agent-port`, `--no-panel`, `--no-agent`, `--uninstall`, `--purge` → `curl ... | sudo bash -s -- --help`
+- Private repo: add `-H "Authorization: token <gh-token>"` to the curl and pass `--gh-token <gh-token>` to the installer.
+
 ## Quickstart (Docker)
 
 ```bash

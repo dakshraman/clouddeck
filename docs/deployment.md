@@ -5,6 +5,16 @@ Target: a fresh Ubuntu 24.04 VPS with root or sudo. Two components are deployed:
 - **agent** — privileged worker; manages nginx, sites and certbot on the host
 - **panel** — unprivileged Next.js UI; the only thing exposed to browsers (via TLS)
 
+## 0. One-line install (recommended)
+
+```sh
+curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+```
+
+Downloads release artifacts with curl only — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime — so no distro packages are required. Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). Re-running upgrades the binaries and keeps config; `--uninstall` removes binaries (add `--purge` for data too). Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
+
+The steps below describe manual/advanced deployments and the Docker topology.
+
 **Choose a topology first:**
 
 | Topology | Use when | Layout |
