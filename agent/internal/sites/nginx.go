@@ -2,6 +2,7 @@ package sites
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 
 	"clouddeck/agent/internal/store"
@@ -11,18 +12,22 @@ import (
 const managedMarker = "# managed-by: clouddeck"
 
 type nginxData struct {
-	Domain string
-	Root   string
-	PHP    string // empty for static sites
-	LogDir string
+	Domain  string
+	Root    string
+	PHP     string // empty for static sites
+	LogDir  string
+	FpmSock string // resolved php-fpm socket (PHP sites only)
 }
 
 // RenderNginxConfig renders the site's nginx config. With SSL enabled it emits
-// an 80 -> 443 redirect block plus an HTTPS server block.
-func RenderNginxConfig(site store.Site, logDir string) string {
+// an 80 -> 443 redirect block plus an HTTPS server block. logDir is where site
+// logs are written; fpmSockTemplate is the php-fpm socket path template where
+// `{{version}}` is replaced with the site's PHP version.
+func RenderNginxConfig(site store.Site, logDir, fpmSockTemplate string) string {
 	data := nginxData{Domain: site.Domain, Root: site.Root, LogDir: logDir}
 	if site.PHPVersion != "" && site.PHPVersion != "none" {
 		data.PHP = site.PHPVersion
+		data.FpmSock = strings.ReplaceAll(fpmSockTemplate, "{{version}}", site.PHPVersion)
 	}
 	tpl := nginxTemplate
 	if site.SSL.Enabled {
@@ -50,7 +55,7 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_pass unix:/run/php/php{{.PHP}}-fpm.sock;
+        fastcgi_pass unix:{{.FpmSock}};
     }
 {{end}}}
 `))
@@ -82,7 +87,7 @@ server {
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_pass unix:/run/php/php{{.PHP}}-fpm.sock;
+        fastcgi_pass unix:{{.FpmSock}};
     }
 {{end}}}
 `))

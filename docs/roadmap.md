@@ -2,7 +2,7 @@
 
 Versions are milestones, not dates.
 
-## v0.1 — single-server MVP (current)
+## v0.2 — hosting essentials (current)
 
 - Sites: create / delete, per-site webroot, PHP version selection
 - SSL: Let's Encrypt via certbot, per-site issuance
@@ -10,22 +10,28 @@ Versions are milestones, not dates.
 - System dashboard: CPU / RAM / disk
 - Session auth for the panel
 - Docker-based development environment
+- File manager: browse, edit, upload, download, rename, delete inside site webroots — path-confined, symlink-rejecting, every mutation audited
+- MySQL management: databases, users, grants, generated passwords (client binary driven with argument arrays only; API never accepts raw SQL)
+- Configurable PHP-FPM socket template (`AGENT_PHP_FPM_SOCK`) for coexisting installs (e.g. an aaPanel-managed server)
 
-## v0.2 — hosting essentials
+## v0.3 — operations (next)
 
-- Coexistence with existing panels (aaPanel/cPanel-style layouts): configurable PHP-FPM socket paths and nginx layout detection
-- File manager: browse, edit, upload and download per-site files
+- **System monitoring**: service status (nginx, MariaDB/MySQL, PHP-FPM), load average, per-service restart, metric history charts
+- **DNS**: PowerDNS-backed zone and record management (A, AAAA, CNAME, MX, TXT, NS, SRV)
+- **Backup & restore**: archives of site files + databases; destinations:
+  - local download (built-in),
+  - Google Drive, MEGA, Dropbox (via `rclone`, typed argument arrays only),
+  - Telegram (Bot API, configurable base URL so it can be tested against a local mock)
+  - scheduled backups (daily/weekly) and one-click restore
 - Cron jobs UI (per site and per user)
-- MySQL database UI: create databases/users, manage grants
 - Server logs viewer: nginx, PHP-FPM and agent audit log
 - Multi-PHP management: several PHP versions installed and switchable per site
 
-## v0.3 — operations
+## v0.4 — mail
 
-- DNS zones (PowerDNS or BIND) with a record editor
-- Backups: scheduled archives shipped to S3-compatible storage
-- One-click WordPress install (database, files, SSL, admin credentials)
-- User roles: admin / reseller / client with scoped site access
+- Virtual mailbox management: Postfix + Dovecot — domains, mailboxes, aliases, forwarders
+- DKIM signing; SPF/DMARC record helpers in the DNS zone editor
+- Honest caveats: deliverability depends on IP reputation, rDNS and MX setup — CloudDeck configures the software, the operator owns the reputation. No outbound relay service.
 
 ## v0.5 — multi-server / SaaS
 
@@ -43,6 +49,6 @@ hosted panel.
 
 ## Non-goals (v1)
 
-- **Email hosting** — IP reputation and the abuse/support burden are a product on their own.
+- **Hosted email reputation** — we manage mail *software* (v0.4); we do not run a relay or deliverability service.
 - **Windows servers** — the agent targets Linux (systemd, nginx, certbot) exclusively.
 - **Kubernetes-style orchestration** — CloudDeck manages one to a few VPSes, not a cluster.

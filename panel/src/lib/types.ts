@@ -105,3 +105,92 @@ export interface ApiErrorBody {
     message: string;
   };
 }
+
+// --- File manager (v0.2) ---
+
+export type FileEntryType = "file" | "dir" | "symlink";
+
+export interface FileEntry {
+  name: string;
+  type: FileEntryType;
+  sizeBytes: number;
+  modifiedAt: string;
+}
+
+export interface FileListResponse {
+  path: string;
+  entries: FileEntry[];
+}
+
+export interface FileContentResponse {
+  path: string;
+  content: string;
+  sizeBytes: number;
+}
+
+export interface FileWriteRequest {
+  path: string;
+  content: string;
+}
+
+export interface FileWriteResponse {
+  path: string;
+  sizeBytes: number;
+}
+
+export interface FileUploadResponse {
+  uploaded: { name: string; sizeBytes: number }[];
+}
+
+export interface FileMkdirRequest {
+  path: string;
+}
+
+export interface FileRenameRequest {
+  from: string;
+  to: string;
+}
+
+// --- MySQL (v0.2) ---
+
+export interface MySQLStatus {
+  available: boolean;
+  version?: string;
+  kind?: "mysql" | "mariadb" | "";
+}
+
+export interface MySQLDatabase {
+  name: string;
+}
+
+export interface MySQLListDatabasesResponse {
+  databases: MySQLDatabase[];
+}
+
+export interface MySQLUser {
+  user: string;
+  host: string;
+}
+
+export interface MySQLListUsersResponse {
+  users: MySQLUser[];
+}
+
+export interface MySQLCreateUserRequest {
+  user: string;
+  password?: string;
+  host?: string;
+}
+
+export interface MySQLCreateUserResponse {
+  user: string;
+  host: string;
+  password?: string;
+}
+
+export interface MySQLGrantRequest {
+  user: string;
+  host?: string;
+  database: string;
+  privileges: "all";
+}

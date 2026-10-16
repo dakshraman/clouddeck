@@ -17,6 +17,11 @@ The API contract is frozen in [`../../docs/api.md`](../../docs/api.md) (section 
 | `AGENT_WEBROOT` | `/www/wwwroot` | Parent dir for site document roots |
 | `AGENT_PHP_BASE` | `/etc/php` | Scanned for `8.x` version dirs |
 | `AGENT_LOG_DIR` | `/var/log/nginx` | Directory site access/error logs point at (created if missing) |
+| `AGENT_PHP_FPM_SOCK` | `/run/php/php{{version}}-fpm.sock` | php-fpm socket template; `{{version}}` → site PHP version (aaPanel: `/tmp/php-cgi-{{version}}.sock`) |
+| `AGENT_MYSQL_BIN` | `mysql` | Client binary used for database management |
+| `AGENT_MYSQL_ROOT_USER` | `root` | Admin user for database management |
+| `AGENT_MYSQL_ROOT_PASSWORD` | (empty) | Admin password (passed via `MYSQL_PWD`; empty = client defaults / socket auth) |
+| `AGENT_MYSQL_HOST` / `AGENT_MYSQL_PORT` | (empty) | Empty = connect via local socket |
 | `AGENT_DRY_RUN` | `false` | No system changes; configs go to `<state>/dryrun/` |
 
 ## Build and run

@@ -1,5 +1,6 @@
 // Command clouddeck-agent is the privileged CloudDeck agent: it manages
-// nginx sites, SSL certificates and host metrics behind a localhost HTTP API.
+// nginx sites, site files, MySQL databases, SSL certificates and host
+// metrics behind a localhost HTTP API.
 package main
 
 import (
@@ -14,6 +15,8 @@ import (
 
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/server"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/ssl"
@@ -48,6 +51,8 @@ func main() {
 	eng := tasks.New(st, ctx)
 	siteSvc := sites.New(st, eng, auditLog, cfg)
 	sslIssuer := ssl.New(st, siteSvc, eng, auditLog, cfg)
+	fileSvc := files.New(st, auditLog, cfg)
+	mysqlSvc := mysql.New(auditLog, cfg)
 
 	if cfg.DryRun {
 		log.Printf("clouddeck-agent: dry-run mode, skipping reconciliation")
@@ -57,7 +62,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc),
 	}
 	go func() {
 		<-ctx.Done()

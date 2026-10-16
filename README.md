@@ -69,6 +69,7 @@ Two smoke tests exercise the full stack against a running deployment:
 
 ```bash
 bash scripts/agent-smoke-test.sh http://127.0.0.1:9090   # agent API: validation, create/poll/delete, dry-run friendly
+bash scripts/v02-agent-smoke-test.sh                      # file manager + MySQL (real mode; creates and removes its own test site + database)
 ```
 
 ```powershell
@@ -83,7 +84,7 @@ powershell -ExecutionPolicy Bypass -File scripts/panel-smoke-test.ps1   # end-to
 agent/      Go agent: HTTP/JSON API on 127.0.0.1:9090, async tasks, audit log
 panel/      Next.js panel: UI + API routes, session auth, agent proxy
 docs/       architecture.md, api.md, deployment.md, roadmap.md
-scripts/    install-agent.sh (VPS installer), dev.ps1 (Windows helpers), agent-smoke-test.sh + panel-smoke-test.ps1 (smoke tests)
+scripts/    install-agent.sh (VPS installer), dev.ps1 (Windows helpers), agent-smoke-test.sh + v02-agent-smoke-test.sh + panel-smoke-test.ps1 (smoke tests)
 .github/    CI workflow (agent build/vet/test, panel typecheck)
 docker-compose.yml  dev stack: agent + nginx container, panel
 Makefile            developer entry points
@@ -98,6 +99,6 @@ Makefile            developer entry points
 
 ## Status
 
-Early MVP (`v0.1.0`): sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment. See [docs/roadmap.md](docs/roadmap.md) for what lands next.
+Current release (`v0.2.0`): sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment, **file manager** (browse/edit/upload/download — path-confined, symlink-rejecting, audited) and **MySQL management** (databases, users, grants, generated passwords). See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
 License: TBD.

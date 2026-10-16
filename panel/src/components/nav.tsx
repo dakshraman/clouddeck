@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Globe, LayoutDashboard, Settings, type LucideIcon } from "lucide-react";
+import { Database, Globe, LayoutDashboard, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
 interface NavItem {
@@ -24,6 +24,12 @@ const items: NavItem[] = [
     label: "Sites",
     icon: Globe,
     isActive: (pathname) => pathname === "/sites" || pathname.startsWith("/sites/"),
+  },
+  {
+    href: "/databases",
+    label: "Databases",
+    icon: Database,
+    isActive: (pathname) => pathname === "/databases" || pathname.startsWith("/databases/"),
   },
   {
     href: "/settings",

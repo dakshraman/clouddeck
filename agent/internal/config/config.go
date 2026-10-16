@@ -16,6 +16,12 @@ type Config struct {
 	Webroot       string
 	PHPBase       string
 	LogDir        string
+	PHPFpmSock    string
+	MySQLBin      string
+	MySQLRootUser string
+	MySQLRootPass string
+	MySQLHost     string
+	MySQLPort     string
 	DryRun        bool
 }
 
@@ -28,6 +34,12 @@ func Load() (Config, error) {
 		Webroot:       env("AGENT_WEBROOT", "/www/wwwroot"),
 		PHPBase:       env("AGENT_PHP_BASE", "/etc/php"),
 		LogDir:        env("AGENT_LOG_DIR", "/var/log/nginx"),
+		PHPFpmSock:    env("AGENT_PHP_FPM_SOCK", "/run/php/php{{version}}-fpm.sock"),
+		MySQLBin:      env("AGENT_MYSQL_BIN", "mysql"),
+		MySQLRootUser: env("AGENT_MYSQL_ROOT_USER", "root"),
+		MySQLRootPass: env("AGENT_MYSQL_ROOT_PASSWORD", ""),
+		MySQLHost:     env("AGENT_MYSQL_HOST", ""),
+		MySQLPort:     env("AGENT_MYSQL_PORT", ""),
 	}
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
 		dryRun, err := strconv.ParseBool(raw)

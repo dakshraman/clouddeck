@@ -57,7 +57,7 @@ func TestValidateDomainNormalizes(t *testing.T) {
 
 func TestRenderNginxConfig(t *testing.T) {
 	site := store.Site{Domain: "example.com", Root: "/www/wwwroot/example.com", PHPVersion: "8.3"}
-	config := RenderNginxConfig(site, "/var/log/nginx")
+	config := RenderNginxConfig(site, "/var/log/nginx", "/run/php/php{{version}}-fpm.sock")
 
 	for _, want := range []string{
 		managedMarker,
@@ -77,7 +77,7 @@ func TestRenderNginxConfig(t *testing.T) {
 
 func TestRenderNginxConfigStaticSite(t *testing.T) {
 	site := store.Site{Domain: "static.example.org", Root: "/www/wwwroot/static.example.org", PHPVersion: "none"}
-	config := RenderNginxConfig(site, "/var/log/nginx")
+	config := RenderNginxConfig(site, "/var/log/nginx", "/run/php/php{{version}}-fpm.sock")
 	if strings.Contains(config, "fastcgi_pass") {
 		t.Errorf("static site config contains PHP block:\n%s", config)
 	}
@@ -90,7 +90,7 @@ func TestRenderNginxConfigWithSSL(t *testing.T) {
 		PHPVersion: "none",
 		SSL:        store.SSL{Enabled: true, Issuer: "Let's Encrypt"},
 	}
-	config := RenderNginxConfig(site, "/var/log/nginx")
+	config := RenderNginxConfig(site, "/var/log/nginx", "/run/php/php{{version}}-fpm.sock")
 	for _, want := range []string{
 		managedMarker,
 		"listen 443 ssl;",

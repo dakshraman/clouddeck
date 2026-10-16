@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { TaskLog } from "@/components/task-log";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { ArrowLeft, Globe, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Globe, ShieldCheck, Trash2 } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
 
@@ -175,6 +175,13 @@ export function SiteDetail({ domain }: { domain: string }) {
           </h1>
           <Badge variant={siteStatusVariant(site.status)}>{titleCase(site.status)}</Badge>
           {site.ssl.enabled ? <Badge variant="green">SSL</Badge> : null}
+          <Link
+            href={`/sites/${encodeURIComponent(site.domain)}/files`}
+            className={buttonClass("secondary", "sm")}
+          >
+            <FolderOpen size={14} aria-hidden="true" />
+            Files
+          </Link>
         </div>
       </div>
 

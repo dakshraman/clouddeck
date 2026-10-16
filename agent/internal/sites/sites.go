@@ -159,7 +159,7 @@ func (s *Service) ApplyNginx(ctx context.Context, log tasks.LogFunc, site store.
 	previous, readErr := os.ReadFile(confPath)
 	hadPrevious := readErr == nil
 
-	if err := os.WriteFile(confPath, []byte(RenderNginxConfig(site, s.cfg.LogDir)), 0o644); err != nil {
+	if err := os.WriteFile(confPath, []byte(RenderNginxConfig(site, s.cfg.LogDir, s.cfg.PHPFpmSock)), 0o644); err != nil {
 		return fmt.Errorf("write nginx config %s: %w", confPath, err)
 	}
 	log("info", "wrote nginx config "+confPath)

@@ -63,7 +63,7 @@ Verify the agent:
 
 ```bash
 curl -fsS http://127.0.0.1:9090/v1/health
-# {"status":"ok","version":"0.1.0","hostname":"...","os":"linux/amd64","dryRun":false}
+# {"status":"ok","version":"0.2.0","hostname":"...","os":"linux/amd64","dryRun":false}
 ```
 
 Useful service commands:

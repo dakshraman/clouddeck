@@ -13,6 +13,8 @@ import (
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/ssl"
@@ -21,7 +23,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 const maxBodyBytes = 1 << 20
 
@@ -31,11 +33,13 @@ type Server struct {
 	eng   *tasks.Engine
 	sites *sites.Service
 	ssl   *ssl.Issuer
+	files *files.Service
+	mysql *mysql.Service
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -46,6 +50,25 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/sites/{domain}", s.handleGetSite)
 	mux.HandleFunc("DELETE /v1/sites/{domain}", s.handleDeleteSite)
 	mux.HandleFunc("POST /v1/sites/{domain}/ssl", s.handleIssueSSL)
+
+	mux.HandleFunc("GET /v1/sites/{domain}/files", s.handleFileList)
+	mux.HandleFunc("GET /v1/sites/{domain}/files/content", s.handleFileRead)
+	mux.HandleFunc("PUT /v1/sites/{domain}/files/content", s.handleFileWrite)
+	mux.HandleFunc("GET /v1/sites/{domain}/files/download", s.handleFileDownload)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/upload", s.handleFileUpload)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/mkdir", s.handleFileMkdir)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/rename", s.handleFileRename)
+	mux.HandleFunc("DELETE /v1/sites/{domain}/files", s.handleFileDelete)
+
+	mux.HandleFunc("GET /v1/mysql/status", s.handleMySQLStatus)
+	mux.HandleFunc("GET /v1/mysql/databases", s.handleMySQLListDatabases)
+	mux.HandleFunc("POST /v1/mysql/databases", s.handleMySQLCreateDatabase)
+	mux.HandleFunc("DELETE /v1/mysql/databases/{name}", s.handleMySQLDeleteDatabase)
+	mux.HandleFunc("GET /v1/mysql/users", s.handleMySQLListUsers)
+	mux.HandleFunc("POST /v1/mysql/users", s.handleMySQLCreateUser)
+	mux.HandleFunc("DELETE /v1/mysql/users/{user}", s.handleMySQLDeleteUser)
+	mux.HandleFunc("POST /v1/mysql/grants", s.handleMySQLGrant)
+
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)
 	mux.HandleFunc("/", s.handleNotFound)
