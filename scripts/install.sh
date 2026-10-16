@@ -162,8 +162,8 @@ if [ "$UNINSTALL" = "1" ]; then
     rm -f /etc/systemd/system/clouddeck-agent.service /etc/systemd/system/clouddeck-panel.service
     systemctl daemon-reload >/dev/null 2>&1 || true
   fi
+  if [ -x "$PREFIX/run/stop.sh" ]; then "$PREFIX/run/stop.sh" >/dev/null 2>&1 || true; fi
   pkill -f "$PREFIX/clouddeck-agent" 2>/dev/null || true
-  pkill -f "$PREFIX/panel" 2>/dev/null || true
   rm -rf "$PREFIX"
   if [ "$PURGE" = "1" ]; then
     rm -rf "$DATADIR" "$ETCDIR"
@@ -333,18 +333,28 @@ cat > "$PREFIX/run/start.sh" <<EOF
 set -eu
 if [ -f "$ETCDIR/agent.env" ]; then
   set -a; . "$ETCDIR/agent.env"; set +a
-  ( cd "$PREFIX" && nohup "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 < /dev/null & )
+  ( cd "$PREFIX" && nohup "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 < /dev/null & echo \$! > "$PREFIX/run/agent.pid" )
 fi
 if [ -f "$ETCDIR/panel.env" ]; then
   set -a; . "$ETCDIR/panel.env"; set +a
-  ( cd "$PREFIX/panel" && nohup "$PREFIX/node/bin/node server.js >> "$PREFIX/run/panel.log" 2>&1 < /dev/null & )
+  ( cd "$PREFIX/panel" && nohup "$PREFIX/node/bin/node" server.js >> "$PREFIX/run/panel.log" 2>&1 < /dev/null & echo \$! > "$PREFIX/run/panel.pid" )
 fi
 echo "started"
 EOF
 cat > "$PREFIX/run/stop.sh" <<EOF
 #!/bin/sh
-pkill -f "$PREFIX/clouddeck-agent" 2>/dev/null || true
-pkill -f "$PREFIX/panel/server.js" 2>/dev/null || true
+# Stops the processes started by start.sh (pid files in the same directory).
+stop_one() {
+  pidfile="\$1"
+  [ -f "\$pidfile" ] || return 0
+  pid="\$(cat "\$pidfile")"
+  kill "\$pid" 2>/dev/null || true
+  sleep 1
+  if kill -0 "\$pid" 2>/dev/null; then kill -9 "\$pid" 2>/dev/null || true; fi
+  rm -f "\$pidfile"
+}
+stop_one "$PREFIX/run/panel.pid"
+stop_one "$PREFIX/run/agent.pid"
 echo "stopped"
 EOF
 chmod +x "$PREFIX/run/start.sh" "$PREFIX/run/stop.sh"
@@ -373,7 +383,7 @@ if [ "$DO_PANEL" = "1" ]; then
   say "-- waiting for the panel"
   i=0
   while [ $i -lt 30 ]; do
-    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then break; fi
+    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then break; fi
     i=$((i + 1)); sleep 1
   done
   if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then

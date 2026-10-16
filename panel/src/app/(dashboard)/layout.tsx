@@ -5,6 +5,10 @@ import { LogoutButton } from "@/components/logout-button";
 import { Nav } from "@/components/nav";
 import { Topbar } from "@/components/topbar";
 
+// Auth + setup state are per-request; never prerender/cache this tree at
+// build time (a build-time redirect to /setup would otherwise be frozen in).
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const user = await requireSession();
 
