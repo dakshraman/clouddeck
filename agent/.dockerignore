@@ -1,0 +1,6 @@
+# Keep the agent build context slim.
+data
+bin
+*.exe
+.git
+Dockerfile

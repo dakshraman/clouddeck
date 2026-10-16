@@ -118,6 +118,7 @@ The panel validates input again (same domain regex, rudimentary email check) →
 | `AGENT_NGINX_SITES_DIR` | `/etc/nginx/conf.d` |
 | `AGENT_WEBROOT` | `/www/wwwroot` |
 | `AGENT_PHP_BASE` | `/etc/php` |
+| `AGENT_LOG_DIR` | `/var/log/nginx` |
 | `AGENT_DRY_RUN` | `false` |
 
 **Panel:**
