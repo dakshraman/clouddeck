@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
+import { isSetupComplete } from "@/lib/users";
 import type { SessionUser } from "@/lib/types";
 
 const COOKIE_NAME = "cd_session";
@@ -67,10 +68,12 @@ export async function getSession(): Promise<SessionUser | null> {
 }
 
 export async function requireSession(): Promise<SessionUser> {
+  if (!isSetupComplete()) {
+    redirect("/setup");
+  }
   const session = await getSession();
   if (!session) {
     redirect("/login");
-    throw new Error("unreachable: redirect() should not return");
   }
   return session;
 }

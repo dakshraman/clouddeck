@@ -19,7 +19,7 @@ CloudDeck lets you manage websites, SSL certificates, and server services from a
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
-Installs the agent (static binary) and panel (self-contained bundle, no distro packages needed: everything is fetched with `curl` and unpacked with `tar`). Works on x86_64 and aarch64, with systemd or plain init fallback. Prints the panel URL and a generated admin password when done.
+Installs the agent (static binary) and panel (self-contained bundle, no distro packages needed: everything is fetched with `curl` and unpacked with `tar`). Works on x86_64 and aarch64, with systemd or plain init fallback. Ends by printing the panel URL; the admin account is created in the browser on first visit (first-run setup wizard).
 
 - Flags: `--version vX.Y.Z`, `--prefix`, `--panel-port`, `--agent-port`, `--no-panel`, `--no-agent`, `--uninstall`, `--purge` → `curl ... | sudo bash -s -- --help`
 - Private repo: add `-H "Authorization: token <gh-token>"` to the curl and pass `--gh-token <gh-token>` to the installer.
@@ -30,7 +30,7 @@ Installs the agent (static binary) and panel (self-contained bundle, no distro p
 docker compose up -d --build
 ```
 
-Then open http://localhost:3000 and log in with `admin` / `admin` (change the seed password via `PANEL_SEED_PASSWORD` before any real use).
+Then open http://localhost:3000 — the first visit creates your admin account in the setup wizard.
 
 This starts:
 
@@ -110,6 +110,6 @@ Makefile            developer entry points
 
 ## Status
 
-Current release (`v0.2.0`): sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment, **file manager** (browse/edit/upload/download — path-confined, symlink-rejecting, audited) and **MySQL management** (databases, users, grants, generated passwords). See [docs/roadmap.md](docs/roadmap.md) for what lands next.
+Current release (`v0.2.1`): **one-command installer** (`curl … | sudo bash`, any Linux distro, installs the latest stable release) with a **first-run setup wizard** (admin account created in the browser), sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment, **file manager** (browse/edit/upload/download — path-confined, symlink-rejecting, audited) and **MySQL management** (databases, users, grants, generated passwords). See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
 License: TBD.

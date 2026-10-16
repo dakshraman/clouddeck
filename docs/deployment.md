@@ -11,7 +11,7 @@ Target: a fresh Ubuntu 24.04 VPS with root or sudo. Two components are deployed:
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
-Downloads release artifacts with curl only — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime — so no distro packages are required. Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). Re-running upgrades the binaries and keeps config; `--uninstall` removes binaries (add `--purge` for data too). Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
+Downloads release artifacts with curl only — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime — so no distro packages are required. Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). The admin account is created in the browser on first visit (first-run setup wizard). Re-running upgrades the binaries and keeps config; `--uninstall` removes binaries (add `--purge` for data too). Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
 
 The steps below describe manual/advanced deployments and the Docker topology.
 
@@ -97,8 +97,9 @@ cd /opt/clouddeck
 Edit `docker-compose.yml` before the first start:
 
 - `PANEL_SESSION_SECRET` → a long random value: `openssl rand -hex 32`
-- `PANEL_SEED_PASSWORD` → your initial admin password (used only to seed the
-  first user; see the security notes below)
+- The admin account is created in the browser on first visit (setup wizard).
+  Optionally set `PANEL_SEED_ADMIN` / `PANEL_SEED_PASSWORD` to pre-create it
+  (unattended; see the security notes below)
 - For a production host, bind published ports to localhost only — Docker
   publishes ports with its own iptables rules that **bypass ufw**:
 
@@ -169,9 +170,10 @@ AGENT_URL=http://127.0.0.1:9090
 PANEL_DATA_DIR=/opt/clouddeck-panel/data
 # openssl rand -hex 32
 PANEL_SESSION_SECRET=replace-with-openssl-rand-hex-32
-# Seed credentials apply only on the first start (no users.json yet).
-PANEL_SEED_ADMIN=admin
-PANEL_SEED_PASSWORD=replace-before-first-start
+# Optional: pre-create the admin account (otherwise the panel opens its
+# setup wizard on first visit; ignored once users.json exists):
+# PANEL_SEED_ADMIN=admin
+# PANEL_SEED_PASSWORD=replace-before-first-start
 EOF
 sudo chmod 600 /etc/clouddeck/panel.env
 ```
@@ -349,8 +351,10 @@ server (restic, rclone, scp — scheduled via cron or a systemd timer).
 
 ## Security notes
 
-- **Set the seed password before the first start.** `PANEL_SEED_PASSWORD` is
-  only used to create the first user; once `users.json` exists it is ignored.
+- **Create the admin account on first visit.** The panel shows a setup wizard
+  until the first account exists. With `PANEL_SEED_ADMIN`/`PANEL_SEED_PASSWORD`
+  set, that account is pre-created on first start instead (ignored once
+  `users.json` exists).
 - **Set `PANEL_SESSION_SECRET`** to a long random value (`openssl rand -hex 32`).
   Rotating it invalidates existing sessions.
 - **Keep the agent on `127.0.0.1`.** No authentication exists in v0.1 (mutual

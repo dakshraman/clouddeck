@@ -42,8 +42,6 @@ services:
       AGENT_URL: http://server:9090
       PANEL_SESSION_SECRET: dev-secret-change-me
       PANEL_DATA_DIR: /data
-      PANEL_SEED_ADMIN: admin
-      PANEL_SEED_PASSWORD: admin
     volumes:
       - clouddeck-panel-data:/data
     depends_on:

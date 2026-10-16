@@ -26,6 +26,6 @@ export const config = {
   dataDir: process.env.PANEL_DATA_DIR || "./data",
   sessionSecret,
   cookieSecure: resolveCookieSecure(),
-  seedAdmin: process.env.PANEL_SEED_ADMIN || "admin",
-  seedPassword: process.env.PANEL_SEED_PASSWORD || "admin",
+  seedAdmin: process.env.PANEL_SEED_ADMIN?.trim() || null,
+  seedPassword: process.env.PANEL_SEED_PASSWORD || null,
 } as const;

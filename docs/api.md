@@ -146,11 +146,12 @@ Credentials for the client: `AGENT_MYSQL_ROOT_USER` + `AGENT_MYSQL_ROOT_PASSWORD
 
 ## 2. Panel API
 
-Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session.
+Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.
 
 | Method | Path | Body / Notes |
 |---|---|---|
 | POST | `/api/auth/login` | `{username,password}` → `200 {user:{username}}` + Set-Cookie; `401` invalid |
+| POST | `/api/setup` | First-run only: `{username,password,email?}` → `201 {user:{username}}` + Set-Cookie (setup wizard, auto sign-in); `400 invalid_setup`, `409 already_setup` |
 | POST | `/api/auth/logout` | → `204`, clears cookie |
 | GET | `/api/auth/me` | → `{user:{username}}` or `401` |
 | GET | `/api/system` | Passthrough agent `/v1/system` |
@@ -213,8 +214,10 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_URL` | `http://127.0.0.1:9090` |
 | `PANEL_SESSION_SECRET` | `dev-secret-change-me` (warns; **must** change in production) |
 | `PANEL_DATA_DIR` | `./data` |
-| `PANEL_SEED_ADMIN` | `admin` (used only on first run) |
-| `PANEL_SEED_PASSWORD` | `admin` (used only on first run) |
+| `PANEL_SEED_ADMIN` | (unset — panel starts in first-run setup mode) |
+| `PANEL_SEED_PASSWORD` | (unset) |
+
+Setting both `PANEL_SEED_*` vars creates that admin account on first start and skips the web setup wizard (unattended provisioning, e.g. containers/CI).
 
 ## 4. Cross-workstream rules
 

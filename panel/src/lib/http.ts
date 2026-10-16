@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AgentError } from "@/lib/agent";
 import { getSession } from "@/lib/session";
+import { isSetupComplete } from "@/lib/users";
 import type { SessionUser } from "@/lib/types";
 
 /** Frozen by docs/api.md section 4 — lowercase before testing. */
@@ -30,6 +31,9 @@ export function errorResponse(status: number, message: string, code?: string): N
 }
 
 export async function requireAuth(): Promise<SessionUser> {
+  if (!isSetupComplete()) {
+    throw new HttpError(403, "setup required", "setup_required");
+  }
   const user = await getSession();
   if (!user) {
     throw new HttpError(401, "unauthorized");

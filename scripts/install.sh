@@ -60,7 +60,28 @@ while [ $# -gt 0 ]; do
     --no-systemd)  FORCE_NO_SYSTEMD=1; shift ;;
     --uninstall)   UNINSTALL=1; shift ;;
     --purge)       PURGE=1; shift ;;
-    -h|--help)     sed -n '2,30p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)
+      cat <<'USAGE'
+CloudDeck installer - one command, any Linux distro.
+
+  curl -fsSL <release-url>/install.sh | sudo bash
+
+Flags:
+  --version vX.Y.Z     release to install (default: latest)
+  --prefix DIR         install dir (default: /opt/clouddeck)
+  --datadir DIR        state dir (default: /var/lib/clouddeck)
+  --etcdir DIR         config dir (default: /etc/clouddeck)
+  --agent-port N       agent port (default: 9090, binds 127.0.0.1)
+  --panel-port N       panel port (default: 3000, binds 0.0.0.0)
+  --gh-token TOKEN     GitHub token (private repos)
+  --no-agent           skip the agent
+  --no-panel           skip the panel
+  --no-systemd         force script mode even if systemd is present
+  --uninstall          stop and remove binaries + units (keeps data)
+  --purge              with --uninstall: remove data + config too
+USAGE
+      exit 0
+      ;;
     *)             die "unknown flag: $1 (see --help)" ;;
   esac
 done
@@ -78,13 +99,8 @@ case "$MACHINE" in
 esac
 
 # --- download helpers --------------------------------------------------------
-download() { # download URL OUTFILE
-  if [ -n "$GH_TOKEN" ]; then
-    curl -fsSL -H "Authorization: token $GH_TOKEN" -o "$2" "$1" \
-      || die "download failed: $1"
-  else
-    curl -fsSL -o "$2" "$1" || die "download failed: $1 (private repo? pass --gh-token)"
-  fi
+download() { # download URL OUTFILE  (plain public download, e.g. nodejs.org)
+  curl -fsSL -o "$2" "$1" || die "download failed: $1"
 }
 
 resolve_latest() { # sets VERSION to the latest tag
@@ -100,8 +116,33 @@ resolve_latest() { # sets VERSION to the latest tag
   [ -n "$VERSION" ] || die "could not resolve the latest release (private repo without --gh-token?)"
 }
 
-release_url() { # release_url FILENAME
-  printf 'https://github.com/%s/releases/download/%s/%s' "$REPO" "$VERSION" "$1"
+release_json() { # fetch the release JSON for $VERSION
+  if [ -n "$GH_TOKEN" ]; then
+    curl -fsSL -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+  else
+    curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+  fi
+}
+
+asset_id() { # asset_id FILENAME -> numeric id on stdout
+  release_json | tr -d '\n ' \
+    | sed -n "s/.*\"id\":\([0-9]*\),[^}]*\"name\":\"$1\".*/\1/p" | head -n 1
+}
+
+download_asset() { # download_asset FILENAME OUTFILE
+  _name="$1"
+  if [ -n "$GH_TOKEN" ]; then
+    # private (or authenticated) repos: web download URLs do not accept tokens,
+    # the release asset API does.
+    _id="$(asset_id "$_name")"
+    [ -n "$_id" ] || die "release asset $_name not found in $VERSION"
+    curl -fsSL -H "Authorization: token $GH_TOKEN" -H "Accept: application/octet-stream" \
+      -o "$2" "https://api.github.com/repos/$REPO/releases/assets/$_id" \
+      || die "download failed: $_name"
+  else
+    curl -fsSL -o "$2" "https://github.com/$REPO/releases/download/$VERSION/$_name" \
+      || die "download failed: $_name (private repo? pass --gh-token)"
+  fi
 }
 
 systemd_present() {
@@ -147,7 +188,7 @@ mkdir -p "$PREFIX" "$DATADIR" "$ETCDIR"
 if [ "$DO_AGENT" = "1" ]; then
   say "-- downloading agent"
   AGENT_FILE="clouddeck-agent-linux-$ARCH_GO"
-  download "$(release_url "$AGENT_FILE")" "$TMP/$AGENT_FILE"
+  download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE"
   install -m 0755 "$TMP/$AGENT_FILE" "$PREFIX/clouddeck-agent.new"
   mv -f "$PREFIX/clouddeck-agent.new" "$PREFIX/clouddeck-agent"
   say "   installed $PREFIX/clouddeck-agent"
@@ -172,7 +213,7 @@ fi
 # --- panel -------------------------------------------------------------------
 if [ "$DO_PANEL" = "1" ]; then
   say "-- downloading panel"
-  download "$(release_url "clouddeck-panel.tar.gz")" "$TMP/clouddeck-panel.tar.gz"
+  download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
   mkdir -p "$PREFIX/panel"
   tar -xzf "$TMP/clouddeck-panel.tar.gz" -C "$PREFIX/panel" || die "failed to extract panel"
   say "   installed $PREFIX/panel"
@@ -216,10 +257,8 @@ EOF
   say "-- wrote $ETCDIR/agent.env"
 fi
 
-SEED_PRINTED=""
 if [ "$DO_PANEL" = "1" ] && [ ! -f "$ETCDIR/panel.env" ]; then
   SECRET="$(random_hex 32)"
-  SEED_PW="$(random_hex 12)"
   cat > "$ETCDIR/panel.env" <<EOF
 # CloudDeck panel configuration
 PORT=$PANEL_PORT
@@ -228,13 +267,14 @@ NODE_ENV=production
 AGENT_URL=http://127.0.0.1:$AGENT_PORT
 PANEL_DATA_DIR=$DATADIR/panel
 PANEL_SESSION_SECRET=$SECRET
-PANEL_SEED_ADMIN=admin
-PANEL_SEED_PASSWORD=$SEED_PW
+# Optional unattended provisioning - uncomment both to create this admin
+# account on first start and skip the web setup wizard:
+# PANEL_SEED_ADMIN=admin
+# PANEL_SEED_PASSWORD=change-me
 # Set to true once the panel is served over HTTPS:
 PANEL_COOKIE_SECURE=false
 EOF
   chmod 600 "$ETCDIR/panel.env"
-  SEED_PRINTED="$SEED_PW"
   say "-- wrote $ETCDIR/panel.env"
 fi
 
@@ -329,6 +369,20 @@ if [ "$DO_AGENT" = "1" ]; then
   fi
 fi
 
+if [ "$DO_PANEL" = "1" ]; then
+  say "-- waiting for the panel"
+  i=0
+  while [ $i -lt 30 ]; do
+    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then break; fi
+    i=$((i + 1)); sleep 1
+  done
+  if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then
+    say "   panel OK (localhost:$PANEL_PORT)"
+  else
+    warn "panel did not answer on port $PANEL_PORT - check logs"
+  fi
+fi
+
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 [ -n "$IP" ] || IP="<server-ip>"
 
@@ -336,11 +390,7 @@ say ""
 say "================ CloudDeck installed ================"
 if [ "$DO_PANEL" = "1" ]; then
   say "  Panel:     http://$IP:$PANEL_PORT"
-  if [ -n "$SEED_PRINTED" ]; then
-    say "  Login:     admin / $SEED_PRINTED"
-  else
-    say "  Login:     (existing panel.env - unchanged)"
-  fi
+  say "  Setup:     open the panel URL to create your admin account"
 fi
 if [ "$DO_AGENT" = "1" ]; then
   say "  Agent API: http://127.0.0.1:$AGENT_PORT/v1/health (localhost only)"
