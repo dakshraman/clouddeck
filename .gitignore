@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Runtime data
+data/
+
+# Go
+agent/bin/
+*.exe
+
+# Env files
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tools / scratch
+.tools/
