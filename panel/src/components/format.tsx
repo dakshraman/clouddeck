@@ -68,6 +68,10 @@ export function taskTypeLabel(type: TaskType | string): string {
       return "Delete site";
     case "ssl.issue":
       return "Issue SSL";
+    case "backup.create":
+      return "Create backup";
+    case "backup.restore":
+      return "Restore backup";
     default:
       return type;
   }
