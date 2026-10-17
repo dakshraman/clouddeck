@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Database, Globe, LayoutDashboard, Settings, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Database, Globe, LayoutDashboard, Network, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
 interface NavItem {
@@ -30,6 +30,24 @@ const items: NavItem[] = [
     label: "Databases",
     icon: Database,
     isActive: (pathname) => pathname === "/databases" || pathname.startsWith("/databases/"),
+  },
+  {
+    href: "/dns",
+    label: "DNS",
+    icon: Network,
+    isActive: (pathname) => pathname === "/dns" || pathname.startsWith("/dns/"),
+  },
+  {
+    href: "/backups",
+    label: "Backups",
+    icon: Archive,
+    isActive: (pathname) => pathname === "/backups" || pathname.startsWith("/backups/"),
+  },
+  {
+    href: "/monitoring",
+    label: "Monitoring",
+    icon: Activity,
+    isActive: (pathname) => pathname === "/monitoring" || pathname.startsWith("/monitoring/"),
   },
   {
     href: "/settings",

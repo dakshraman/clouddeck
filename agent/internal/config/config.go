@@ -23,6 +23,24 @@ type Config struct {
 	MySQLHost     string
 	MySQLPort     string
 	DryRun        bool
+
+	// v0.3 monitoring / service control
+	NginxRestartCmd  string
+	MySQLRestartCmd  string
+	PHPFpmRestartCmd string
+
+	// v0.3 DNS (PowerDNS via pdnsutil)
+	PdnsUtilBin    string
+	PdnsConfDir    string
+	PdnsControlBin string
+
+	// v0.3 backups
+	BackupDir        string
+	RcloneBin        string
+	MySQLDumpBin     string
+	TelegramBotToken string
+	TelegramChatID   string
+	TelegramAPI      string
 }
 
 // Load reads the environment and applies documented defaults.
@@ -40,6 +58,21 @@ func Load() (Config, error) {
 		MySQLRootPass: env("AGENT_MYSQL_ROOT_PASSWORD", ""),
 		MySQLHost:     env("AGENT_MYSQL_HOST", ""),
 		MySQLPort:     env("AGENT_MYSQL_PORT", ""),
+
+		NginxRestartCmd:  env("AGENT_NGINX_RESTART_CMD", ""),
+		MySQLRestartCmd:  env("AGENT_MYSQL_RESTART_CMD", ""),
+		PHPFpmRestartCmd: env("AGENT_PHP_FPM_RESTART_CMD", ""),
+
+		PdnsUtilBin:    env("AGENT_PDNSUTIL_BIN", "pdnsutil"),
+		PdnsConfDir:    env("AGENT_PDNS_CONF_DIR", "/etc/powerdns"),
+		PdnsControlBin: env("AGENT_PDNS_CONTROL_BIN", "pdns_control"),
+
+		BackupDir:        env("AGENT_BACKUP_DIR", "/var/lib/clouddeck/backups"),
+		RcloneBin:        env("AGENT_RCLONE_BIN", "rclone"),
+		MySQLDumpBin:     env("AGENT_MYSQLDUMP_BIN", "mysqldump"),
+		TelegramBotToken: env("AGENT_TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:   env("AGENT_TELEGRAM_CHAT_ID", ""),
+		TelegramAPI:      env("AGENT_TELEGRAM_API", "https://api.telegram.org"),
 	}
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
 		dryRun, err := strconv.ParseBool(raw)

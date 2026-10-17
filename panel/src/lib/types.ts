@@ -3,7 +3,7 @@
  * This file mirrors docs/api.md exactly. Do not edit without updating docs/api.md first.
  */
 
-export type TaskType = "site.create" | "site.delete" | "ssl.issue";
+export type TaskType = "site.create" | "site.delete" | "ssl.issue" | "backup.create" | "backup.restore";
 export type TaskStatus = "pending" | "running" | "succeeded" | "failed";
 export type TaskLogLevel = "info" | "warn" | "error";
 
@@ -193,4 +193,85 @@ export interface MySQLGrantRequest {
   host?: string;
   database: string;
   privileges: "all";
+}
+
+// --- v0.3: monitoring, DNS, backups ---
+
+export type ServiceState = "running" | "stopped" | "unknown";
+
+export interface AgentService {
+  name: string;
+  label: string;
+  state: ServiceState;
+  pid?: number;
+  version?: string;
+  details?: string;
+}
+
+export interface ServiceListResponse {
+  services: AgentService[];
+}
+
+export interface DNSStatus {
+  available: boolean;
+  version?: string;
+  confDir?: string;
+}
+
+export interface DNSZone {
+  name: string;
+}
+
+export interface DNSZoneListResponse {
+  zones: DNSZone[];
+}
+
+export type DNSRecordType = "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS" | "SRV" | "CAA";
+
+export interface DNSRecord {
+  name: string;
+  type: string;
+  ttl: number;
+  content: string;
+}
+
+export interface DNSRecordListResponse {
+  records: DNSRecord[];
+}
+
+export interface CreateDNSZoneRequest {
+  name: string;
+}
+
+export interface CreateDNSRecordRequest {
+  name: string;
+  type: DNSRecordType;
+  content: string;
+  ttl?: number;
+}
+
+export type BackupKind = "site" | "database";
+
+export interface BackupArchive {
+  id: string;
+  kind: BackupKind;
+  source: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface BackupListResponse {
+  backups: BackupArchive[];
+}
+
+export interface BackupUploadTarget {
+  type: "telegram" | "rclone";
+  remote?: string;
+}
+
+export interface CreateBackupRequest {
+  kind: BackupKind;
+  site?: string;
+  database?: string;
+  uploads?: BackupUploadTarget[];
 }

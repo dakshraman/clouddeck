@@ -12,10 +12,13 @@ import (
 	"time"
 
 	"clouddeck/agent/internal/apierr"
+	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
+	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/ssl"
 	"clouddeck/agent/internal/systeminfo"
@@ -29,17 +32,20 @@ const maxBodyBytes = 1 << 20
 
 // Server wires the HTTP routes to the agent services.
 type Server struct {
-	cfg   config.Config
-	eng   *tasks.Engine
-	sites *sites.Service
-	ssl   *ssl.Issuer
-	files *files.Service
-	mysql *mysql.Service
+	cfg      config.Config
+	eng      *tasks.Engine
+	sites    *sites.Service
+	ssl      *ssl.Issuer
+	files    *files.Service
+	mysql    *mysql.Service
+	services *services.Manager
+	dns      *dns.Manager
+	backups  *backup.Service
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -68,6 +74,24 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/mysql/users", s.handleMySQLCreateUser)
 	mux.HandleFunc("DELETE /v1/mysql/users/{user}", s.handleMySQLDeleteUser)
 	mux.HandleFunc("POST /v1/mysql/grants", s.handleMySQLGrant)
+
+	mux.HandleFunc("GET /v1/services", s.handleListServices)
+	mux.HandleFunc("POST /v1/services/{name}/restart", s.handleRestartService)
+
+	mux.HandleFunc("GET /v1/dns/status", s.handleDNSStatus)
+	mux.HandleFunc("GET /v1/dns/zones", s.handleListDNSZones)
+	mux.HandleFunc("POST /v1/dns/zones", s.handleCreateDNSZone)
+	mux.HandleFunc("DELETE /v1/dns/zones/{zone}", s.handleDeleteDNSZone)
+	mux.HandleFunc("GET /v1/dns/zones/{zone}/records", s.handleListDNSRecords)
+	mux.HandleFunc("POST /v1/dns/zones/{zone}/records", s.handleAddDNSRecord)
+	mux.HandleFunc("DELETE /v1/dns/zones/{zone}/records", s.handleDeleteDNSRecord)
+
+	mux.HandleFunc("GET /v1/backups", s.handleListBackups)
+	mux.HandleFunc("POST /v1/backups", s.handleCreateBackup)
+	mux.HandleFunc("GET /v1/backups/{id}", s.handleGetBackup)
+	mux.HandleFunc("GET /v1/backups/{id}/download", s.handleDownloadBackup)
+	mux.HandleFunc("POST /v1/backups/{id}/restore", s.handleRestoreBackup)
+	mux.HandleFunc("DELETE /v1/backups/{id}", s.handleDeleteBackup)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

@@ -39,6 +39,21 @@ Base URL: `http://127.0.0.1:9090` (configurable via `AGENT_LISTEN`). Prefix `/v1
 | POST | `/v1/mysql/users` | Create user |
 | DELETE | `/v1/mysql/users/{user}?host=` | Delete user |
 | POST | `/v1/mysql/grants` | Grant ALL on a database to a user |
+| GET | `/v1/services` | Probe web-stack services (nginx/mysql/php-fpm) |
+| POST | `/v1/services/{name}/restart` | Restart one service (sync, audited) |
+| GET | `/v1/dns/status` | PowerDNS availability + version |
+| GET | `/v1/dns/zones` | List DNS zones |
+| POST | `/v1/dns/zones` | Create a DNS zone → `201` |
+| DELETE | `/v1/dns/zones/{zone}` | Delete a DNS zone |
+| GET | `/v1/dns/zones/{zone}/records` | List zone records |
+| POST | `/v1/dns/zones/{zone}/records` | Add a record → `201` |
+| DELETE | `/v1/dns/zones/{zone}/records?name=&type=` | Delete a record set (RRset) |
+| GET | `/v1/backups` | List local backup archives |
+| POST | `/v1/backups` | Create a backup (site/database) → `202 {taskId}` |
+| GET | `/v1/backups/{id}` | One archive's metadata |
+| GET | `/v1/backups/{id}/download` | Download an archive (stream) |
+| POST | `/v1/backups/{id}/restore` | Restore an archive → `202 {taskId}` |
+| DELETE | `/v1/backups/{id}` | Delete an archive (sync, audited) |
 | GET | `/v1/tasks` | Recent tasks, newest first (max 50) |
 | GET | `/v1/tasks/{id}` | One task, including logs |
 
@@ -75,7 +90,7 @@ Fails asynchronously (task `failed`) when certbot is not installed.
 }
 ```
 - `status`: `pending` → `running` → `succeeded` | `failed` (terminal states never change)
-- `type`: `site.create` | `site.delete` | `ssl.issue`
+- `type`: `site.create` | `site.delete` | `ssl.issue` | `backup.create` | `backup.restore`
 - `level`: `info` | `warn` | `error`
 - Logs capped at 500 entries per task; last 200 tasks kept. `finishedAt`/`error` may be null/omitted until relevant.
 
@@ -144,6 +159,55 @@ Credentials for the client: `AGENT_MYSQL_ROOT_USER` + `AGENT_MYSQL_ROOT_PASSWORD
 
 `503` body: `{"error":{"code":"mysql_unavailable","message":"..."}}` — returned when the client binary is missing or the server refuses the connection. Any other client failure → `500 {"code":"mysql_error"}` with the stderr tail as message.
 
+### 1.3 Monitoring / service endpoints
+
+Synchronous and audited (no tasks). The services are the host's web stack: `nginx`, `mysql`, `php-fpm`.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/services` | — | `200 {"services":[{"name","label","state","pid?","version?","details?"}]}` — `state`: `running`\|`stopped`\|`unknown`; every probe is best-effort | — |
+| `POST /v1/services/{name}/restart` | — | `200 {service}` — the freshly probed status after the restart command completed | `404 unknown_service`, `409 dry_run`, `412 restart_not_configured`, `502 service_restart_failed` |
+
+- `label` is human readable (e.g. `Nginx (web server)`).
+- Restart commands come from `AGENT_NGINX_RESTART_CMD`, `AGENT_MYSQL_RESTART_CMD`, `AGENT_PHP_FPM_RESTART_CMD`. Each value is split on whitespace into an **argument array** — it is never passed through a shell. Empty command → `412 restart_not_configured`; non-zero exit → `502 service_restart_failed` with a stderr tail (60 s timeout).
+- Restarts are serialized (one at a time) and written to the audit log.
+
+### 1.4 DNS endpoints
+
+PowerDNS zones and records driven through `pdnsutil` (`AGENT_PDNSUTIL_BIN`) with argument arrays only, serialized behind a mutex, 30 s timeout per invocation. `pdnsutil` missing → `503 {"code":"dns_unavailable"}`. All mutations are audited.
+
+**Validation:** zone `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$` (input lowercased first); record `name` = `@` (apex) or relative labels with that charset, ≤ 253 chars; record `type` ∈ `A,AAAA,CNAME,MX,TXT,NS,SRV,CAA`; `ttl` 0–604800 (0 = PowerDNS default); `content` non-empty, ≤ 512 chars, no control characters. `TXT` values are quoted for PowerDNS automatically; the API always returns them unquoted.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/dns/status` | — | `200 {"available":bool,"version?","confDir?"}` | — |
+| `GET /v1/dns/zones` | — | `200 {"zones":[{"name"}]}` — native zones | `503` |
+| `POST /v1/dns/zones` | `{"name"}` | `201 {"zone":{"name"}}` — creates a native zone (SOA included) | `400 invalid_zone`, `409 zone_exists`, `409 dry_run`, `503` |
+| `DELETE /v1/dns/zones/{zone}` | — | `200 {"zone","deleted":true}` | `400 invalid_zone`, `404 zone_not_found`, `409 dry_run`, `503` |
+| `GET /v1/dns/zones/{zone}/records` | — | `200 {"records":[{"name","type","ttl","content"}]}` — includes SOA/NS; `name` relative (`@` = apex) | `400 invalid_zone`, `404 zone_not_found`, `503` |
+| `POST /v1/dns/zones/{zone}/records` | `{"name","type","content","ttl"?}` | `201 {"record"}` | `400 invalid_record`, `404 zone_not_found`, `409 dry_run`, `503` |
+| `DELETE /v1/dns/zones/{zone}/records?name=&type=` | — | `200 {"name","type","deleted":true}` — deletes the whole RRset | `400 invalid_record`, `404 zone_not_found`/`record_not_found`, `409 dry_run`, `503` |
+
+### 1.5 Backup endpoints
+
+Archives live in `AGENT_BACKUP_DIR` with deterministic names: `site-<domain>-<unix>.tar.gz` (site files) and `database-<name>-<unix>.sql.gz` (mysqldump). The `id` in URLs is the file name and matches `^[a-z0-9][a-z0-9._-]{0,199}$`.
+
+Creating and restoring run as **tasks** (`backup.create`, `backup.restore`) with live logs; the task's `site` field carries the domain or database name. Listing, download and deletion are synchronous.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/backups` | — | `200 {"backups":[{"id","kind","source","sizeBytes","createdAt"}]}` newest first; unparseable files are skipped | — |
+| `POST /v1/backups` | `{"kind":"site"\|"database","site"?,"database"?,"uploads":[...]}` | `202 {"taskId"}` | `400 invalid_request`, `404 site_not_found`/`database_not_found`, `409 dry_run`, `412 telegram_not_configured` |
+| `GET /v1/backups/{id}` | — | `200 {archive}` | `400 invalid_id`, `404 backup_not_found` |
+| `GET /v1/backups/{id}/download` | — | `200` raw bytes, `Content-Disposition: attachment` | `400 invalid_id`, `404 backup_not_found` |
+| `POST /v1/backups/{id}/restore` | — | `202 {"taskId"}` — site: extracts into the existing site's webroot; database: feeds the dump into the existing database (no tables are dropped) | `400 invalid_id`, `404 backup_not_found`/`site_not_found`/`database_not_found`, `409 dry_run` |
+| `DELETE /v1/backups/{id}` | — | `200 {"id","deleted":true}` | `400 invalid_id`, `404 backup_not_found`, `409 dry_run` |
+
+**Create request details:**
+- `kind:"site"` requires `site` (domain of an existing site); `kind:"database"` requires `database` (existing database, validated through the MySQL client).
+- `uploads` (optional): `[{"type":"telegram"}]` sends the archive via the Bot API (`AGENT_TELEGRAM_BOT_TOKEN` + `AGENT_TELEGRAM_CHAT_ID`, base URL overridable with `AGENT_TELEGRAM_API` for tests); `[{"type":"rclone","remote":"gdrive:clouddeck/backups"}]` runs `rclone copy <archive> <remote>` (binary `AGENT_RCLONE_BIN`). Upload errors fail the task; the local archive is kept either way. Google Drive/MEGA/Dropbox are all reached through rclone remotes.
+- Database dumps use `AGENT_MYSQLDUMP_BIN` with the configured MySQL credentials (password via `MYSQL_PWD`, never on the command line).
+
 ## 2. Panel API
 
 Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.
@@ -177,6 +241,20 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/mysql/users` | `{user,password?,host?}` — may return generated password |
 | DELETE | `/api/mysql/users/{user}` | `?host=` |
 | POST | `/api/mysql/grants` | `{user,host?,database,privileges}` |
+| GET | `/api/services` | passthrough `/v1/services` |
+| POST | `/api/services/{name}/restart` | restart a service (proxied) |
+| GET | `/api/dns/status` | passthrough `/v1/dns/status` |
+| GET | `/api/dns/zones` | list zones |
+| POST | `/api/dns/zones` | `{name}` → create zone |
+| DELETE | `/api/dns/zones/{zone}` | delete zone |
+| GET | `/api/dns/zones/{zone}/records` | list records |
+| POST | `/api/dns/zones/{zone}/records` | `{name,type,content,ttl?}` → add record |
+| DELETE | `/api/dns/zones/{zone}/records` | `?name=&type=` → delete RRset |
+| GET | `/api/backups` | list archives |
+| POST | `/api/backups` | `{kind,site?,database?,uploads?}` → `202 {taskId}` |
+| GET | `/api/backups/{id}/download` | streamed download |
+| POST | `/api/backups/{id}/restore` | → `202 {taskId}` |
+| DELETE | `/api/backups/{id}` | delete archive |
 | GET | `/api/tasks` | → `{tasks:[...]}` |
 | GET | `/api/tasks/{id}` | → task |
 
@@ -206,6 +284,18 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_MYSQL_HOST` | (empty — local socket) |
 | `AGENT_MYSQL_PORT` | (empty) |
 | `AGENT_DRY_RUN` | `false` |
+| `AGENT_NGINX_RESTART_CMD` | (empty — nginx restarts disabled). Split on whitespace into argv; never a shell |
+| `AGENT_MYSQL_RESTART_CMD` | (empty) |
+| `AGENT_PHP_FPM_RESTART_CMD` | (empty) |
+| `AGENT_PDNSUTIL_BIN` | `pdnsutil` |
+| `AGENT_PDNS_CONF_DIR` | `/etc/powerdns` |
+| `AGENT_PDNS_CONTROL_BIN` | `pdns_control` |
+| `AGENT_BACKUP_DIR` | `/var/lib/clouddeck/backups` |
+| `AGENT_RCLONE_BIN` | `rclone` |
+| `AGENT_MYSQLDUMP_BIN` | `mysqldump` |
+| `AGENT_TELEGRAM_BOT_TOKEN` | (empty — Telegram uploads disabled) |
+| `AGENT_TELEGRAM_CHAT_ID` | (empty) |
+| `AGENT_TELEGRAM_API` | `https://api.telegram.org` (override for tests) |
 
 **Panel:**
 
@@ -225,4 +315,5 @@ Setting both `PANEL_SEED_*` vars creates that admin account on first start and s
 - Session helpers, exported from `@/lib/session`: `getSession(): Promise<SessionUser | null>` and `requireSession(): Promise<SessionUser>` (redirects to `/login` when invalid).
 - Task polling: UI polls `GET /api/tasks/{id}` every 1000 ms until status is `succeeded` or `failed`.
 - Domain validation regex (agent, panel, and UI hint): `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$` — lowercase input before validating.
-- File manager + MySQL mutations are **synchronous and audited**; tasks exist only for slow provisioning flows (site create/delete, SSL issue).
+- v0.2 file manager + MySQL mutations are **synchronous and audited**. v0.3: service restarts, DNS changes and backup deletion are synchronous + audited; backup create/restore are tasks (`backup.create`/`backup.restore`). Tasks exist only for slow flows (site create/delete, SSL issue, backups).
+- Panel routes for v0.3 (/api/services, /api/dns/**, /api/backups/**) mirror the agent shape 1:1.
