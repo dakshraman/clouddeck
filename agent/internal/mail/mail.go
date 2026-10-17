@@ -6,12 +6,18 @@ package mail
 
 import (
 	"context"
+	"fmt"
+	stdlog "log"
+	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
+	"clouddeck/agent/internal/safeexec"
 )
 
 // Service coordinates mail state and DNS helpers.
@@ -19,6 +25,10 @@ type Service struct {
 	cfg   config.Config
 	audit *audit.Log
 	dns   *dns.Manager
+
+	// mu serializes the read-modify-write cycles on the shared mail files.
+	// Reads rely on the atomic temp-file + rename writes instead.
+	mu sync.Mutex
 }
 
 // New creates the mail service.
@@ -84,89 +94,79 @@ type DNSResult struct {
 	Errors  []string          `json:"errors,omitempty"`
 }
 
-// Status returns the mail overview counts.
+// Status returns the mail overview counts. It never fails: unreadable files
+// and directories count as zero.
 func (s *Service) Status() Status {
-	return Status{}
+	status := Status{BaseDir: s.cfg.MailRoot, Hostname: s.cfg.MailHostname}
+	if domains, err := s.readDomains(); err == nil {
+		status.Domains = len(domains)
+	}
+	if lines, err := readLines(s.cfg.MailUsersFile); err == nil {
+		for _, line := range lines {
+			if _, ok := parsePasswdLine(line); ok {
+				status.Accounts++
+			}
+		}
+	}
+	if entries, err := os.ReadDir(s.cfg.MailDkimDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".key") {
+				status.DKIMEnabled++
+			}
+		}
+	}
+	return status
 }
 
-// ListDomains returns every mail domain, sorted.
-func (s *Service) ListDomains() ([]string, error) {
-	return nil, apierr.Internal("mail: ListDomains not implemented")
+// dryRunErr is the frozen reply of every mail mutation in dry-run mode.
+func dryRunErr() error {
+	return apierr.Conflict("dry_run", "mail operations are disabled in dry-run mode")
 }
 
-// AddDomain adds one mail domain.
-func (s *Service) AddDomain(domain string) error {
-	return apierr.Internal("mail: AddDomain not implemented")
+// record appends the accepted audit entry for a mutation. When the write
+// fails the mutation itself is already applied to disk, so that is logged
+// loudly and surfaced as a 500.
+func (s *Service) record(action string, params map[string]any) error {
+	if err := s.audit.Append(audit.Record{Action: action, Params: params, Result: audit.ResultAccepted}); err != nil {
+		stdlog.Printf("mail: WARNING: %s %v already applied on disk but writing the audit log failed: %v", action, params, err)
+		return apierr.Internal(fmt.Sprintf("write audit log: %v (the change may already be applied)", err))
+	}
+	return nil
 }
 
-// DeleteDomain removes a mail domain plus its accounts, forwarders and
-// autoresponders.
-func (s *Service) DeleteDomain(domain string) error {
-	return apierr.Internal("mail: DeleteDomain not implemented")
+// reject records a refused mutation (best effort) and returns err unchanged.
+func (s *Service) reject(action string, params map[string]any, err error) error {
+	if auditErr := s.audit.Append(audit.Record{Action: action, Params: params, Result: audit.ResultRejected, Error: err.Error()}); auditErr != nil {
+		stdlog.Printf("mail: write audit log: %v", auditErr)
+	}
+	return err
 }
 
-// ListAccounts lists mailboxes, optionally filtered by domain.
-func (s *Service) ListAccounts(domain string) ([]Account, error) {
-	return nil, apierr.Internal("mail: ListAccounts not implemented")
+// reload runs AGENT_MAIL_RELOAD_CMD after mutations that change the domains,
+// users or aliases files. The command is split on whitespace and executed
+// without a shell; failures are logged, never returned, because the on-disk
+// state is already consistent.
+func (s *Service) reload() {
+	argv := strings.Fields(s.cfg.MailReloadCmd)
+	if len(argv) == 0 {
+		return
+	}
+	if err := safeexec.Run(context.Background(), s.cfg.DryRun, s.logf, argv[0], argv[1:]...); err != nil {
+		stdlog.Printf("mail: reload command failed: %v", err)
+	}
 }
 
-// CreateAccount creates a mailbox (passwd-file entry + maildir).
-func (s *Service) CreateAccount(email, password string, quotaMB int64) (Account, error) {
-	return Account{}, apierr.Internal("mail: CreateAccount not implemented")
+// logf adapts the agent's log output to safeexec.Logger.
+func (s *Service) logf(level, message string) {
+	stdlog.Printf("mail: %s: %s", level, message)
 }
 
-// DeleteAccount removes a mailbox's passwd-file entry (maildir kept).
-func (s *Service) DeleteAccount(email string) error {
-	return apierr.Internal("mail: DeleteAccount not implemented")
-}
-
-// SetPassword rewrites one mailbox password entry.
-func (s *Service) SetPassword(email, password string) error {
-	return apierr.Internal("mail: SetPassword not implemented")
-}
-
-// SetQuota updates one mailbox quota.
-func (s *Service) SetQuota(email string, quotaMB int64) error {
-	return apierr.Internal("mail: SetQuota not implemented")
-}
-
-// ListForwarders lists aliases, optionally filtered by domain.
-func (s *Service) ListForwarders(domain string) ([]Forwarder, error) {
-	return nil, apierr.Internal("mail: ListForwarders not implemented")
-}
-
-// CreateForwarder adds one alias entry.
-func (s *Service) CreateForwarder(source, target string) error {
-	return apierr.Internal("mail: CreateForwarder not implemented")
-}
-
-// DeleteForwarder removes one alias entry.
-func (s *Service) DeleteForwarder(source string) error {
-	return apierr.Internal("mail: DeleteForwarder not implemented")
-}
-
-// GetAutoresponder returns one address's vacation reply.
-func (s *Service) GetAutoresponder(email string) (Autoresponder, error) {
-	return Autoresponder{}, apierr.Internal("mail: GetAutoresponder not implemented")
-}
-
-// SetAutoresponder upserts one address's vacation reply.
-func (s *Service) SetAutoresponder(a Autoresponder) (Autoresponder, error) {
-	return Autoresponder{}, apierr.Internal("mail: SetAutoresponder not implemented")
-}
-
-// DeleteAutoresponder removes one address's vacation reply.
-func (s *Service) DeleteAutoresponder(email string) error {
-	return apierr.Internal("mail: DeleteAutoresponder not implemented")
-}
-
-// DKIMStatus reports one domain's DKIM state.
-func (s *Service) DKIMStatus(domain string) (DKIMInfo, error) {
-	return DKIMInfo{}, apierr.Internal("mail: DKIMStatus not implemented")
-}
-
-// ApplyDNS generates/keeps the DKIM keypair and publishes the requested
-// records (SPF, DMARC, DKIM, MX) into the domain's PowerDNS zone.
-func (s *Service) ApplyDNS(ctx context.Context, domain string, opts DNSOptions) (DNSResult, error) {
-	return DNSResult{}, apierr.Internal("mail: ApplyDNS not implemented")
+// containsString reports whether values contain value.
+func containsString(values []string, value string) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }

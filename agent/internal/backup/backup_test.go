@@ -48,6 +48,7 @@ func newHarness(t *testing.T, mutate func(*config.Config)) *harness {
 		t.Fatalf("audit.Open: %v", err)
 	}
 	cfg := config.Config{
+		StateDir:      stateDir,
 		Webroot:       filepath.Join(dir, "www"),
 		BackupDir:     filepath.Join(dir, "backups"),
 		MySQLBin:      "mysql",

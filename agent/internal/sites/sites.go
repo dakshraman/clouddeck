@@ -159,7 +159,7 @@ func (s *Service) ApplyNginx(ctx context.Context, log tasks.LogFunc, site store.
 	previous, readErr := os.ReadFile(confPath)
 	hadPrevious := readErr == nil
 
-	if err := os.WriteFile(confPath, []byte(RenderNginxConfig(site, s.cfg.LogDir, s.cfg.PHPFpmSock)), 0o644); err != nil {
+	if err := os.WriteFile(confPath, []byte(RenderNginxConfig(site, s.cfg.LogDir, s.fpmSockFor(site.PHPVersion))), 0o644); err != nil {
 		return fmt.Errorf("write nginx config %s: %w", confPath, err)
 	}
 	log("info", "wrote nginx config "+confPath)
@@ -231,6 +231,17 @@ func (s *Service) deprovision(ctx context.Context, log tasks.LogFunc, site store
 	}
 	if err := s.reload(ctx, log); err != nil {
 		return err
+	}
+	if !s.cfg.DryRun {
+		cronPath := s.cronFragmentPath(site.Domain)
+		switch err := os.Remove(cronPath); {
+		case err == nil:
+			log("info", "removed cron fragment "+cronPath)
+		case errors.Is(err, os.ErrNotExist):
+			// no cron fragment for this site
+		default:
+			return fmt.Errorf("remove cron fragment %s: %w", cronPath, err)
+		}
 	}
 	if err := s.st.DeleteSite(site.Domain); err != nil {
 		return fmt.Errorf("remove site from state: %w", err)

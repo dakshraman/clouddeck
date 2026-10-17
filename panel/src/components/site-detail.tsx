@@ -13,16 +13,61 @@ import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { TaskLog } from "@/components/task-log";
+import { SubdomainsCard } from "@/components/site/subdomains-card";
+import { RedirectsCard } from "@/components/site/redirects-card";
+import { CronCard } from "@/components/site/cron-card";
+import { PhpCard } from "@/components/site/php-card";
+import { SecurityCard } from "@/components/site/security-card";
+import { UsageCard } from "@/components/site/usage-card";
+import { StatsCard } from "@/components/site/stats-card";
+import { LogsCard } from "@/components/site/logs-card";
+import { cn } from "@/components/ui/cn";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
 import { ArrowLeft, FolderOpen, Globe, ShieldCheck, Trash2 } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
+
+type SiteTabId =
+  | "overview"
+  | "subdomains"
+  | "redirects"
+  | "cron"
+  | "php"
+  | "security"
+  | "usage"
+  | "logs";
+
+const SITE_TABS: { id: SiteTabId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "subdomains", label: "Subdomains" },
+  { id: "redirects", label: "Redirects" },
+  { id: "cron", label: "Cron jobs" },
+  { id: "php", label: "PHP" },
+  { id: "security", label: "Security" },
+  { id: "usage", label: "Usage & stats" },
+  { id: "logs", label: "Logs" },
+];
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="mt-1 text-sm text-slate-200">{children}</dd>
+    </div>
+  );
+}
+
+/** Renders only the active tab; inactive panels stay unmounted. */
+function TabPanel({ id, active, children }: { id: SiteTabId; active: boolean; children: ReactNode }) {
+  if (!active) return null;
+  return (
+    <div
+      role="tabpanel"
+      id={`site-tabpanel-${id}`}
+      aria-labelledby={`site-tab-${id}`}
+      className="grid gap-6"
+    >
+      {children}
     </div>
   );
 }
@@ -42,6 +87,7 @@ export function SiteDetail({ domain }: { domain: string }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [tab, setTab] = useState<SiteTabId>("overview");
 
   const load = useCallback(async () => {
     try {
@@ -185,7 +231,31 @@ export function SiteDetail({ domain }: { domain: string }) {
         </div>
       </div>
 
-      <div className="grid gap-6">
+      <div className="mb-6 overflow-x-auto border-b border-slate-800">
+        <div role="tablist" aria-label="Site tools" className="flex min-w-max gap-1">
+          {SITE_TABS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              id={`site-tab-${entry.id}`}
+              aria-selected={tab === entry.id}
+              aria-controls={`site-tabpanel-${entry.id}`}
+              onClick={() => setTab(entry.id)}
+              className={cn(
+                "-mb-px cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
+                tab === entry.id
+                  ? "border-indigo-500 text-slate-100"
+                  : "border-transparent text-slate-500 hover:text-slate-300",
+              )}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <TabPanel id="overview" active={tab === "overview"}>
         <Card>
           <CardHeader>
             <div>
@@ -311,7 +381,36 @@ export function SiteDetail({ domain }: { domain: string }) {
             )}
           </CardBody>
         </Card>
-      </div>
+      </TabPanel>
+
+      <TabPanel id="subdomains" active={tab === "subdomains"}>
+        <SubdomainsCard domain={site.domain} />
+      </TabPanel>
+
+      <TabPanel id="redirects" active={tab === "redirects"}>
+        <RedirectsCard domain={site.domain} />
+      </TabPanel>
+
+      <TabPanel id="cron" active={tab === "cron"}>
+        <CronCard domain={site.domain} />
+      </TabPanel>
+
+      <TabPanel id="php" active={tab === "php"}>
+        <PhpCard domain={site.domain} currentVersion={site.phpVersion} onUpdated={setSite} />
+      </TabPanel>
+
+      <TabPanel id="security" active={tab === "security"}>
+        <SecurityCard domain={site.domain} />
+      </TabPanel>
+
+      <TabPanel id="usage" active={tab === "usage"}>
+        <UsageCard domain={site.domain} />
+        <StatsCard domain={site.domain} />
+      </TabPanel>
+
+      <TabPanel id="logs" active={tab === "logs"}>
+        <LogsCard domain={site.domain} />
+      </TabPanel>
     </>
   );
 }

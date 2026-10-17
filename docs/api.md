@@ -230,7 +230,7 @@ The mail subsystem is **file-backed**: it reads and writes the same files an MTA
 | `PUT /v1/mail/autoresponders/{email}` | `{"subject","body","enabled"}` | `200 {autoresponder}` (upsert; rewrites the sieve file) | `400 invalid_email`/`invalid_autoresponder`, `404 mail_domain_not_found` |
 | `DELETE /v1/mail/autoresponders/{email}` | — | `200 {"email","deleted":true}` | `400 invalid_email`, `404 autoresponder_not_found` |
 | `GET /v1/mail/dkim/{domain}` | — | `200 {"domain","selector","enabled","dnsName","dnsRecord","dnsApplied"}` (selector `clouddeck`; `enabled:false` when absent) | `400 invalid_domain` |
-| `POST /v1/mail/dns/{domain}` | `{"spf":true,"dmarcPolicy":"none"\|"quarantine"\|"reject"\|"","dkim":true,"mx":true}` | `200 {"applied":{"<name>":"<value>"},"errors":[...]}` — generates/keeps the DKIM keypair, publishes requested records into the domain's PowerDNS zone; per-record failures land in `errors` (e.g. `zone example.com not found`) | `400 invalid_domain`/`invalid_request` |
+| `POST /v1/mail/dns/{domain}` | `{"spf":true,"dmarcPolicy":"none"\|"quarantine"\|"reject"\|"","dkim":true,"mx":true}` | `200 {"applied":{"spf"\|"dmarc"\|"dkim"\|"mx":"<record value>"},"errors":[...]}` — keyed by record part because SPF and MX share the apex name; generates/keeps the DKIM keypair, publishes requested records into the domain's PowerDNS zone; per-record failures land in `errors` (e.g. `zone example.com not found`) | `400 invalid_domain`/`invalid_request` |
 
 **File layouts (defaults under `AGENT_MAIL_ROOT`):**
 - Domains: one domain per line.

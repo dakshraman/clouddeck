@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"clouddeck/agent/internal/apierr"
@@ -48,6 +49,10 @@ const (
 	TaskCreate   = "backup.create"
 	TaskRestore  = "backup.restore"
 	ActionDelete = "backup.delete"
+
+	// ActionScheduleSet audits a v0.4 backup schedule change
+	// (docs/api.md section 1.8).
+	ActionScheduleSet = "backup.schedule.set"
 )
 
 // Timeouts and limits. Restores must not hang forever on a wedged server;
@@ -100,6 +105,14 @@ type Service struct {
 	eng   *tasks.Engine
 	sites *sites.Service
 	audit *audit.Log
+
+	// v0.4 scheduled backups (docs/api.md section 1.8). stateMu guards the
+	// schedule and ledger files plus nextLocal; runMu admits at most one
+	// scheduled run at a time; nextLocal remembers the next occurrence
+	// in-process when persisting it fails.
+	stateMu   sync.Mutex
+	runMu     sync.Mutex
+	nextLocal time.Time
 }
 
 // New creates the service.
@@ -120,63 +133,86 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (store.Task, er
 	if s.cfg.DryRun {
 		return store.Task{}, dryRunErr()
 	}
-
-	// Everything the task needs is resolved (and validated) before it starts,
-	// so a bad request never shows up as a failed task later.
-	var kind, source, webroot, dbName string
-	switch req.Kind {
-	case KindSite:
-		if strings.TrimSpace(req.Site) == "" {
-			return store.Task{}, apierr.BadRequest("invalid_request", "site is required when kind is \"site\"")
-		}
-		if _, err := sites.ValidateDomain(req.Site); err != nil {
-			return store.Task{}, apierr.BadRequest("invalid_request", err.Error())
-		}
-		site, err := s.sites.Get(req.Site)
-		if err != nil {
-			return store.Task{}, err
-		}
-		kind, source, webroot = KindSite, site.Domain, site.Root
-	case KindDatabase:
-		if strings.TrimSpace(req.Database) == "" {
-			return store.Task{}, apierr.BadRequest("invalid_request", "database is required when kind is \"database\"")
-		}
-		name, err := mysql.ValidateDatabase(req.Database)
-		if err != nil {
-			return store.Task{}, apierr.BadRequest("invalid_request", err.Error())
-		}
-		actual, err := s.findDatabase(ctx, name)
-		if err != nil {
-			return store.Task{}, err
-		}
-		kind, source, dbName = KindDatabase, actual, actual
-	default:
-		return store.Task{}, apierr.BadRequest("invalid_request", fmt.Sprintf("unsupported backup kind %q", req.Kind))
+	target, err := s.resolveTarget(ctx, req)
+	if err != nil {
+		return store.Task{}, err
 	}
 	if err := s.validateUploads(req.Uploads); err != nil {
 		return store.Task{}, err
 	}
+	return s.startTask(target, req.Uploads, nil)
+}
 
-	name := archiveName(kind, source, time.Now().Unix())
+// backupTarget is one resolved, validated backup destination. source is the
+// archive's source (site domain or database name); webroot and database are
+// the kind-specific inputs of the archive run.
+type backupTarget struct {
+	kind     string
+	source   string
+	webroot  string
+	database string
+}
+
+// resolveTarget validates a create request and resolves it to the archive's
+// target. Everything the task needs is resolved (and validated) before it
+// starts, so a bad request never shows up as a failed task later.
+func (s *Service) resolveTarget(ctx context.Context, req CreateRequest) (backupTarget, error) {
+	switch req.Kind {
+	case KindSite:
+		if strings.TrimSpace(req.Site) == "" {
+			return backupTarget{}, apierr.BadRequest("invalid_request", "site is required when kind is \"site\"")
+		}
+		if _, err := sites.ValidateDomain(req.Site); err != nil {
+			return backupTarget{}, apierr.BadRequest("invalid_request", err.Error())
+		}
+		site, err := s.sites.Get(req.Site)
+		if err != nil {
+			return backupTarget{}, err
+		}
+		return backupTarget{kind: KindSite, source: site.Domain, webroot: site.Root}, nil
+	case KindDatabase:
+		if strings.TrimSpace(req.Database) == "" {
+			return backupTarget{}, apierr.BadRequest("invalid_request", "database is required when kind is \"database\"")
+		}
+		name, err := mysql.ValidateDatabase(req.Database)
+		if err != nil {
+			return backupTarget{}, apierr.BadRequest("invalid_request", err.Error())
+		}
+		actual, err := s.findDatabase(ctx, name)
+		if err != nil {
+			return backupTarget{}, err
+		}
+		return backupTarget{kind: KindDatabase, source: actual, database: actual}, nil
+	default:
+		return backupTarget{}, apierr.BadRequest("invalid_request", fmt.Sprintf("unsupported backup kind %q", req.Kind))
+	}
+}
+
+// startTask starts one backup.create task for an already resolved target.
+// onSuccess, when non-nil, receives the archive id after the archive and
+// every upload succeeded; it runs as part of the task, so it must be quick
+// and must not fail the task (scheduled pruning hooks log their errors).
+func (s *Service) startTask(target backupTarget, uploads []UploadTarget, onSuccess func(archiveID string)) (store.Task, error) {
+	name := archiveName(target.kind, target.source, time.Now().Unix())
 	if !idRe.MatchString(name) {
 		// Only reachable for pathologically long domains; the archive must be
 		// addressable by its id.
-		return store.Task{}, apierr.BadRequest("invalid_request", fmt.Sprintf("site %q is too long for an archive name", source))
+		return store.Task{}, apierr.BadRequest("invalid_request", fmt.Sprintf("site %q is too long for an archive name", target.source))
 	}
 
-	task, err := s.eng.Create(TaskCreate, source, func(ctx context.Context, log tasks.LogFunc) error {
+	task, err := s.eng.Create(TaskCreate, target.source, func(ctx context.Context, log tasks.LogFunc) error {
 		if err := os.MkdirAll(s.cfg.BackupDir, 0o755); err != nil {
 			return fmt.Errorf("create backup dir %s: %w", s.cfg.BackupDir, err)
 		}
 		archivePath := filepath.Join(s.cfg.BackupDir, name)
-		log("info", fmt.Sprintf("creating %s backup of %s", kind, source))
-		switch kind {
+		log("info", fmt.Sprintf("creating %s backup of %s", target.kind, target.source))
+		switch target.kind {
 		case KindSite:
-			if err := writeSiteArchive(archivePath, webroot, log); err != nil {
+			if err := writeSiteArchive(archivePath, target.webroot, log); err != nil {
 				return err
 			}
 		case KindDatabase:
-			if err := s.dumpDatabase(ctx, archivePath, dbName, log); err != nil {
+			if err := s.dumpDatabase(ctx, archivePath, target.database, log); err != nil {
 				return err
 			}
 		}
@@ -185,10 +221,13 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (store.Task, er
 			return fmt.Errorf("stat archive: %w", err)
 		}
 		log("info", fmt.Sprintf("archive %s created (%d bytes)", name, info.Size()))
-		for _, upload := range req.Uploads {
+		for _, upload := range uploads {
 			if err := s.runUpload(ctx, log, archivePath, upload); err != nil {
 				return err
 			}
+		}
+		if onSuccess != nil {
+			onSuccess(name)
 		}
 		return nil
 	})

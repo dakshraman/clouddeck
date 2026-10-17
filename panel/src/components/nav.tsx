@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Archive, Database, Globe, LayoutDashboard, Network, Settings, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Database, Globe, LayoutDashboard, Mail, Network, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
 interface NavItem {
@@ -36,6 +36,12 @@ const items: NavItem[] = [
     label: "DNS",
     icon: Network,
     isActive: (pathname) => pathname === "/dns" || pathname.startsWith("/dns/"),
+  },
+  {
+    href: "/mail",
+    label: "Mail",
+    icon: Mail,
+    isActive: (pathname) => pathname === "/mail" || pathname.startsWith("/mail/"),
   },
   {
     href: "/backups",
