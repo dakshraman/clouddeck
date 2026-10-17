@@ -23,24 +23,6 @@ type Config struct {
 	MySQLHost     string
 	MySQLPort     string
 	DryRun        bool
-
-	// v0.3 monitoring
-	NginxRestartCmd  string
-	MySQLRestartCmd  string
-	PHPFpmRestartCmd string
-
-	// v0.3 DNS
-	PdnsUtilBin    string
-	PdnsConfDir    string
-	PdnsControlBin string
-
-	// v0.3 backups
-	BackupDir       string
-	RcloneBin       string
-	MySQLDumpBin    string
-	TelegramBotToken string
-	TelegramChatID   string
-	TelegramAPI      string
 }
 
 // Load reads the environment and applies documented defaults.

@@ -3,7 +3,7 @@
  * This file mirrors docs/api.md exactly. Do not edit without updating docs/api.md first.
  */
 
-export type TaskType = "site.create" | "site.delete" | "ssl.issue" | "backup.create" | "backup.restore";
+export type TaskType = "site.create" | "site.delete" | "ssl.issue";
 export type TaskStatus = "pending" | "running" | "succeeded" | "failed";
 export type TaskLogLevel = "info" | "warn" | "error";
 
