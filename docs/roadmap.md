@@ -14,7 +14,7 @@ Versions are milestones, not dates.
 - MySQL management: databases, users, grants, generated passwords (client binary driven with argument arrays only; API never accepts raw SQL)
 - Configurable PHP-FPM socket template (`AGENT_PHP_FPM_SOCK`) for coexisting installs (e.g. an aaPanel-managed server)
 
-## v0.3 — operations (in final validation)
+## v0.3 — operations (shipped: v0.3.0)
 
 - **System monitoring**: service status (nginx, MariaDB/MySQL, PHP-FPM) with per-service restart
 - **DNS**: PowerDNS-backed zone and record management (A, AAAA, CNAME, MX, TXT, NS, SRV, CAA)

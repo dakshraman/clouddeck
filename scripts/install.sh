@@ -233,7 +233,7 @@ if [ "$DO_PANEL" = "1" ]; then
   fi
 fi
 
-mkdir -p "$DATADIR/agent" "$DATADIR/panel"
+mkdir -p "$DATADIR/agent" "$DATADIR/agent/backups" "$DATADIR/panel"
 chmod 750 "$DATADIR"
 if [ -n "${PANEL_USER:-}" ]; then chown -R "$PANEL_USER" "$DATADIR/panel" 2>/dev/null || true; fi
 
@@ -250,8 +250,11 @@ AGENT_STATE_DIR=$DATADIR/agent
 # AGENT_MYSQL_BIN=/www/server/mysql/bin/mysql
 # AGENT_MYSQL_ROOT_PASSWORD=...
 # AGENT_PDNSUTIL_BIN=/usr/bin/pdnsutil
+# AGENT_PDNS_CONF_DIR=/etc/powerdns
 # AGENT_RCLONE_BIN=rclone
-# AGENT_BACKUP_DIR=$DATADIR/agent/backups
+AGENT_BACKUP_DIR=$DATADIR/agent/backups
+# AGENT_TELEGRAM_BOT_TOKEN=...
+# AGENT_TELEGRAM_CHAT_ID=...
 EOF
   chmod 600 "$ETCDIR/agent.env"
   say "-- wrote $ETCDIR/agent.env"

@@ -110,6 +110,6 @@ Makefile            developer entry points
 
 ## Status
 
-Current release (`v0.2.2`): **one-command installer** (`curl … | sudo bash`, any Linux distro, installs the latest stable release) with a **first-run setup wizard** (admin account created in the browser), sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment, **file manager** (browse/edit/upload/download — path-confined, symlink-rejecting, audited) and **MySQL management** (databases, users, grants, generated passwords). See [docs/roadmap.md](docs/roadmap.md) for what lands next.
+Current release (`v0.3.0`): **one-command installer** (`curl … | sudo bash`, any Linux distro, installs the latest stable release) with a **first-run setup wizard** (admin account created in the browser), sites (create/delete), SSL via certbot, live task logs, system dashboard, session auth, Docker dev environment, **file manager** (browse/edit/upload/download — path-confined, symlink-rejecting, audited), **MySQL management** (databases, users, grants, generated passwords), and v0.3 **operations**: **service monitoring + restarts**, **DNS zone/record management** (PowerDNS), and **backup & restore** (site + database archives; local download, Telegram and rclone destinations — Google Drive/MEGA/Dropbox). See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
 License: TBD.
