@@ -235,7 +235,13 @@ fi
 
 mkdir -p "$DATADIR/agent" "$DATADIR/agent/backups" "$DATADIR/panel"
 chmod 750 "$DATADIR"
-if [ -n "${PANEL_USER:-}" ]; then chown -R "$PANEL_USER" "$DATADIR/panel" 2>/dev/null || true; fi
+if [ -n "${PANEL_USER:-}" ]; then
+  chown -R "$PANEL_USER" "$DATADIR/panel" 2>/dev/null || true
+  # The datadir itself is 750 root:root — give the panel user's group read/traverse
+  # so the service can reach its own data (users.json, sessions) when not running as root.
+  GRP="$(id -gn "$PANEL_USER" 2>/dev/null || echo "$PANEL_USER")"
+  chgrp "$GRP" "$DATADIR" 2>/dev/null || true
+fi
 
 # --- configs -----------------------------------------------------------------
 if [ "$DO_AGENT" = "1" ] && [ ! -f "$ETCDIR/agent.env" ]; then
