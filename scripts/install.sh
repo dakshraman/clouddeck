@@ -344,13 +344,19 @@ EOF
 cat > "$PREFIX/run/stop.sh" <<EOF
 #!/bin/sh
 # Stops the processes started by start.sh (pid files in the same directory).
+# Next.js standalone forks a child that owns the listening socket, so
+# children are signalled before the parent, and a KILL pass follows.
 stop_one() {
   pidfile="\$1"
   [ -f "\$pidfile" ] || return 0
   pid="\$(cat "\$pidfile")"
-  kill "\$pid" 2>/dev/null || true
+  pkill -TERM -P "\$pid" 2>/dev/null || true
+  kill -TERM "\$pid" 2>/dev/null || true
+  kill -TERM -- "-\$pid" 2>/dev/null || true
   sleep 1
-  if kill -0 "\$pid" 2>/dev/null; then kill -9 "\$pid" 2>/dev/null || true; fi
+  pkill -KILL -P "\$pid" 2>/dev/null || true
+  kill -9 "\$pid" 2>/dev/null || true
+  kill -9 -- "-\$pid" 2>/dev/null || true
   rm -f "\$pidfile"
 }
 stop_one "$PREFIX/run/panel.pid"
