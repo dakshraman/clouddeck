@@ -50,7 +50,9 @@ hosted panel.
 ## cPanel-class parity map
 
 The long-term bar is "cPanel-class": everything a shared-hosting operator expects,
-built original — no copied cPanel code or assets. A working map, not a promise:
+built original — no copied cPanel code or assets. A working map, not a promise.
+Detailed, evidence-based map: [docs/cpanel-parity.md](cpanel-parity.md) — learned
+from the public cPanel installer's layer-1 scripts.
 
 | Area | cPanel has | CloudDeck |
 |---|---|---|
