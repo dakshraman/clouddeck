@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardToolbox } from "@/components/dashboard-toolbox";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -76,7 +77,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Overview of your server and recent agent activity."
+        description="Manage your sites, data, and server services from one place."
         actions={
           <Link href="/sites/new" className={buttonClass("primary", "md")}>
             <Plus size={16} aria-hidden="true" />
@@ -91,62 +92,73 @@ export default function DashboardPage() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {state === "loading" ? (
-          <>
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-          </>
-        ) : null}
+      <DashboardToolbox />
 
-        {state === "ready" && system ? (
-          <>
-            <StatCard
-              label="CPU"
-              value={`${Math.round(system.cpu.usagePercent)}%`}
-              sub={`${system.cpu.cores} ${system.cpu.cores === 1 ? "core" : "cores"}`}
-              icon={Cpu}
-              progress={system.cpu.usagePercent}
-              tone={usageTone(system.cpu.usagePercent)}
-            />
-            <StatCard
-              label="Memory"
-              value={formatBytes(system.memory.usedBytes)}
-              sub={`of ${formatBytes(system.memory.totalBytes)} · ${Math.round(memoryPercent)}% used`}
-              icon={MemoryStick}
-              progress={memoryPercent}
-              tone={usageTone(memoryPercent)}
-            />
-            <StatCard
-              label="Disk"
-              value={formatBytes(system.disk.usedBytes)}
-              sub={`of ${formatBytes(system.disk.totalBytes)} · ${system.disk.mount}`}
-              icon={HardDrive}
-              progress={diskPercent}
-              tone={usageTone(diskPercent)}
-            />
-            <Card className="p-5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Agent</p>
-                <Server size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
-              </div>
-              <p className="mt-3 truncate font-mono text-lg font-semibold text-slate-100">
-                {system.hostname}
-              </p>
-              <p className="mt-1 truncate text-xs text-slate-500">
-                {system.os}
-                {system.agentVersion ? ` · v${system.agentVersion}` : ""}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant="green">Online</Badge>
-                {system.dryRun ? <Badge variant="amber">Dry run</Badge> : null}
-              </div>
-            </Card>
-          </>
-        ) : null}
-      </div>
+      <section aria-labelledby="dashboard-server-health" className="mt-6">
+        <h2
+          id="dashboard-server-health"
+          className="text-xs font-medium uppercase tracking-wide text-slate-500"
+        >
+          Server health
+        </h2>
+
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {state === "loading" ? (
+            <>
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </>
+          ) : null}
+
+          {state === "ready" && system ? (
+            <>
+              <StatCard
+                label="CPU"
+                value={`${Math.round(system.cpu.usagePercent)}%`}
+                sub={`${system.cpu.cores} ${system.cpu.cores === 1 ? "core" : "cores"}`}
+                icon={Cpu}
+                progress={system.cpu.usagePercent}
+                tone={usageTone(system.cpu.usagePercent)}
+              />
+              <StatCard
+                label="Memory"
+                value={formatBytes(system.memory.usedBytes)}
+                sub={`of ${formatBytes(system.memory.totalBytes)} · ${Math.round(memoryPercent)}% used`}
+                icon={MemoryStick}
+                progress={memoryPercent}
+                tone={usageTone(memoryPercent)}
+              />
+              <StatCard
+                label="Disk"
+                value={formatBytes(system.disk.usedBytes)}
+                sub={`of ${formatBytes(system.disk.totalBytes)} · ${system.disk.mount}`}
+                icon={HardDrive}
+                progress={diskPercent}
+                tone={usageTone(diskPercent)}
+              />
+              <Card className="p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Agent</p>
+                  <Server size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                </div>
+                <p className="mt-3 truncate font-mono text-lg font-semibold text-slate-100">
+                  {system.hostname}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {system.os}
+                  {system.agentVersion ? ` · v${system.agentVersion}` : ""}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge variant="green">Online</Badge>
+                  {system.dryRun ? <Badge variant="amber">Dry run</Badge> : null}
+                </div>
+              </Card>
+            </>
+          ) : null}
+        </div>
+      </section>
 
       <Card className="mt-6">
         <CardHeader>
