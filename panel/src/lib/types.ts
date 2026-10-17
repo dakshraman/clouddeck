@@ -275,3 +275,136 @@ export interface CreateBackupRequest {
   database?: string;
   uploads?: BackupUploadTarget[];
 }
+
+// ---- v0.4: mail (docs/api.md section 1.6) ----
+export interface MailStatus {
+  baseDir: string;
+  hostname: string;
+  domains: number;
+  accounts: number;
+  dkimEnabled: number;
+}
+export interface MailAccount {
+  email: string;
+  domain: string;
+  quotaMb: number;
+  bytes: number;
+  createdAt: string;
+}
+export interface MailForwarder {
+  source: string;
+  target: string;
+  createdAt: string;
+}
+export interface MailAutoresponder {
+  email: string;
+  subject: string;
+  body: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+export interface MailDKIMInfo {
+  domain: string;
+  selector: string;
+  enabled: boolean;
+  dnsName?: string;
+  dnsRecord?: string;
+  dnsApplied: boolean;
+}
+export interface MailDNSOptions {
+  spf?: boolean;
+  dmarcPolicy?: "none" | "quarantine" | "reject" | "";
+  dkim?: boolean;
+  mx?: boolean;
+}
+export interface MailDNSResult {
+  applied: Record<string, string>;
+  errors?: string[];
+}
+export interface MailDomainsResponse {
+  domains: string[];
+}
+export interface MailAccountsResponse {
+  accounts: MailAccount[];
+}
+export interface MailForwardersResponse {
+  forwarders: MailForwarder[];
+}
+
+// ---- v0.4: site operations (docs/api.md section 1.7) ----
+export interface SiteSubdomain {
+  name: string;
+  createdAt: string;
+}
+export interface SiteRedirect {
+  id: string;
+  from: string;
+  to: string;
+  permanent: boolean;
+}
+export interface SiteBlockedIP {
+  ip: string;
+  note?: string;
+  createdAt: string;
+}
+export interface SiteCronJob {
+  id: string;
+  schedule: string;
+  command: string;
+  comment?: string;
+  createdAt: string;
+}
+export interface SiteSubdomainsResponse {
+  subdomains: SiteSubdomain[];
+}
+export interface SiteRedirectsResponse {
+  redirects: SiteRedirect[];
+}
+export interface SiteBlockedIPsResponse {
+  blockedIps: SiteBlockedIP[];
+}
+export interface SiteCronResponse {
+  cron: SiteCronJob[];
+}
+export interface SiteUsage {
+  domain: string;
+  root: string;
+  bytes: number;
+  files: number;
+}
+export interface SiteDayStat {
+  date: string;
+  requests: number;
+  bytes: number;
+}
+export interface SitePathStat {
+  path: string;
+  requests: number;
+}
+export interface SiteStats {
+  domain: string;
+  days: number;
+  requests: number;
+  bytes: number;
+  perDay: SiteDayStat[];
+  topPaths: SitePathStat[];
+}
+export interface SiteLogsResponse {
+  domain: string;
+  kind: string;
+  lines: string[];
+}
+
+// ---- v0.4: backup schedule (docs/api.md section 1.8) ----
+export interface BackupSchedule {
+  enabled: boolean;
+  frequency: "daily" | "weekly";
+  time: string;
+  weekday: number;
+  keep: number;
+  includeDatabases: boolean;
+  uploads?: BackupUploadTarget[];
+  lastRunAt?: string | null;
+  nextRunAt?: string | null;
+  lastError?: string;
+}

@@ -208,6 +208,83 @@ Creating and restoring run as **tasks** (`backup.create`, `backup.restore`) with
 - `uploads` (optional): `[{"type":"telegram"}]` sends the archive via the Bot API (`AGENT_TELEGRAM_BOT_TOKEN` + `AGENT_TELEGRAM_CHAT_ID`, base URL overridable with `AGENT_TELEGRAM_API` for tests); `[{"type":"rclone","remote":"gdrive:clouddeck/backups"}]` runs `rclone copy <archive> <remote>` (binary `AGENT_RCLONE_BIN`). Upload errors fail the task; the local archive is kept either way. Google Drive/MEGA/Dropbox are all reached through rclone remotes.
 - Database dumps use `AGENT_MYSQLDUMP_BIN` with the configured MySQL credentials (password via `MYSQL_PWD`, never on the command line).
 
+### 1.6 Mail endpoints
+
+The mail subsystem is **file-backed**: it reads and writes the same files an MTA (Postfix/Exim) and Dovecot consume in a standard virtual-user setup, so it works with whatever is installed — no mail server is required for the API itself. Every path is overridable (section 3). Mutations are synchronous, audited (`mail.*`), and followed by `AGENT_MAIL_RELOAD_CMD` when configured. In dry-run mode every mail **mutation** returns `409 {"error":{"code":"dry_run"}}`; reads still work.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/mail/status` | — | `200 {"baseDir","hostname","domains","accounts","dkimEnabled"}` (counts) | — |
+| `GET /v1/mail/domains` | — | `200 {"domains":[...]}` sorted | — |
+| `POST /v1/mail/domains` | `{"domain"}` | `201 {"domain"}` | `400 invalid_domain`, `409 mail_domain_exists` |
+| `DELETE /v1/mail/domains/{domain}` | — | `200 {"domain","deleted":true}` — also removes that domain's accounts, forwarders and autoresponders | `400 invalid_domain`, `404 mail_domain_not_found` |
+| `GET /v1/mail/accounts` | `?domain=` (optional) | `200 {"accounts":[{"email","domain","quotaMb","bytes","createdAt"}]}` sorted by email | `400 invalid_domain` |
+| `POST /v1/mail/accounts` | `{"email","password","quotaMb"}` | `201 {account}` — creates the passwd-file entry + maildir | `400 invalid_email`/`invalid_password`/`invalid_quota`, `404 mail_domain_not_found`, `409 mail_account_exists` |
+| `DELETE /v1/mail/accounts/{email}` | — | `200 {"email","deleted":true}` — passwd entry removed, maildir kept on disk | `400 invalid_email`, `404 mail_account_not_found` |
+| `POST /v1/mail/accounts/{email}/password` | `{"password"}` | `200 {"email","updated":true}` | `400 invalid_email`/`invalid_password`, `404 mail_account_not_found` |
+| `POST /v1/mail/accounts/{email}/quota` | `{"quotaMb"}` | `200 {"email","quotaMb","updated":true}` | `400 invalid_email`/`invalid_quota`, `404 mail_account_not_found` |
+| `GET /v1/mail/forwarders` | `?domain=` | `200 {"forwarders":[{"source","target","createdAt"}]}` | `400 invalid_domain` |
+| `POST /v1/mail/forwarders` | `{"source","target"}` | `201 {"source","target"}` — target may be one address or a comma-separated list | `400 invalid_email`, `404 mail_domain_not_found`, `409 forwarder_exists` |
+| `DELETE /v1/mail/forwarders/{source}` | — | `200 {"source","deleted":true}` | `400 invalid_email`, `404 forwarder_not_found` |
+| `GET /v1/mail/autoresponders/{email}` | — | `200 {autoresponder}` | `400 invalid_email`, `404 autoresponder_not_found` |
+| `PUT /v1/mail/autoresponders/{email}` | `{"subject","body","enabled"}` | `200 {autoresponder}` (upsert; rewrites the sieve file) | `400 invalid_email`/`invalid_autoresponder`, `404 mail_domain_not_found` |
+| `DELETE /v1/mail/autoresponders/{email}` | — | `200 {"email","deleted":true}` | `400 invalid_email`, `404 autoresponder_not_found` |
+| `GET /v1/mail/dkim/{domain}` | — | `200 {"domain","selector","enabled","dnsName","dnsRecord","dnsApplied"}` (selector `clouddeck`; `enabled:false` when absent) | `400 invalid_domain` |
+| `POST /v1/mail/dns/{domain}` | `{"spf":true,"dmarcPolicy":"none"\|"quarantine"\|"reject"\|"","dkim":true,"mx":true}` | `200 {"applied":{"<name>":"<value>"},"errors":[...]}` — generates/keeps the DKIM keypair, publishes requested records into the domain's PowerDNS zone; per-record failures land in `errors` (e.g. `zone example.com not found`) | `400 invalid_domain`/`invalid_request` |
+
+**File layouts (defaults under `AGENT_MAIL_ROOT`):**
+- Domains: one domain per line.
+- Users (Dovecot passwd-file): 8 colon fields — `user@domain.com:{SHA256}<base64>:5000:5000::<vhosts>/user@domain.com::` and, when `quotaMb > 0`, an extra space-separated field `userdb_quota_rule=*:bytes=<quotaMb*1048576>`. Passwords are never logged.
+- Aliases (Postfix virtual alias syntax): `source target1, target2` — one entry per line.
+- Autoresponders: `autoreply/<email>.sieve` (vacation script) + `autoreply/<email>.json` metadata `{"email","subject","body","enabled","updatedAt"}`.
+- DKIM: `dkim/<domain>.key` (RSA-2048, PEM PKCS#8), `dkim/<domain>.txt` (the full `v=DKIM1; k=rsa; p=...` TXT value), metadata in `dkim/<domain>.json`. DNS name: `clouddeck._domainkey.<domain>`.
+- Maildirs: `<vhosts>/<email>/{cur,new,tmp}`.
+- SPF preset: `v=spf1 a mx ~all`; DMARC preset: `v=DMARC1; p=<policy>`; MX: `10 <AGENT_MAIL_HOSTNAME>`; TTL 3600.
+
+**Validation:** emails are lowercased; local part `^[a-z0-9]([a-z0-9._-]{0,62})?$`; domain must be a listed mail domain (shared domain regex); password ≥ 8 characters; quota 0–1048576 MB (0 = unlimited).
+
+### 1.7 Site operation endpoints
+
+Subdomains, redirects, cron, PHP switching, IP blocking, usage/stats/logs. Mutations are synchronous + audited except subdomain create/delete (tasks). Renders go through the standard nginx flow (`nginx -t` → reload, rollback on failed test).
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/sites/{domain}/subdomains` | — | `200 {"subdomains":[{"name","createdAt"}]}` | `400 invalid_domain`, `404 site_not_found` |
+| `POST /v1/sites/{domain}/subdomains` | `{"name"}` | `202 {"taskId"}` (`site.subdomain.create`) | `400 invalid_domain`/`invalid_subdomain`, `404 site_not_found`, `409 subdomain_exists`, `409 dry_run` |
+| `DELETE /v1/sites/{domain}/subdomains/{name}` | — | `202 {"taskId"}` (`site.subdomain.delete`) | `400`, `404 subdomain_not_found`, `409 dry_run` |
+| `GET /v1/sites/{domain}/redirects` | — | `200 {"redirects":[{"id","from","to","permanent"}]}` | `400`, `404` |
+| `POST /v1/sites/{domain}/redirects` | `{"from":"/old","to":"https://x","permanent":true}` | `200 {"redirects":[...]}` (updated, insertion order) | `400 invalid_redirect`, `404 site_not_found`, `409 dry_run` |
+| `DELETE /v1/sites/{domain}/redirects/{id}` | — | `200 {"redirects":[...]}` | `400`, `404 redirect_not_found` |
+| `GET /v1/sites/{domain}/cron` | — | `200 {"cron":[{"id","schedule","command","comment","createdAt"}]}` | `400`, `404` |
+| `POST /v1/sites/{domain}/cron` | `{"schedule":"0 3 * * *","command":"/usr/bin/php ...","comment"?}` | `200 {"cron":[...]}` — rewrites `<AGENT_CRON_DIR>/clouddeck-<domain dots→dashes>` | `400 invalid_cron`, `404 site_not_found` |
+| `DELETE /v1/sites/{domain}/cron/{id}` | — | `200 {"cron":[...]}` | `400`, `404 cron_not_found` |
+| `PUT /v1/sites/{domain}/php` | `{"version":"8.3"}` | `200 {site}` — re-renders the vhost with that version's socket and reloads; reverts on failure | `400 invalid_php_version`, `404 site_not_found` |
+| `GET /v1/sites/{domain}/security` | — | `200 {"blockedIps":[{"ip","note","createdAt"}]}` | `400`, `404` |
+| `POST /v1/sites/{domain}/security/block` | `{"ip","note"?}` | `200 {"blockedIps":[...]}` | `400 invalid_ip`, `404 site_not_found`, `409 ip_exists` |
+| `DELETE /v1/sites/{domain}/security/block/{ip}` | — | `200 {"blockedIps":[...]}` | `400 invalid_ip`, `404 ip_not_found` |
+| `GET /v1/sites/{domain}/usage` | — | `200 {"domain","root","bytes","files"}` — walks the webroot, skips symlinks | `400`, `404` |
+| `GET /v1/sites/{domain}/stats` | `?days=7` (1–90) | `200 {"domain","days","requests","bytes","perDay":[{"date","requests","bytes"}],"topPaths":[{"path","requests"}]}` — combined-format access log, days ascending, top 10 paths | `400 invalid_days`, `404` |
+| `GET /v1/sites/{domain}/logs` | `?kind=access\|error&lines=200` (1–2000) | `200 {"domain","kind","lines":["..."]}` — tail of `<AGENT_LOG_DIR>/<domain>.access.log` / `.error.log`; missing file → empty list | `400 invalid_kind`/`invalid_lines`, `404 site_not_found` |
+
+**Rendering rules (frozen):**
+- A subdomain adds its own `server` block: `server_name <name>.<domain>`, root `<site root>/<name>` (placeholder index.html on create), same PHP config and log files as the main site. `name` must match `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$` and must not be `www`.
+- Redirects render as `location <from> { return 301|302 <to>; }` inside every server block of the site. `from` starts with `/`, 1–512 chars, no whitespace/quotes/`;`/`{`/`}`; `to` is an absolute `http(s)://` URL ≤ 2048 chars. IDs are 8 lowercase hex chars.
+- Blocked IPs render as `deny <ip>;` lines in every server block (IPv4 or IPv6 via `net.ParseIP`).
+- Cron: 5 space-separated fields, each `^[0-9*/,\-]{1,20}$`; command 1–1024 chars, no newlines; run as `root`.
+- PHP sockets: `AGENT_PHP_SOCK_MAP` maps `version → socket` (e.g. `8.3=/tmp/php-cgi-83.sock`); versions absent from the map fall back to `AGENT_PHP_FPM_SOCK` template substitution. Version is validated with the same `php.Offered` check as site creation.
+
+### 1.8 Backup schedule endpoints
+
+One global recurring schedule (cPanel-style backup wizard). When due — checked every minute by an agent goroutine — it starts `backup.create` tasks for every site (and every non-system database when `includeDatabases`), then prunes older *scheduled* archives beyond `keep`; manual archives are never pruned. Persisted at `<AGENT_STATE_DIR>/backup_schedule.json` plus a run ledger for pruning bookkeeping.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/backups/schedule` | — | `200 {schedule}` — defaults when never set: `{"enabled":false,"frequency":"daily","time":"03:00","weekday":0,"keep":7,"includeDatabases":false}` | — |
+| `PUT /v1/backups/schedule` | schedule object | `200 {schedule}` — validates, persists, recomputes `nextRunAt` | `400 invalid_schedule`, `409 dry_run` |
+| `POST /v1/backups/schedule/run` | — | `202 {"started":N}` — runs the same task set as a due run | `409 dry_run` |
+
+Fields: `enabled`; `frequency` `"daily"`|`"weekly"`; `time` `"HH:MM"` server-local; `weekday` 0–6 (Sunday=0, weekly only); `keep` 1–365 (scheduled archives kept per source); `includeDatabases`; `uploads` (same shape as backup create) applied to every archive; read-only `lastRunAt`, `nextRunAt`, `lastError`.
+
 ## 2. Panel API
 
 Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.
@@ -257,6 +334,33 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | DELETE | `/api/backups/{id}` | delete archive |
 | GET | `/api/tasks` | → `{tasks:[...]}` |
 | GET | `/api/tasks/{id}` | → task |
+| GET | `/api/mail/status` | passthrough `/v1/mail/status` |
+| GET/POST | `/api/mail/domains` | list / `{domain}` |
+| DELETE | `/api/mail/domains/{domain}` | delete domain (+ its accounts) |
+| GET/POST | `/api/mail/accounts` | list (`?domain=`) / `{email,password,quotaMb}` |
+| DELETE | `/api/mail/accounts/{email}` | delete mailbox |
+| POST | `/api/mail/accounts/{email}/password` | `{password}` |
+| POST | `/api/mail/accounts/{email}/quota` | `{quotaMb}` |
+| GET/POST | `/api/mail/forwarders` | list (`?domain=`) / `{source,target}` |
+| DELETE | `/api/mail/forwarders/{source}` | delete alias |
+| GET/PUT/DELETE | `/api/mail/autoresponders/{email}` | get / `{subject,body,enabled}` / delete |
+| GET | `/api/mail/dkim/{domain}` | DKIM status |
+| POST | `/api/mail/dns/{domain}` | `{spf?,dmarcPolicy?,dkim?,mx?}` → published records |
+| GET/POST | `/api/sites/{domain}/subdomains` | list / `{name}` → `202 {taskId}` |
+| DELETE | `/api/sites/{domain}/subdomains/{name}` | → `202 {taskId}` |
+| GET/POST | `/api/sites/{domain}/redirects` | list / `{from,to,permanent}` → updated list |
+| DELETE | `/api/sites/{domain}/redirects/{id}` | → updated list |
+| GET/POST | `/api/sites/{domain}/cron` | list / `{schedule,command,comment?}` → updated list |
+| DELETE | `/api/sites/{domain}/cron/{id}` | → updated list |
+| PUT | `/api/sites/{domain}/php` | `{version}` → site |
+| GET | `/api/sites/{domain}/security` | blocked-IP list |
+| POST | `/api/sites/{domain}/security/block` | `{ip,note?}` → updated list |
+| DELETE | `/api/sites/{domain}/security/block/{ip}` | → updated list |
+| GET | `/api/sites/{domain}/usage` | disk usage |
+| GET | `/api/sites/{domain}/stats` | `?days=7` |
+| GET | `/api/sites/{domain}/logs` | `?kind=access\|error&lines=200` |
+| GET/PUT | `/api/backups/schedule` | get / set schedule |
+| POST | `/api/backups/schedule/run` | run now → `202 {started}` |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 
@@ -296,6 +400,17 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_TELEGRAM_BOT_TOKEN` | (empty — Telegram uploads disabled) |
 | `AGENT_TELEGRAM_CHAT_ID` | (empty) |
 | `AGENT_TELEGRAM_API` | `https://api.telegram.org` (override for tests) |
+| `AGENT_MAIL_ROOT` | `$AGENT_STATE_DIR/mail` (relocates all mail state) |
+| `AGENT_MAIL_DOMAINS_FILE` | `$AGENT_MAIL_ROOT/domains` |
+| `AGENT_MAIL_USERS_FILE` | `$AGENT_MAIL_ROOT/users` (Dovecot passwd-file) |
+| `AGENT_MAIL_ALIASES_FILE` | `$AGENT_MAIL_ROOT/aliases` (Postfix virtual aliases) |
+| `AGENT_MAIL_AUTOREPLY_DIR` | `$AGENT_MAIL_ROOT/autoreply` |
+| `AGENT_MAIL_DKIM_DIR` | `$AGENT_MAIL_ROOT/dkim` |
+| `AGENT_MAIL_VHOSTS_DIR` | `$AGENT_MAIL_ROOT/vhosts` (maildir root) |
+| `AGENT_MAIL_RELOAD_CMD` | (empty — no reload). Split on whitespace into argv; never a shell |
+| `AGENT_MAIL_HOSTNAME` | system hostname (MX target) |
+| `AGENT_PHP_SOCK_MAP` | (empty — falls back to `AGENT_PHP_FPM_SOCK`) e.g. `8.3=/tmp/php-cgi-83.sock,8.4=/tmp/php-cgi-84.sock` |
+| `AGENT_CRON_DIR` | `/etc/cron.d` (site cron fragments) |
 
 **Panel:**
 
@@ -317,3 +432,4 @@ Setting both `PANEL_SEED_*` vars creates that admin account on first start and s
 - Domain validation regex (agent, panel, and UI hint): `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$` — lowercase input before validating.
 - v0.2 file manager + MySQL mutations are **synchronous and audited**. v0.3: service restarts, DNS changes and backup deletion are synchronous + audited; backup create/restore are tasks (`backup.create`/`backup.restore`). Tasks exist only for slow flows (site create/delete, SSL issue, backups).
 - Panel routes for v0.3 (/api/services, /api/dns/**, /api/backups/**) mirror the agent shape 1:1.
+- v0.4: mail and site-operation mutations are synchronous + audited (`mail.*`, `site.*`) except subdomain create/delete and every backup run (tasks). Panel routes for v0.4 mirror the agent shape 1:1.

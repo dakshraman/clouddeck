@@ -18,9 +18,11 @@ import (
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/server"
 	"clouddeck/agent/internal/services"
+	"clouddeck/agent/internal/siteinfo"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/ssl"
 	"clouddeck/agent/internal/store"
@@ -59,6 +61,9 @@ func main() {
 	svcMgr := services.New(cfg, auditLog)
 	dnsMgr := dns.New(cfg, auditLog)
 	backupSvc := backup.New(cfg, eng, siteSvc, auditLog)
+	mailSvc := mail.New(cfg, auditLog, dnsMgr)
+	siteInfoSvc := siteinfo.New(cfg, siteSvc)
+	backupSvc.Start()
 
 	if cfg.DryRun {
 		log.Printf("clouddeck-agent: dry-run mode, skipping reconciliation")
@@ -68,7 +73,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc),
 	}
 	go func() {
 		<-ctx.Done()

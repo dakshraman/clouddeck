@@ -47,6 +47,36 @@ type SSL struct {
 	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
+// Subdomain is an additional hostname served by the site's webroot.
+type Subdomain struct {
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// Redirect is one nginx redirect rule for a site.
+type Redirect struct {
+	ID        string `json:"id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Permanent bool   `json:"permanent"`
+}
+
+// BlockedIP is one IP address denied access to the site.
+type BlockedIP struct {
+	IP        string    `json:"ip"`
+	Note      string    `json:"note,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// CronJob is one scheduled shell command owned by a site.
+type CronJob struct {
+	ID        string    `json:"id"`
+	Schedule  string    `json:"schedule"`
+	Command   string    `json:"command"`
+	Comment   string    `json:"comment,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 // Site is a hosted site.
 type Site struct {
 	Domain     string    `json:"domain"`
@@ -56,6 +86,12 @@ type Site struct {
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
+
+	// v0.4 site operations (docs/api.md section 1.7).
+	Subdomains []Subdomain `json:"subdomains,omitempty"`
+	Redirects  []Redirect  `json:"redirects,omitempty"`
+	BlockedIPs []BlockedIP `json:"blockedIps,omitempty"`
+	Cron       []CronJob   `json:"cron,omitempty"`
 }
 
 // LogEntry is one task log line.
