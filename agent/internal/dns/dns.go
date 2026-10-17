@@ -53,7 +53,7 @@ var zoneRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9](
 
 // recordNameRe matches relative record names; the apex is "@" and handled
 // separately.
-var recordNameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
+var recordNameRe = regexp.MustCompile(`^_?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[_a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$`)
 
 // recordTypes lists the record types the API accepts.
 var recordTypes = map[string]struct{}{

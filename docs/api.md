@@ -176,7 +176,7 @@ Synchronous and audited (no tasks). The services are the host's web stack: `ngin
 
 PowerDNS zones and records driven through `pdnsutil` (`AGENT_PDNSUTIL_BIN`) with argument arrays only, serialized behind a mutex, 30 s timeout per invocation. `pdnsutil` missing → `503 {"code":"dns_unavailable"}`. All mutations are audited.
 
-**Validation:** zone `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$` (input lowercased first); record `name` = `@` (apex) or relative labels with that charset, ≤ 253 chars; record `type` ∈ `A,AAAA,CNAME,MX,TXT,NS,SRV,CAA`; `ttl` 0–604800 (0 = PowerDNS default); `content` non-empty, ≤ 512 chars, no control characters. `TXT` values are quoted for PowerDNS automatically; the API always returns them unquoted.
+**Validation:** zone `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$` (input lowercased first); record `name` = `@` (apex) or relative labels, each `_?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?` (leading `_` allowed for service records like `_dmarc`), ≤ 253 chars; record `type` ∈ `A,AAAA,CNAME,MX,TXT,NS,SRV,CAA`; `ttl` 0–604800 (0 = PowerDNS default); `content` non-empty, ≤ 512 chars, no control characters. `TXT` values are quoted for PowerDNS automatically; the API always returns them unquoted.
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
