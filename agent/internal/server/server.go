@@ -26,7 +26,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.3.0"
+const Version = "0.3.1"
 
 const maxBodyBytes = 1 << 20
 
