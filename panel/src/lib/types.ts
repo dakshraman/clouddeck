@@ -41,6 +41,7 @@ export interface Site {
   status: SiteStatus;
   createdAt: string;
   updatedAt: string;
+  wafEnabled?: boolean;
 }
 
 export interface SiteListResponse {
@@ -353,6 +354,7 @@ export interface SiteCronJob {
   command: string;
   comment?: string;
   createdAt: string;
+  runAs?: string;
 }
 export interface SiteSubdomainsResponse {
   subdomains: SiteSubdomain[];
@@ -407,4 +409,91 @@ export interface BackupSchedule {
   lastRunAt?: string | null;
   nextRunAt?: string | null;
   lastError?: string;
+}
+
+// ---- v0.5: toolbox (docs/api.md section 1.9) ----
+export interface WafInfo {
+  enabled: boolean;
+  engine: string;
+  note?: string;
+}
+export interface SiteCronEntry {
+  domain: string;
+  jobs: SiteCronJob[];
+}
+export interface CronAllResponse {
+  sites: SiteCronEntry[];
+}
+export interface FtpAccount {
+  name: string;
+  home: string;
+  uid: number;
+  gid: number;
+  site?: string;
+  subdir?: string;
+}
+export interface FtpAccountsResponse {
+  accounts: FtpAccount[];
+}
+export interface FtpStatusResponse {
+  passwdFile: string;
+  runAs: string;
+  accounts: number;
+}
+export interface TermStatusResponse {
+  enabled: boolean;
+  user: string;
+  shell: string;
+  sessions: number;
+}
+export interface TermSession {
+  id: string;
+  user: string;
+  shell: string;
+  cols: number;
+  rows: number;
+  startedAt: string;
+}
+export interface SshKey {
+  type: string;
+  fingerprint: string;
+  comment?: string;
+  line: string;
+}
+export interface SshKeysResponse {
+  keys: SshKey[];
+}
+export interface SshStatusResponse {
+  user: string;
+  keysFile: string;
+  keyDir: string;
+  port: number;
+  hostname: string;
+}
+export interface SshGeneratedKey {
+  name: string;
+  type: string;
+  comment?: string;
+  fingerprint: string;
+  publicKey: string;
+  privateKey?: string;
+}
+export interface SshGeneratedKeysResponse {
+  keys: SshGeneratedKey[];
+}
+export interface PmaStatusResponse {
+  installed: boolean;
+  dir?: string;
+  port?: number;
+  version?: string;
+  urlPath?: string;
+  reachable: boolean;
+  authType?: string;
+}
+export interface RemoteMysqlUser {
+  user: string;
+  host: string;
+}
+export interface RemoteMysqlUsersResponse {
+  users: RemoteMysqlUser[];
 }

@@ -17,15 +17,19 @@ import (
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
+	"clouddeck/agent/internal/phpmyadmin"
 	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
 	"clouddeck/agent/internal/sites"
+	"clouddeck/agent/internal/sshkeys"
 	"clouddeck/agent/internal/ssl"
 	"clouddeck/agent/internal/systeminfo"
 	"clouddeck/agent/internal/tasks"
+	"clouddeck/agent/internal/term"
 )
 
 // Version is the agent version reported by /v1/health.
@@ -46,11 +50,15 @@ type Server struct {
 	backups  *backup.Service
 	mail     *mail.Service
 	siteinfo *siteinfo.Service
+	ftp      *ftp.Service
+	term     *term.Service
+	ssh      *sshkeys.Service
+	pma      *phpmyadmin.Service
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -135,6 +143,46 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/sites/{domain}/usage", s.handleSiteUsage)
 	mux.HandleFunc("GET /v1/sites/{domain}/stats", s.handleSiteStats)
 	mux.HandleFunc("GET /v1/sites/{domain}/logs", s.handleSiteLogs)
+
+	// v0.5 — FTP accounts
+	mux.HandleFunc("GET /v1/ftp/status", s.handleFTPStatus)
+	mux.HandleFunc("GET /v1/ftp/accounts", s.handleFTPList)
+	mux.HandleFunc("POST /v1/ftp/accounts", s.handleFTPCreate)
+	mux.HandleFunc("DELETE /v1/ftp/accounts/{name}", s.handleFTPDelete)
+	mux.HandleFunc("POST /v1/ftp/accounts/{name}/password", s.handleFTPSetPassword)
+
+	// v0.5 — web terminal
+	mux.HandleFunc("GET /v1/term/status", s.handleTermStatus)
+	mux.HandleFunc("POST /v1/term/sessions", s.handleTermStart)
+	mux.HandleFunc("GET /v1/term/sessions/{id}/stream", s.handleTermStream)
+	mux.HandleFunc("POST /v1/term/sessions/{id}/input", s.handleTermInput)
+	mux.HandleFunc("POST /v1/term/sessions/{id}/resize", s.handleTermResize)
+	mux.HandleFunc("DELETE /v1/term/sessions/{id}", s.handleTermDelete)
+
+	// v0.5 — SSH keys
+	mux.HandleFunc("GET /v1/ssh/status", s.handleSSHStatus)
+	mux.HandleFunc("GET /v1/ssh/keys", s.handleSSHListKeys)
+	mux.HandleFunc("POST /v1/ssh/keys", s.handleSSHAddKey)
+	mux.HandleFunc("DELETE /v1/ssh/keys", s.handleSSHDeleteKey)
+	mux.HandleFunc("GET /v1/ssh/keys/generated", s.handleSSHListGenerated)
+	mux.HandleFunc("POST /v1/ssh/keys/generated", s.handleSSHGenerateKey)
+	mux.HandleFunc("GET /v1/ssh/keys/generated/{name}", s.handleSSHReadGenerated)
+	mux.HandleFunc("DELETE /v1/ssh/keys/generated/{name}", s.handleSSHDeleteGenerated)
+
+	// v0.5 — phpMyAdmin + remote MySQL
+	mux.HandleFunc("GET /v1/phpmyadmin/status", s.handlePHPMYADMINStatus)
+	mux.HandleFunc("GET /v1/mysql/remote", s.handleMySQLListRemote)
+	mux.HandleFunc("POST /v1/mysql/remote", s.handleMySQLAddRemote)
+	mux.HandleFunc("DELETE /v1/mysql/remote/{user}", s.handleMySQLDeleteRemote)
+
+	// v0.5 — aggregate cron + per-site WAF + file actions
+	mux.HandleFunc("GET /v1/cron", s.handleListAllCron)
+	mux.HandleFunc("GET /v1/sites/{domain}/waf", s.handleGetWAF)
+	mux.HandleFunc("PUT /v1/sites/{domain}/waf", s.handleSetWAF)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/chmod", s.handleFileChmod)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/copy", s.handleFileCopy)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/compress", s.handleFileCompress)
+	mux.HandleFunc("POST /v1/sites/{domain}/files/extract", s.handleFileExtract)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)
@@ -540,12 +588,13 @@ func (s *Server) handleAddCron(w http.ResponseWriter, r *http.Request) {
 		Schedule string `json:"schedule"`
 		Command  string `json:"command"`
 		Comment  string `json:"comment"`
+		RunAs    string `json:"runAs"`
 	}
 	if err := decodeBody(w, r, &req); err != nil {
 		writeError(w, err)
 		return
 	}
-	cron, err := s.sites.AddCron(r.PathValue("domain"), req.Schedule, req.Command, req.Comment)
+	cron, err := s.sites.AddCron(r.PathValue("domain"), req.Schedule, req.Command, req.Comment, req.RunAs)
 	if err != nil {
 		writeError(w, err)
 		return

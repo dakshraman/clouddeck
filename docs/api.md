@@ -285,6 +285,95 @@ One global recurring schedule (cPanel-style backup wizard). When due — checked
 
 Fields: `enabled`; `frequency` `"daily"`|`"weekly"`; `time` `"HH:MM"` server-local; `weekday` 0–6 (Sunday=0, weekly only); `keep` 1–365 (scheduled archives kept per source); `includeDatabases`; `uploads` (same shape as backup create) applied to every archive; read-only `lastRunAt`, `nextRunAt`, `lastError`.
 
+### 1.9 v0.5 toolbox endpoints
+
+New in v0.5: FTP accounts, web terminal, SSH keys, phpMyAdmin access, remote MySQL hosts, aggregate cron, per-site WAF, and the file-manager completion (chmod/copy/compress/extract). All mutations are synchronous + audited; only the terminal stream is SSE.
+
+#### FTP accounts (pure-ftpd)
+
+Virtual FTP logins backed by `AGENT_FTP_PASSWD_FILE` (pure-ftpd passwd format `login:hash:uid:gid:gecos:home:shell`, SHA-512 crypt hashes). After every mutation the agent runs `AGENT_FTP_RELOAD_CMD` (whitespace-split argv, never a shell) when set — e.g. `pure-pw mkdb`. Home directories are created under the site root, owned by `AGENT_FTP_RUNAS`.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/ftp/status` | — | `200 {passwdFile,runAs,accounts}` | — |
+| `GET /v1/ftp/accounts` | — | `200 {accounts:[{name,home,uid,gid,site?,subdir?}]}` — `site`/`subdir` derived by the server from the owning site root | — |
+| `POST /v1/ftp/accounts` | `{site,subdir?,name,password}` — `name` matches `^[A-Za-z0-9][A-Za-z0-9._@-]{1,32}$`, password ≥ 8 chars | `200 {accounts:[...]}` | `400 invalid_name`/`invalid_password`/`invalid_path`, `404 site_not_found`, `409 ftp_user_exists`, `409 dry_run` |
+| `DELETE /v1/ftp/accounts/{name}` | — | `200 {accounts:[...]}` — home directory is kept | `404 ftp_user_not_found`, `409 dry_run` |
+| `POST /v1/ftp/accounts/{name}/password` | `{password}` | `204` | `400 invalid_password`, `404 ftp_user_not_found`, `409 dry_run` |
+
+Audit actions: `ftp.create`, `ftp.delete`, `ftp.password`.
+
+#### Web terminal (`/v1/term/*`)
+
+PTY-backed shell running as `AGENT_TERM_USER` (default `root`) via `AGENT_TERM_SHELL`. At most 4 live sessions; idle sessions are killed after 15 minutes. Output streams over SSE, input is base64. Disabled (`409 term_disabled`) under `dry_run`.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/term/status` | — | `200 {enabled,user,shell,sessions}` | — |
+| `POST /v1/term/sessions` | `{cols,rows}` (8–500 each, defaults 80×24) | `201 {id,user,shell,cols,rows,startedAt}` | `409 term_disabled`, `429 too_many_sessions` |
+| `GET /v1/term/sessions/{id}/stream` | — | `200 text/event-stream`: `event: out` + base64 chunk, `event: exit` + exit code, `: ping` keepalives | `404 term_session_not_found` |
+| `POST /v1/term/sessions/{id}/input` | `{data}` base64 | `204` | `400 invalid_input`, `404 term_session_not_found` |
+| `POST /v1/term/sessions/{id}/resize` | `{cols,rows}` | `204` | `400 invalid_size`, `404 term_session_not_found` |
+| `DELETE /v1/term/sessions/{id}` | — | `204` | `404 term_session_not_found` |
+
+Audit actions: `term.session.start`, `term.session.close`.
+
+#### SSH keys (`/v1/ssh/*`)
+
+Manages `AGENT_SSH_KEYS_FILE` (authorized_keys) and generated keypairs under `AGENT_SSH_KEY_DIR` (created with `AGENT_SSH_KEYGEN_BIN`). Existing non-CloudDeck lines are preserved; delete matches by fingerprint.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/ssh/status` | — | `200 {user,keysFile,keyDir,port,hostname}` | — |
+| `GET /v1/ssh/keys` | — | `200 {keys:[{type,fingerprint,comment?,line}]}` | — |
+| `POST /v1/ssh/keys` | `{key}` — one OpenSSH public-key line (`ssh-ed25519`, `ssh-rsa`, `ecdsa-sha2-nistp256/384/521`) | `201 {key}` | `400 invalid_key`, `409 key_exists`, `409 dry_run` |
+| `DELETE /v1/ssh/keys?fingerprint=SHA256:…` | — | `200 {keys:[...]}` | `400 invalid_fingerprint`, `404 key_not_found`, `409 dry_run` |
+| `GET /v1/ssh/keys/generated` | — | `200 {keys:[{name,type,comment?,fingerprint,publicKey}]}` | — |
+| `POST /v1/ssh/keys/generated` | `{name,type,comment?}` — `type` `"ed25519"` or `"rsa"` | `201 {key:{…,privateKey}}` (private material returned once, download from the panel) | `400 invalid_name`/`invalid_key_type`, `409 key_exists`, `409 dry_run` |
+| `GET /v1/ssh/keys/generated/{name}` | — | `200 {key:{…,privateKey}}` | `404 key_not_found` |
+| `DELETE /v1/ssh/keys/generated/{name}` | — | `200 {keys:[...]}` | `404 key_not_found`, `409 dry_run` |
+
+Audit actions: `ssh.key.add`, `ssh.key.delete`, `ssh.keygen.create`, `ssh.keygen.delete`.
+
+#### phpMyAdmin access
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/phpmyadmin/status` | — | `200 {installed,dir?,port?,version?,urlPath?,reachable,authType?}` — detection only; `reachable` is a localhost HTTP probe of the discovered URL | — |
+
+#### Remote MySQL hosts
+
+Clones `user@localhost` (authentication hash + grants) to an extra host so clients can connect remotely. The localhost entry is never modified or dropped.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/mysql/remote` | — | `200 {users:[…]}` — every non-local `user@host` | — |
+| `POST /v1/mysql/remote` | `{user,host}` — `host` is an IP, hostname, or `%` | `201 {user}` | `400 invalid_user`/`invalid_host`/`invalid_host_local`, `404 mysql_user_not_found`, `409 mysql_user_exists`, `409 dry_run` |
+| `DELETE /v1/mysql/remote/{user}?host=` | — | `200 {user}` | `400 invalid_host_local`, `404 mysql_user_not_found`, `409 dry_run` |
+
+Audit actions: `mysql.remote.add`, `mysql.remote.delete`.
+
+#### Aggregate cron + per-site WAF
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/cron` | — | `200 {sites:[{domain,jobs:[…]}]}` — every site, sorted by domain | — |
+| `GET /v1/sites/{domain}/waf` | — | `200 {enabled,engine,note?}` — `engine` is `"nginx-rules"` or `"modsecurity"`, detected from the nginx binary's `-V` modules | `404 site_not_found` |
+| `PUT /v1/sites/{domain}/waf` | `{enabled}` | `200 {enabled,engine,note?}` — re-renders the vhost (apply/test/reload with rollback) | `404 site_not_found`, `409 dry_run` |
+
+The cron fragment user column is the job's `runAs` (`"root"` default, or `"www"`). Audit action: `site.waf.set`. IP blocking accepts IPv4/IPv6 addresses and CIDR ranges (`invalid_ip` covers both).
+
+#### File-manager completion (`/v1/sites/{domain}/files/*`)
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `POST …/files/chmod` | `{path,mode}` — octal `"644"` or `"0755"` | `200 {path}` | `400 invalid_mode`, `404 file_not_found`, symlink refused |
+| `POST …/files/copy` | `{from,to,overwrite?}` | `200 {from,to}` | `404 file_not_found`, `409 file_exists` (without `overwrite`), `413 too_large` (500 MiB / 20 000 entries), `409 dry_run` |
+| `POST …/files/compress` | `{paths:[…],format,target}` — `format` `"tar.gz"` or `"zip"` | `200 {path}` | `400 invalid_format`/`invalid_path`, `404 file_not_found`, `409 file_exists`, `413 too_large`, `409 dry_run` |
+| `POST …/files/extract` | `{archive,dest}` — `.tar.gz`/`.tgz`/`.zip` | `200 {path}` | `400 invalid_archive`, `404 file_not_found`, `413 too_large`, `409 dry_run` |
+
+Audit actions: `files.chmod`, `files.copy`, `files.compress`, `files.extract`.
+
 ## 2. Panel API
 
 Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.
@@ -350,7 +439,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | DELETE | `/api/sites/{domain}/subdomains/{name}` | → `202 {taskId}` |
 | GET/POST | `/api/sites/{domain}/redirects` | list / `{from,to,permanent}` → updated list |
 | DELETE | `/api/sites/{domain}/redirects/{id}` | → updated list |
-| GET/POST | `/api/sites/{domain}/cron` | list / `{schedule,command,comment?}` → updated list |
+| GET/POST | `/api/sites/{domain}/cron` | list / `{schedule,command,comment?,runAs?}` (`runAs` `"root"`\|`"www"`) → updated list |
 | DELETE | `/api/sites/{domain}/cron/{id}` | → updated list |
 | PUT | `/api/sites/{domain}/php` | `{version}` → site |
 | GET | `/api/sites/{domain}/security` | blocked-IP list |
@@ -361,6 +450,31 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET | `/api/sites/{domain}/logs` | `?kind=access\|error&lines=200` |
 | GET/PUT | `/api/backups/schedule` | get / set schedule |
 | POST | `/api/backups/schedule/run` | run now → `202 {started}` |
+| GET | `/api/cron` | aggregate cron passthrough `/v1/cron` |
+| GET/POST | `/api/ftp/accounts` | list / `{site,subdir?,name,password}` |
+| DELETE | `/api/ftp/accounts/{name}` | delete account |
+| POST | `/api/ftp/accounts/{name}/password` | `{password}` |
+| GET | `/api/ftp/status` | passthrough `/v1/ftp/status` |
+| GET | `/api/term/status` | passthrough `/v1/term/status` |
+| POST | `/api/term/sessions` | `{cols,rows}` → `201 {id,…}` |
+| GET | `/api/term/sessions/{id}/stream` | SSE passthrough (`text/event-stream`) |
+| POST | `/api/term/sessions/{id}/input` | `{data}` base64 |
+| POST | `/api/term/sessions/{id}/resize` | `{cols,rows}` |
+| DELETE | `/api/term/sessions/{id}` | close session |
+| GET | `/api/ssh/status` | passthrough `/v1/ssh/status` |
+| GET/POST | `/api/ssh/keys` | list / `{key}` |
+| DELETE | `/api/ssh/keys` | `?fingerprint=` |
+| GET/POST | `/api/ssh/keys/generated` | list / `{name,type,comment?}` |
+| GET/DELETE | `/api/ssh/keys/generated/{name}` | read (incl. private) / delete |
+| GET | `/api/phpmyadmin/status` | passthrough `/v1/phpmyadmin/status` |
+| GET | `/api/mysql/remote` | list remote hosts |
+| POST | `/api/mysql/remote` | `{user,host}` |
+| DELETE | `/api/mysql/remote/{user}` | `?host=` |
+| GET/PUT | `/api/sites/{domain}/waf` | get / `{enabled}` |
+| POST | `/api/sites/{domain}/files/chmod` | `{path,mode}` |
+| POST | `/api/sites/{domain}/files/copy` | `{from,to,overwrite?}` |
+| POST | `/api/sites/{domain}/files/compress` | `{paths,format,target}` |
+| POST | `/api/sites/{domain}/files/extract` | `{archive,dest}` |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 
@@ -411,6 +525,18 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_MAIL_HOSTNAME` | system hostname (MX target) |
 | `AGENT_PHP_SOCK_MAP` | (empty — falls back to `AGENT_PHP_FPM_SOCK`) e.g. `8.3=/tmp/php-cgi-83.sock,8.4=/tmp/php-cgi-84.sock` |
 | `AGENT_CRON_DIR` | `/etc/cron.d` (site cron fragments) |
+| `AGENT_FTP_PASSWD_FILE` | `$AGENT_STATE_DIR/ftp/passwd` (pure-ftpd passwd file) |
+| `AGENT_FTP_RUNAS` | `www` (unix user owning FTP home dirs) |
+| `AGENT_FTP_RELOAD_CMD` | (empty — no reload). Whitespace-split argv, e.g. `pure-pw mkdb`; never a shell |
+| `AGENT_TERM_USER` | `root` (unix user the web-terminal shell runs as) |
+| `AGENT_TERM_SHELL` | `/bin/bash` |
+| `AGENT_SSH_KEYS_FILE` | `/root/.ssh/authorized_keys` |
+| `AGENT_SSH_KEY_DIR` | `/root/.ssh/clouddeck-keys` |
+| `AGENT_SSH_CONFIG` | `/etc/ssh/sshd_config` (read for the Port) |
+| `AGENT_SSH_KEYGEN_BIN` | `ssh-keygen` |
+| `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
+| `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
+| `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |
 
 **Panel:**
 
@@ -433,3 +559,4 @@ Setting both `PANEL_SEED_*` vars creates that admin account on first start and s
 - v0.2 file manager + MySQL mutations are **synchronous and audited**. v0.3: service restarts, DNS changes and backup deletion are synchronous + audited; backup create/restore are tasks (`backup.create`/`backup.restore`). Tasks exist only for slow flows (site create/delete, SSL issue, backups).
 - Panel routes for v0.3 (/api/services, /api/dns/**, /api/backups/**) mirror the agent shape 1:1.
 - v0.4: mail and site-operation mutations are synchronous + audited (`mail.*`, `site.*`) except subdomain create/delete and every backup run (tasks). Panel routes for v0.4 mirror the agent shape 1:1.
+- v0.5: toolbox mutations are synchronous + audited (`ftp.*`, `term.*`, `ssh.*`, `mysql.remote.*`, `site.waf.set`, `files.*`); the terminal `stream` endpoint is SSE and the panel proxies it as a streaming body. Cron jobs gained `runAs`; IP blocking gained CIDR. Panel routes mirror the agent shape 1:1.

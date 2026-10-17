@@ -421,7 +421,7 @@ func TestCronAddRemoveFragment(t *testing.T) {
 	site := h.addSite("example.com", "none")
 	h.renderSite(site)
 
-	jobs, err := h.svc.AddCron("example.com", "0 3 * * *", "/usr/bin/php /www/cli.php", "nightly")
+	jobs, err := h.svc.AddCron("example.com", "0 3 * * *", "/usr/bin/php /www/cli.php", "nightly", "")
 	if err != nil {
 		t.Fatalf("AddCron: %v", err)
 	}
@@ -444,7 +444,7 @@ func TestCronAddRemoveFragment(t *testing.T) {
 		t.Errorf("fragment mode = %o, want 644", perm)
 	}
 
-	jobs, err = h.svc.AddCron("example.com", "*/5 * * * *", "/usr/bin/php /www/other.php", "")
+	jobs, err = h.svc.AddCron("example.com", "*/5 * * * *", "/usr/bin/php /www/other.php", "", "")
 	if err != nil {
 		t.Fatalf("AddCron: %v", err)
 	}
@@ -503,7 +503,7 @@ func TestCronValidation(t *testing.T) {
 		{"0 3 * * *", "/bin/true", "line1\nline2"},
 	}
 	for _, tc := range invalid {
-		_, err := h.svc.AddCron("example.com", tc.schedule, tc.command, tc.comment)
+		_, err := h.svc.AddCron("example.com", tc.schedule, tc.command, tc.comment, "")
 		wantAPIError(t, err, 400, "invalid_cron")
 	}
 	// Nothing was persisted or written.
@@ -523,7 +523,7 @@ func TestCronFragmentWriteFailureRollsBack(t *testing.T) {
 	if err := os.WriteFile(h.cfg.CronDir, []byte("not a directory"), 0o644); err != nil {
 		t.Fatalf("write blocker: %v", err)
 	}
-	_, err := h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", "")
+	_, err := h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", "", "")
 	wantAPIError(t, err, 500, "internal")
 	got, _ := h.st.GetSite("example.com")
 	if len(got.Cron) != 0 {
@@ -668,7 +668,7 @@ func TestSiteOperationsDryRun(t *testing.T) {
 	wantAPIError(t, err, 409, "dry_run")
 	_, err = h.svc.DeleteRedirect("example.com", "deadbeef")
 	wantAPIError(t, err, 409, "dry_run")
-	_, err = h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", "")
+	_, err = h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", "", "")
 	wantAPIError(t, err, 409, "dry_run")
 	_, err = h.svc.DeleteCron("example.com", "deadbeef")
 	wantAPIError(t, err, 409, "dry_run")
@@ -714,7 +714,7 @@ func TestDeprovisionRemovesCronFragment(t *testing.T) {
 	h := newHarness(t, nil)
 	site := h.addSite("example.com", "none")
 	h.renderSite(site)
-	if _, err := h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", ""); err != nil {
+	if _, err := h.svc.AddCron("example.com", "0 3 * * *", "/bin/true", "", ""); err != nil {
 		t.Fatalf("AddCron: %v", err)
 	}
 	fragment := filepath.Join(h.cfg.CronDir, "clouddeck-example-com")

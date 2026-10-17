@@ -57,6 +57,26 @@ type Config struct {
 	// v0.4 site operations
 	PHPSockMap string // AGENT_PHP_SOCK_MAP: "8.3=/tmp/php-cgi-83.sock,8.4=/tmp/php-cgi-84.sock"
 	CronDir    string // AGENT_CRON_DIR (site cron fragments)
+
+	// v0.5 FTP accounts (pure-ftpd passwd file)
+	FTPPasswdFile string // AGENT_FTP_PASSWD_FILE
+	FTPRunAs      string // AGENT_FTP_RUNAS (unix user owning FTP home dirs)
+	FTPReloadCmd  string // AGENT_FTP_RELOAD_CMD (e.g. pure-pw mkdb)
+
+	// v0.5 web terminal
+	TermUser  string // AGENT_TERM_USER (unix user the shell runs as)
+	TermShell string // AGENT_TERM_SHELL
+
+	// v0.5 SSH key management
+	SSHKeysFile  string // AGENT_SSH_KEYS_FILE (authorized_keys)
+	SSHKeyDir    string // AGENT_SSH_KEY_DIR (generated keypairs)
+	SSHConfig    string // AGENT_SSH_CONFIG (sshd_config, for the Port)
+	SSHKeygenBin string // AGENT_SSH_KEYGEN_BIN
+
+	// v0.5 phpMyAdmin + WAF
+	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
+	NginxBin      string // AGENT_NGINX_BIN (used for -V module detection)
+	ModsecConf    string // AGENT_MODSEC_CONF (rules file when the module exists)
 }
 
 // Load reads the environment and applies documented defaults.
@@ -108,6 +128,26 @@ func Load() (Config, error) {
 	// v0.4 site operations
 	cfg.PHPSockMap = env("AGENT_PHP_SOCK_MAP", "")
 	cfg.CronDir = env("AGENT_CRON_DIR", "/etc/cron.d")
+
+	// v0.5 FTP accounts
+	cfg.FTPPasswdFile = env("AGENT_FTP_PASSWD_FILE", filepath.Join(cfg.StateDir, "ftp", "passwd"))
+	cfg.FTPRunAs = env("AGENT_FTP_RUNAS", "www")
+	cfg.FTPReloadCmd = env("AGENT_FTP_RELOAD_CMD", "")
+
+	// v0.5 web terminal
+	cfg.TermUser = env("AGENT_TERM_USER", "root")
+	cfg.TermShell = env("AGENT_TERM_SHELL", "/bin/bash")
+
+	// v0.5 SSH key management
+	cfg.SSHKeysFile = env("AGENT_SSH_KEYS_FILE", "/root/.ssh/authorized_keys")
+	cfg.SSHKeyDir = env("AGENT_SSH_KEY_DIR", "/root/.ssh/clouddeck-keys")
+	cfg.SSHConfig = env("AGENT_SSH_CONFIG", "/etc/ssh/sshd_config")
+	cfg.SSHKeygenBin = env("AGENT_SSH_KEYGEN_BIN", "ssh-keygen")
+
+	// v0.5 phpMyAdmin + WAF
+	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")
+	cfg.NginxBin = env("AGENT_NGINX_BIN", "nginx")
+	cfg.ModsecConf = env("AGENT_MODSEC_CONF", "/etc/nginx/modsec/clouddeck.conf")
 
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
 		dryRun, err := strconv.ParseBool(raw)

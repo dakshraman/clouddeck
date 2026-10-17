@@ -399,8 +399,35 @@ func (s *Service) cronFragmentPath(domain string) string {
 	return filepath.Join(s.cfg.CronDir, "clouddeck-"+strings.ReplaceAll(domain, ".", "-"))
 }
 
+// cronRunAs normalizes the cron fragment user column: empty means root; only
+// "root" and "www" are allowed.
+func cronRunAs(raw string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "root":
+		return "root", nil
+	case "www":
+		return "www", nil
+	default:
+		return "", apierr.BadRequest("invalid_cron", fmt.Sprintf("invalid cron user %q (allowed: root, www)", raw))
+	}
+}
+
+// normalizeBlockTarget accepts an IPv4/IPv6 address or CIDR range and returns
+// its canonical form for the nginx deny list.
+func normalizeBlockTarget(raw string) (string, error) {
+	target := strings.TrimSpace(raw)
+	if _, cidr, err := net.ParseCIDR(target); err == nil {
+		return cidr.String(), nil
+	}
+	if parsed := net.ParseIP(target); parsed != nil {
+		return parsed.String(), nil
+	}
+	return "", apierr.BadRequest("invalid_ip", fmt.Sprintf("invalid IP address or CIDR range %q", raw))
+}
+
 // writeCronFragment atomically rewrites the site's cron fragment: a header
-// comment plus one `<schedule> root <command>` line per job.
+// comment plus one `<schedule> <user> <command>` line per job. The user column
+// is the job's RunAs value, defaulting to root.
 func (s *Service) writeCronFragment(domain string, jobs []store.CronJob) error {
 	if err := os.MkdirAll(s.cfg.CronDir, 0o755); err != nil {
 		return fmt.Errorf("create cron dir %s: %w", s.cfg.CronDir, err)
@@ -408,7 +435,11 @@ func (s *Service) writeCronFragment(domain string, jobs []store.CronJob) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# managed-by: clouddeck (site %s)\n", domain)
 	for _, job := range jobs {
-		fmt.Fprintf(&b, "%s root %s\n", job.Schedule, job.Command)
+		user := job.RunAs
+		if user == "" {
+			user = "root"
+		}
+		fmt.Fprintf(&b, "%s %s %s\n", job.Schedule, user, job.Command)
 	}
 	return writeFileAtomic(s.cronFragmentPath(domain), []byte(b.String()), 0o644)
 }
@@ -451,7 +482,9 @@ func (s *Service) ListCron(domain string) ([]store.CronJob, error) {
 }
 
 // AddCron persists one cron job and rewrites the site's /etc/cron.d fragment.
-func (s *Service) AddCron(domain, schedule, command, comment string) ([]store.CronJob, error) {
+// runAs is the fragment user column: empty or "root" runs as root, "www"
+// runs as the web user.
+func (s *Service) AddCron(domain, schedule, command, comment, runAs string) ([]store.CronJob, error) {
 	if s.cfg.DryRun {
 		return nil, s.dryRunErr()
 	}
@@ -459,7 +492,11 @@ func (s *Service) AddCron(domain, schedule, command, comment string) ([]store.Cr
 	if err != nil {
 		return nil, err
 	}
-	params := map[string]any{"domain": site.Domain, "schedule": schedule, "command": command, "comment": comment}
+	normalizedRunAs, err := cronRunAs(runAs)
+	if err != nil {
+		return nil, s.reject(ActionCronAdd, map[string]any{"domain": domain, "runAs": runAs}, err)
+	}
+	params := map[string]any{"domain": site.Domain, "schedule": schedule, "command": command, "comment": comment, "runAs": normalizedRunAs}
 	if err := validateCron(schedule, command, comment); err != nil {
 		return nil, s.reject(ActionCronAdd, params, err)
 	}
@@ -471,7 +508,7 @@ func (s *Service) AddCron(domain, schedule, command, comment string) ([]store.Cr
 
 	previous := append([]store.CronJob(nil), site.Cron...)
 	if err := s.st.UpdateSite(site.Domain, func(current *store.Site) {
-		current.Cron = append(current.Cron, store.CronJob{ID: id, Schedule: schedule, Command: command, Comment: comment, CreatedAt: store.Now()})
+		current.Cron = append(current.Cron, store.CronJob{ID: id, Schedule: schedule, Command: command, Comment: comment, RunAs: normalizedRunAs, CreatedAt: store.Now()})
 		current.UpdatedAt = store.Now()
 	}); err != nil {
 		return nil, apierr.Internal(fmt.Sprintf("persist cron job: %v", err))
@@ -593,12 +630,11 @@ func (s *Service) BlockIP(domain, ip, note string) ([]store.BlockedIP, error) {
 	if err != nil {
 		return nil, err
 	}
-	parsed := net.ParseIP(strings.TrimSpace(ip))
+	normalized, err := normalizeBlockTarget(ip)
 	params := map[string]any{"domain": site.Domain, "ip": ip, "note": note}
-	if parsed == nil {
-		return nil, s.reject(ActionIPBlock, params, apierr.BadRequest("invalid_ip", fmt.Sprintf("invalid IP address %q", ip)))
+	if err != nil {
+		return nil, s.reject(ActionIPBlock, params, err)
 	}
-	normalized := parsed.String()
 	params["ip"] = normalized
 	for _, blocked := range site.BlockedIPs {
 		if blocked.IP == normalized {
@@ -635,12 +671,11 @@ func (s *Service) UnblockIP(domain, ip string) ([]store.BlockedIP, error) {
 	if err != nil {
 		return nil, err
 	}
-	parsed := net.ParseIP(strings.TrimSpace(ip))
+	normalized, err := normalizeBlockTarget(ip)
 	params := map[string]any{"domain": site.Domain, "ip": ip}
-	if parsed == nil {
-		return nil, s.reject(ActionIPUnblock, params, apierr.BadRequest("invalid_ip", fmt.Sprintf("invalid IP address %q", ip)))
+	if err != nil {
+		return nil, s.reject(ActionIPUnblock, params, err)
 	}
-	normalized := parsed.String()
 	params["ip"] = normalized
 	idx := -1
 	for i, blocked := range site.BlockedIPs {

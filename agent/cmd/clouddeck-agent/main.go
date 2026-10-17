@@ -18,15 +18,19 @@ import (
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
+	"clouddeck/agent/internal/phpmyadmin"
 	"clouddeck/agent/internal/server"
 	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
 	"clouddeck/agent/internal/sites"
+	"clouddeck/agent/internal/sshkeys"
 	"clouddeck/agent/internal/ssl"
 	"clouddeck/agent/internal/store"
 	"clouddeck/agent/internal/tasks"
+	"clouddeck/agent/internal/term"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -63,6 +67,10 @@ func main() {
 	backupSvc := backup.New(cfg, eng, siteSvc, auditLog)
 	mailSvc := mail.New(cfg, auditLog, dnsMgr)
 	siteInfoSvc := siteinfo.New(cfg, siteSvc)
+	ftpSvc := ftp.New(cfg, auditLog)
+	termSvc := term.New(cfg, auditLog)
+	sshSvc := sshkeys.New(cfg, auditLog)
+	pmaSvc := phpmyadmin.New(cfg)
 	backupSvc.Start()
 
 	if cfg.DryRun {
@@ -73,7 +81,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc),
 	}
 	go func() {
 		<-ctx.Done()

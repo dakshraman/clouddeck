@@ -26,6 +26,7 @@ type nginxData struct {
 	Denies     []string
 	Redirects  []nginxRedirect
 	Subdomains []string
+	WAF        bool // emit the CloudDeck WAF block (v0.5)
 }
 
 // RenderNginxConfig renders the site's nginx config. With SSL enabled it emits
@@ -52,6 +53,9 @@ func RenderNginxConfig(site store.Site, logDir, fpmSock string) string {
 	}
 	for _, sub := range site.Subdomains {
 		data.Subdomains = append(data.Subdomains, sub.Name)
+	}
+	if site.WAFEnabled {
+		data.WAF = true
 	}
 	tpl := nginxTemplate
 	if site.SSL.Enabled {

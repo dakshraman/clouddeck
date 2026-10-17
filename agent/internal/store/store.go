@@ -75,6 +75,10 @@ type CronJob struct {
 	Command   string    `json:"command"`
 	Comment   string    `json:"comment,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
+
+	// RunAs is the cron fragment user column: "root" (default when empty) or
+	// "www" (v0.5).
+	RunAs string `json:"runAs,omitempty"`
 }
 
 // Site is a hosted site.
@@ -92,6 +96,9 @@ type Site struct {
 	Redirects  []Redirect  `json:"redirects,omitempty"`
 	BlockedIPs []BlockedIP `json:"blockedIps,omitempty"`
 	Cron       []CronJob   `json:"cron,omitempty"`
+
+	// WAFEnabled turns on the per-site WAF rules block in the vhost (v0.5).
+	WAFEnabled bool `json:"wafEnabled,omitempty"`
 }
 
 // LogEntry is one task log line.
