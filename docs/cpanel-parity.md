@@ -80,41 +80,41 @@ independent.
 
 ## Feature map (cPanel → CloudDeck)
 
-| cPanel area | cPanel does | CloudDeck today (v0.3.0) | Plan |
+| cPanel area | cPanel does | CloudDeck today (v0.4.0) | Plan |
 |---|---|---|---|
-| Email accounts | Dovecot mailboxes, quotas | — | **v0.4** (typed mailbox CRUD) |
-| Forwarders / aliases | MTA alias maps | — | **v0.4** |
-| Autoresponders, filters | vacation + sieve | — | v0.4+ |
-| Spam handling | SpamAssassin/EB integration | — | v0.4+ (whatever stack is installed) |
-| Webmail | bundled webmail frontend | — | v0.4 (link/deploy Roundcube-class) |
-| DKIM / SPF / DMARC | manages keys, writes DNS | DNS API ready (incl. `_dmarc`, `_domainkey`) | **v0.4 helpers** |
+| Email accounts | Dovecot mailboxes, quotas | **shipped (v0.4)**: file-backed domains, mailboxes (`{SHA256}` passwd-file), quotas, maildirs | — |
+| Forwarders / aliases | MTA alias maps | **shipped (v0.4)**: Postfix virtual-alias syntax | — |
+| Autoresponders, filters | vacation + sieve | **shipped (v0.4)**: sieve vacation scripts | — |
+| Spam handling | SpamAssassin/EB integration | — | backlog (whatever stack is installed) |
+| Webmail | bundled webmail frontend | — | backlog (link/deploy Roundcube-class) |
+| DKIM / SPF / DMARC | manages keys, writes DNS | **shipped (v0.4)**: RSA-2048 key management, one-click SPF/DMARC/MX/DKIM publishing | — |
 | DNS zones / records | Zone Editor, BIND or PowerDNS | **PowerDNS shipped (v0.3)** | BIND driver later if needed |
 | DNS-only server | `dnsonly` product | — | optional variant, later |
-| Addon domains, subdomains, aliases | per-site management | — | v0.3.x (subdomains, redirects) |
+| Addon domains, subdomains, aliases | per-site management | **shipped (v0.4)**: subdomains (own vhost blocks) and redirects per site | addon domains backlog |
 | File manager | full file manager | **shipped (v0.2)** | — |
-| Disk usage per site | usage views | host metrics shipped | v0.3.x per-site usage |
-| FTP accounts | pure-ftpd accounts, quotas | — | v0.3.x / v0.4 |
-| Backup & restore | wizard, remote destinations, scheduling | **shipped (v0.3)**: site+db, local/Telegram/rclone | v0.3.x scheduling + retention |
+| Disk usage per site | usage views | **shipped (v0.4)**: per-site usage + access-log statistics | — |
+| FTP accounts | pure-ftpd accounts, quotas | — | backlog |
+| Backup & restore | wizard, remote destinations, scheduling | **shipped (v0.3+v0.4)**: site+db, local/Telegram/rclone, scheduled runs with retention | — |
 | MySQL/MariaDB | databases, users, remote access | **shipped (v0.2)**: db/user/grants | remote access later |
-| PHP versions | per-directory handler, ini editor | per-site version at create | v0.3.x switching, ini editor |
+| PHP versions | per-directory handler, ini editor | **shipped (v0.4)**: per-site switching via socket map | ini editor backlog |
 | SSL/TLS | AutoSSL, cert manager | **per-site Let's Encrypt (v0.2)** | AutoSSL-style renewal surface |
-| Cron jobs | full cron UI | — | v0.3.x |
-| Bandwidth / visitors stats | per-domain reports | host metrics (v0.3) | v0.3.x from access logs |
-| IP blocker / WAF-lite | cphulk, ModSecurity | — | post-v0.4 |
-| One-click installers | Softaculous, WP Toolkit | — | v0.4+ (WordPress via wp-cli first) |
+| Cron jobs | full cron UI | **shipped (v0.4)**: per-site jobs → `/etc/cron.d` fragments | per-user cron backlog |
+| Bandwidth / visitors stats | per-domain reports | **shipped (v0.4)**: per-site requests/bytes/per-day/top-paths from access logs | — |
+| IP blocker / WAF-lite | cphulk, ModSecurity | **shipped (v0.4)**: per-site deny list | full WAF / cphulk backlog |
+| One-click installers | Softaculous, WP Toolkit | — | backlog (WordPress via wp-cli first) |
 | WHM service manager | restart/config services | **services page shipped (v0.3)** | — |
 | WHM packages / resellers / quotas | packages, resellers, limits | single-admin | v0.5 (multi-server), resellers later |
 | Nameserver selection | bind / powerdns / disabled | PowerDNS integration (v0.3) | selection UI later |
 
 ## Prioritized milestones
 
-- **v0.3.x — operations follow-ups:** scheduled backups + retention, cron jobs
-  UI, subdomains/redirects, per-site disk/bandwidth, log viewer, multi-PHP
-  switching, AutoSSL-style renewal surface.
-- **v0.4 — mail stack (biggest cPanel gap):** mailbox CRUD, forwarders,
-  autoresponders, DKIM key management with SPF/DMARC DNS helpers (the DNS layer
-  now supports `_dmarc` and `_domainkey` records), webmail integration —
-  designed as typed operations against the installed MTA/Dovecot.
+- **v0.4.0 — shipped:** mail stack (domains, mailboxes, quotas, forwarders,
+  autoresponders, DKIM + SPF/DMARC/MX helpers), site operations (subdomains,
+  redirects, cron, PHP switching, IP blocker, per-site disk/bandwidth, log
+  viewer), scheduled backups with retention.
+- **v0.4+ — remaining gaps:** webmail frontend, SpamAssassin integration, FTP
+  accounts, one-click WordPress (wp-cli first), php.ini editor, AutoSSL-style
+  renewal surface.
 - **v0.5 — multi-server:** one panel managing several agents (the WHM-shaped
   layer), keeping the agent contract identical.
 - **Later:** IP blocker/WAF-lite, one-click installer, reseller/quotas.

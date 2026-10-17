@@ -23,20 +23,23 @@ Versions are milestones, not dates.
   - Google Drive, MEGA, Dropbox (via `rclone`, typed argument arrays only),
   - Telegram (Bot API, configurable base URL so it can be tested against a local mock)
 
-## v0.3.x — operations follow-ups (next)
+## v0.3.x — operations follow-ups (shipped: v0.4.0)
 
-- Scheduled backups (daily/weekly) and retention
-- Cron jobs UI (per site and per user)
-- Subdomains and redirects per site
-- Server logs viewer: nginx, PHP-FPM and agent audit log
-- Multi-PHP management: several PHP versions installed and switchable per site
-- Load average + metric history charts on the monitoring page
+- Scheduled backups (daily/weekly) and retention — **shipped**: schedule card + agent scheduler with a per-source retention ledger (manual archives are never pruned)
+- Cron jobs UI — **shipped**: per-site jobs written as `/etc/cron.d` fragments
+- Subdomains and redirects per site — **shipped**
+- Server logs viewer — **partial**: per-site access/error log viewer shipped; global nginx/PHP-FPM/audit viewers are backlog
+- Multi-PHP management — **shipped**: `AGENT_PHP_SOCK_MAP` resolves each site's version to its FPM socket; per-site switching from the UI
+- Load average + metric history charts — backlog
 
-## v0.4 — mail
+## v0.4 — mail + site operations (shipped: v0.4.0)
 
-- Virtual mailbox management: Postfix + Dovecot — domains, mailboxes, aliases, forwarders
-- DKIM signing; SPF/DMARC record helpers in the DNS zone editor
+- Mail management, file-backed against the installed Postfix/Dovecot: domains, mailboxes (`{SHA256}` passwd-file entries, maildirs, quotas), forwarders (virtual-alias syntax), autoresponders (sieve vacation scripts)
+- DKIM key management (RSA-2048) with one-click SPF/DMARC/MX publishing into the PowerDNS zone
+- Site operations: subdomains (task-backed, own vhost blocks), redirects, cron jobs, per-site PHP switching, per-site IP blocker, disk usage, access-log statistics, log viewer
+- Scheduled backups: daily/weekly runs with per-source retention
 - Honest caveats: deliverability depends on IP reputation, rDNS and MX setup — CloudDeck configures the software, the operator owns the reputation. No outbound relay service.
+- Not in v0.4 (backlog): webmail frontend, SpamAssassin integration, FTP accounts, one-click WordPress
 
 ## v0.5 — multi-server / SaaS
 
