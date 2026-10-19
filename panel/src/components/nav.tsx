@@ -1,123 +1,137 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Archive, Clock, CloudUpload, Database, FolderOpen, Globe, KeyRound, LayoutDashboard, Mail, Network, Settings, SquareTerminal, type LucideIcon } from "lucide-react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/components/ui/cn";
+import { isNavItemActive, navGroups } from "@/components/nav-items";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  isActive: (pathname: string) => boolean;
+const STORAGE_KEY = "clouddeck.nav.groups";
+
+function loadOpenState(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
 }
-
-const items: NavItem[] = [
-  {
-    href: "/",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    isActive: (pathname) => pathname === "/",
-  },
-  {
-    href: "/sites",
-    label: "Sites",
-    icon: Globe,
-    isActive: (pathname) => pathname === "/sites" || pathname.startsWith("/sites/"),
-  },
-  {
-    href: "/databases",
-    label: "Databases",
-    icon: Database,
-    isActive: (pathname) => pathname === "/databases" || pathname.startsWith("/databases/"),
-  },
-  {
-    href: "/dns",
-    label: "DNS",
-    icon: Network,
-    isActive: (pathname) => pathname === "/dns" || pathname.startsWith("/dns/"),
-  },
-  {
-    href: "/mail",
-    label: "Mail",
-    icon: Mail,
-    isActive: (pathname) => pathname === "/mail" || pathname.startsWith("/mail/"),
-  },
-  {
-    href: "/backups",
-    label: "Backups",
-    icon: Archive,
-    isActive: (pathname) => pathname === "/backups" || pathname.startsWith("/backups/"),
-  },
-  {
-    href: "/monitoring",
-    label: "Monitoring",
-    icon: Activity,
-    isActive: (pathname) => pathname === "/monitoring" || pathname.startsWith("/monitoring/"),
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: Settings,
-    isActive: (pathname) => pathname === "/settings" || pathname.startsWith("/settings/"),
-  },
-  {
-    href: "/files",
-    label: "Files",
-    icon: FolderOpen,
-    isActive: (pathname) => pathname === "/files" || pathname.startsWith("/files/"),
-  },
-  {
-    href: "/ftp",
-    label: "FTP",
-    icon: CloudUpload,
-    isActive: (pathname) => pathname === "/ftp" || pathname.startsWith("/ftp/"),
-  },
-  {
-    href: "/cron",
-    label: "Cron Jobs",
-    icon: Clock,
-    isActive: (pathname) => pathname === "/cron" || pathname.startsWith("/cron/"),
-  },
-  {
-    href: "/terminal",
-    label: "Terminal",
-    icon: SquareTerminal,
-    isActive: (pathname) => pathname === "/terminal" || pathname.startsWith("/terminal/"),
-  },
-  {
-    href: "/ssh",
-    label: "SSH",
-    icon: KeyRound,
-    isActive: (pathname) => pathname === "/ssh" || pathname.startsWith("/ssh/"),
-  },
-];
 
 export function Nav() {
   const pathname = usePathname();
+  const [openState, setOpenState] = useState<Record<string, boolean>>({});
+  const [ready, setReady] = useState(false);
+
+  const activeGroupId = useMemo(
+    () => navGroups.find((group) => group.items.some((item) => isNavItemActive(pathname, item.href)))?.id,
+    [pathname],
+  );
+
+  useEffect(() => {
+    setOpenState(loadOpenState());
+    setReady(true);
+  }, []);
+
+  // Always reveal the group that owns the active route.
+  useEffect(() => {
+    if (!activeGroupId) return;
+    setOpenState((prev) => (prev[activeGroupId] === false ? { ...prev, [activeGroupId]: true } : prev));
+  }, [activeGroupId]);
+
+  function toggle(groupId: string, currentlyOpen: boolean) {
+    setOpenState((prev) => {
+      const next = { ...prev, [groupId]: !currentlyOpen };
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Storage unavailable; group state is session-only.
+      }
+      return next;
+    });
+  }
 
   return (
-    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {items.map((item) => {
-        const active = item.isActive(pathname);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-slate-800/70 text-slate-100"
-                : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200",
-            )}
-          >
-            <Icon size={16} className={active ? "text-indigo-400" : "text-slate-400"} />
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <LayoutGroup>
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3" aria-label="Main navigation">
+        {navGroups.map((group) => {
+          const open = openState[group.id] ?? true;
+          const groupActive = group.items.some((item) => isNavItemActive(pathname, item.href));
+          return (
+            <div key={group.id} className="mb-0.5">
+              <button
+                type="button"
+                onClick={() => toggle(group.id, open)}
+                aria-expanded={open}
+                className={cn(
+                  "group flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                  groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/55",
+                  "hover:text-sidebar-foreground",
+                )}
+              >
+                <motion.span
+                  animate={{ rotate: open ? 90 : 0 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                  className="flex h-3.5 w-3.5 items-center justify-center"
+                  aria-hidden="true"
+                >
+                  <ChevronRight size={12} />
+                </motion.span>
+                {group.label}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {open || !ready ? (
+                  <motion.ul
+                    key={`${group.id}-items`}
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="overflow-hidden"
+                  >
+                    {group.items.map((item) => {
+                      const active = isNavItemActive(pathname, item.href);
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            aria-current={active ? "page" : undefined}
+                            className={cn(
+                              "relative flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-colors",
+                              active
+                                ? "bg-sidebar-accent text-white"
+                                : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                            )}
+                          >
+                            {active ? (
+                              <motion.span
+                                layoutId="nav-active-bar"
+                                transition={{ type: "spring", stiffness: 520, damping: 38 }}
+                                className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-primary"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            <Icon
+                              size={15}
+                              className={cn("shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{item.label}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </motion.ul>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </nav>
+    </LayoutGroup>
   );
 }

@@ -1,40 +1,52 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
 
-export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
-export type ButtonSize = "sm" | "md";
+export const buttonVariants = cva(
+  [
+    "inline-flex cursor-pointer select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium",
+    "transition-[background-color,border-color,color,box-shadow,transform] duration-150",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:pointer-events-none disabled:opacity-50 active:translate-y-px",
+  ].join(" "),
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/85",
+        secondary: "border border-border bg-secondary text-secondary-foreground hover:bg-accent",
+        outline: "border border-border bg-transparent text-foreground hover:bg-accent",
+        ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        danger: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/85",
+      },
+      size: {
+        sm: "h-8 px-3 text-xs",
+        md: "h-9 px-4 text-sm",
+        icon: "h-9 w-9 px-0",
+        "icon-sm": "h-8 w-8 px-0",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  },
+);
 
-const variantClass: Record<ButtonVariant, string> = {
-  primary:
-    "border border-transparent bg-indigo-500 text-white hover:bg-indigo-400 focus-visible:ring-indigo-400",
-  secondary:
-    "border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 focus-visible:ring-slate-500",
-  danger:
-    "border border-transparent bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-400",
-  ghost:
-    "border border-transparent bg-transparent text-slate-300 hover:bg-slate-800 hover:text-slate-100 focus-visible:ring-slate-500",
-};
+export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md" | "icon" | "icon-sm";
 
-const sizeClass: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 px-3 text-xs",
-  md: "h-9 gap-2 px-4 text-sm",
-};
-
-export function buttonClass(variant: ButtonVariant = "primary", size: ButtonSize = "md", className?: string): string {
-  return cn(
-    "inline-flex cursor-pointer items-center justify-center rounded-lg font-medium transition-colors",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0F17]",
-    "disabled:cursor-not-allowed disabled:opacity-50",
-    variantClass[variant],
-    sizeClass[size],
-    className,
-  );
+export function buttonClass(
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
+  className?: string,
+): string {
+  return cn(buttonVariants({ variant, size }), className);
 }
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
   loading?: boolean;
 }
 
@@ -47,10 +59,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type ?? "button"}
       disabled={disabled || loading}
-      className={buttonClass(variant, size, className)}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     >
-      {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : null}
+      {loading ? <Spinner size={size === "sm" || size === "icon-sm" ? 14 : 16} /> : null}
       {children}
     </button>
   );

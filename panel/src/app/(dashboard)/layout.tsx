@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { Layers } from "lucide-react";
 import { requireSession } from "@/lib/session";
-import { LogoutButton } from "@/components/logout-button";
 import { Nav } from "@/components/nav";
+import { PageTransition } from "@/components/page-transition";
 import { Topbar } from "@/components/topbar";
 
 // Auth + setup state are per-request; never prerender/cache this tree at
@@ -14,22 +14,31 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-slate-800 bg-[#0B0F17]">
-        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-800 px-5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500 text-white">
+      <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-sidebar-border bg-sidebar">
+        <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-4">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <Layers size={15} aria-hidden="true" />
           </span>
-          <span className="text-sm font-semibold tracking-tight text-slate-100">CloudDeck</span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
+              CloudDeck
+            </span>
+            <span className="block truncate text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+              Hosting console
+            </span>
+          </span>
         </div>
         <Nav />
-        <div className="shrink-0 border-t border-slate-800 p-2">
-          <LogoutButton username={user.username} />
+        <div className="shrink-0 border-t border-sidebar-border px-4 py-2.5">
+          <p className="truncate text-[11px] text-sidebar-foreground/50">
+            CloudDeck · self-hosted control panel
+          </p>
         </div>
       </aside>
 
-      <div className="pl-60">
-        <Topbar />
-        <main className="mx-auto max-w-6xl px-8 py-8">{children}</main>
+      <div className="pl-64">
+        <Topbar username={user.username} />
+        <main className="mx-auto max-w-7xl px-5 py-6 lg:px-8">{<PageTransition>{children}</PageTransition>}</main>
       </div>
     </div>
   );

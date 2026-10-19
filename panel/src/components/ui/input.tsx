@@ -2,7 +2,7 @@ import { forwardRef, type InputHTMLAttributes, type LabelHTMLAttributes } from "
 import { cn } from "@/components/ui/cn";
 
 export const inputClass =
-  "h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-sm text-slate-200 placeholder:text-slate-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50";
+  "h-9 w-full rounded-lg border border-input bg-background/60 px-3 text-sm text-foreground placeholder:text-muted-foreground/70 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -12,6 +12,6 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (
-    <label className={cn("text-xs font-medium text-slate-400", className)} {...props} />
+    <label className={cn("text-xs font-medium text-muted-foreground", className)} {...props} />
   );
 }

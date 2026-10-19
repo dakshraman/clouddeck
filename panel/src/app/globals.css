@@ -5,25 +5,71 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* CloudDeck "deck" dark theme — dense hosting-console palette. */
+    --background: 220 35% 7%;
+    --foreground: 213 27% 90%;
+
+    --card: 221 32% 10%;
+    --card-foreground: 213 27% 93%;
+
+    --popover: 221 38% 9%;
+    --popover-foreground: 213 27% 93%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 221 26% 16%;
+    --secondary-foreground: 213 27% 88%;
+
+    --muted: 221 26% 15%;
+    --muted-foreground: 218 13% 62%;
+
+    --accent: 221 30% 17%;
+    --accent-foreground: 213 27% 93%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 32 95% 52%;
+
+    --border: 220 22% 18%;
+    --input: 220 22% 20%;
+    --ring: 239 84% 67%;
+    --radius: 0.625rem;
+
+    /* Deep navy console rail (inspired by classic hosting-panel consoles). */
+    --sidebar: 232 33% 12%;
+    --sidebar-foreground: 222 22% 80%;
+    --sidebar-border: 232 26% 20%;
+    --sidebar-accent: 232 30% 20%;
+
+    --topbar: 220 38% 8%;
+    --brand: 24 95% 55%;
+  }
+
+  * {
+    @apply border-border;
   }
 
   html {
-    @apply bg-[#0B0F17];
+    @apply bg-background;
   }
 
   body {
-    @apply bg-[#0B0F17] text-slate-200 antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   }
 
   ::selection {
-    @apply bg-indigo-500/40 text-white;
+    @apply bg-primary/40 text-white;
   }
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #1e293b transparent;
+  scrollbar-color: hsl(var(--border)) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -36,22 +82,27 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #1e293b;
+  background-color: hsl(var(--border));
   border: 2px solid transparent;
   border-radius: 9999px;
   background-clip: content-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #334155;
+  background-color: hsl(220 20% 28%);
   background-clip: content-box;
 }
 
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #e2e8f0;
-  -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
+  -webkit-text-fill-color: hsl(var(--foreground));
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
   transition: background-color 9999s ease-out 0s;
-  caret-color: #e2e8f0;
+  caret-color: hsl(var(--foreground));
+}
+
+/* Dense console typography helpers */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
