@@ -17,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { DatabasesCard } from "@/components/databases/databases-card";
 import { UsersCard } from "@/components/databases/users-card";
+import { PmaCard } from "./pma-card";
+import { RemoteMysqlCard } from "./remote-mysql-card";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -164,6 +166,12 @@ export default function DatabasesPage() {
               disabled={!available}
               onRefresh={refresh}
             />
+          </div>
+          <div className="mt-6">
+            <PmaCard />
+          </div>
+          <div className="mt-6">
+            <RemoteMysqlCard />
           </div>
         </>
       ) : null}

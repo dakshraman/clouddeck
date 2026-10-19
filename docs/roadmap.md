@@ -41,7 +41,28 @@ Versions are milestones, not dates.
 - Honest caveats: deliverability depends on IP reputation, rDNS and MX setup — CloudDeck configures the software, the operator owns the reputation. No outbound relay service.
 - Not in v0.4 (backlog): webmail frontend, SpamAssassin integration, FTP accounts, one-click WordPress
 
-## v0.5 — multi-server / SaaS
+## v0.5 — toolbox + design system (features shipped: v0.5.0 — UI pass v0.5.1 next)
+
+The cPanel toolbox wave, per the requested feature list:
+
+- **FTP accounts** — pure-ftpd passwd file (SHA-512 crypt), per-site paths, reload via `pure-pw mkdb`
+- **phpMyAdmin access** — detects the installed instance (aaPanel layout) and links from the panel
+- **Cron Jobs** — dedicated page across all sites + run-as user (root/www) per job
+- **Terminal** — web terminal (stdlib PTY, SSE streaming to xterm.js in the panel)
+- **SSH** — authorized_keys management + keypair generation with fingerprints
+- **Remote DB** — clone a MySQL user's credentials + grants to an extra host
+- **IP Blocker** — CIDR range support
+- **ModSecurity / WAF** — per-site toggle; real `modsecurity` directives when the module exists, otherwise the CloudDeck nginx-rule engine (sensitive files + injection patterns)
+- **File manager completion** — chmod, copy, compress/extract (tar.gz/zip)
+
+**Panel UI/UX decision**: adopt **shadcn/ui** as the component foundation and
+**Animate UI** for motion (motion/react). Tailwind v3 classic setup with CSS
+variables; theme tokens tuned to the existing slate-dark look so it is an
+upgrade, not a reskin. Motion is curated (animated icons, counters, dialog/tab
+transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
+(v0.5.1)** on top of the v0.5.0 feature release.
+
+## v0.6 — multi-server / SaaS
 
 - Central panel managing many servers: one agent per server, mutual TLS, job queue
 - White-label branding
@@ -62,15 +83,16 @@ from the public cPanel installer's layer-1 scripts.
 | Domains | addon/subdomains, redirects, parked | subdomains + redirects in v0.3.x |
 | DNS | zones, records, DNSSEC | zones + records shipped (v0.3); DNSSEC later |
 | Email | mailboxes, forwarders, autoresponders, spam, webmail, DKIM/SPF/DMARC | v0.4: Postfix + Dovecot + OpenDKIM management, DNS helpers |
-| Files | file manager, disk quotas | file manager shipped (v0.2); quotas later |
-| FTP | per-site FTP accounts | v0.3.x: FTP account management |
-| Databases | MySQL, phpMyAdmin, remote access | MySQL shipped (v0.2) |
+| Files | file manager, disk quotas | file manager (v0.2) + chmod/copy/compress/extract (v0.5); quotas later |
+| FTP | per-site FTP accounts | v0.5: pure-ftpd account management |
+| Databases | MySQL, phpMyAdmin, remote access | MySQL (v0.2); phpMyAdmin access + remote hosts (v0.5) |
 | SSL | AutoSSL, per-domain certs | per-site Let's Encrypt shipped (v0.2) |
 | PHP | multi-version, per-directory handler | multi-PHP switching in v0.3.x |
-| Cron | cron jobs UI | v0.3.x |
-| Apps | Softaculous one-click installers | v0.4+: curated installer (WordPress via wp-cli) |
+| Cron | cron jobs UI | v0.5: dedicated Cron Jobs page, run-as root/www |
+| Shell | Terminal, SSH access | v0.5: web terminal + SSH key manager |
+| Apps | Softaculous one-click installers | curated installer (WordPress via wp-cli) — backlog |
 | Stats | bandwidth, resource usage, visitors | host metrics shipped (v0.3); per-site bandwidth later |
-| Security | IP blocker, hotlink protection, WAF-lite | planned post-v0.4 |
+| Security | IP blocker, hotlink protection, WAF-lite | v0.5: per-site WAF (ModSecurity-style) + IP blocker with CIDR |
 | Accounts | WHM / resellers, packages, quotas | v0.5 multi-server layer first; reseller model evaluated after |
 
 ## v1.0 — productization

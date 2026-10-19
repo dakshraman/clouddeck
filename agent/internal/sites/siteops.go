@@ -40,6 +40,7 @@ const (
 	ActionPHPSet         = "site.php.set"
 	ActionIPBlock        = "site.ip.block"
 	ActionIPUnblock      = "site.ip.unblock"
+	ActionWAFSet         = "site.waf.set"
 )
 
 // Validation limits from docs/api.md section 1.7.

@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { SiteCronJob, SiteCronResponse } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { shortDateTime } from "@/components/format";
@@ -20,6 +22,7 @@ export function CronCard({ domain }: { domain: string }) {
   const [schedule, setSchedule] = useState("");
   const [command, setCommand] = useState("");
   const [comment, setComment] = useState("");
+  const [runAs, setRunAs] = useState("root");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -51,9 +54,10 @@ export function CronCard({ domain }: { domain: string }) {
     setSubmitting(true);
     setFormError(null);
     try {
-      const payload: { schedule: string; command: string; comment?: string } = {
+      const payload: { schedule: string; command: string; comment?: string; runAs: string } = {
         schedule: schedule.trim(),
         command: command.trim(),
+        runAs,
       };
       if (comment.trim() !== "") payload.comment = comment.trim();
       const data = await apiPost<SiteCronResponse>(base, payload);
@@ -96,8 +100,8 @@ export function CronCard({ domain }: { domain: string }) {
         <div>
           <CardTitle>Cron jobs</CardTitle>
           <CardDescription>
-            Scheduled commands for this site, written to a dedicated cron.d fragment and run as
-            root.
+            Scheduled commands for this site, written to a dedicated cron.d fragment and run as the
+            selected user (root or www).
           </CardDescription>
         </div>
         <Clock size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
@@ -134,20 +138,35 @@ export function CronCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">Run as root on the server.</p>
+              <p className="text-xs text-slate-500">Runs as the user selected for the job.</p>
             </div>
           </div>
 
-          <div className="grid gap-1.5 sm:max-w-xl">
-            <Label htmlFor="cron-comment">Comment (optional)</Label>
-            <Input
-              id="cron-comment"
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder="Nightly maintenance"
-              autoComplete="off"
-              disabled={busy}
-            />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="cron-comment">Comment (optional)</Label>
+              <Input
+                id="cron-comment"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="Nightly maintenance"
+                autoComplete="off"
+                disabled={busy}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="cron-runas">Run as</Label>
+              <Select
+                id="cron-runas"
+                value={runAs}
+                onChange={(event) => setRunAs(event.target.value)}
+                disabled={busy}
+              >
+                <option value="root">root</option>
+                <option value="www">www</option>
+              </Select>
+              <p className="text-xs text-slate-500">root or the www web user.</p>
+            </div>
           </div>
 
           {formError ? <Alert variant="error">{formError}</Alert> : null}
@@ -182,6 +201,7 @@ export function CronCard({ domain }: { domain: string }) {
                 <tr className="text-xs uppercase tracking-wide text-slate-500">
                   <th className="py-3 pr-5 text-left font-medium">Schedule</th>
                   <th className="py-3 pr-5 text-left font-medium">Command</th>
+                  <th className="py-3 pr-5 text-left font-medium">Run as</th>
                   <th className="py-3 pr-5 text-left font-medium">Comment</th>
                   <th className="py-3 pr-5 text-left font-medium">Created</th>
                   <th className="py-3 text-right font-medium">Actions</th>
@@ -205,6 +225,9 @@ export function CronCard({ domain }: { domain: string }) {
                         >
                           {job.command}
                         </span>
+                      </td>
+                      <td className="py-3 pr-5">
+                        <Badge variant="neutral">{job.runAs || "root"}</Badge>
                       </td>
                       <td className="py-3 pr-5 text-slate-400">{job.comment || "—"}</td>
                       <td className="py-3 pr-5 text-slate-400">{shortDateTime(job.createdAt)}</td>

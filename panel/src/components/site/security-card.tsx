@@ -44,7 +44,7 @@ export function SecurityCard({ domain }: { domain: string }) {
     event.preventDefault();
     const address = ip.trim();
     if (address === "") {
-      setFormError("Enter an IP address (IPv4 or IPv6).");
+      setFormError("Enter an IP address (IPv4 or IPv6) or a CIDR range such as 203.0.113.0/24.");
       return;
     }
 
@@ -95,15 +95,15 @@ export function SecurityCard({ domain }: { domain: string }) {
           <CardDescription>
             Deny rules applied to the whole site: every nginx server block for{" "}
             <span className="font-mono">{domain}</span> (including subdomains) rejects the listed
-            addresses.
+            IP addresses and CIDR ranges.
           </CardDescription>
         </div>
         <ShieldBan size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
         <Alert variant="info">
-          Blocked addresses are refused by nginx before requests reach your files. Visitors from
-          these addresses can no longer load any page of this site.
+          Blocked IPs and ranges are refused by nginx before requests reach your files. Visitors
+          from these addresses can no longer load any page of this site.
         </Alert>
 
         <form onSubmit={onSubmit} className="grid gap-4">
@@ -120,7 +120,9 @@ export function SecurityCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">IPv4 or IPv6.</p>
+              <p className="text-xs text-slate-500">
+                IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.
+              </p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="block-note">Note (optional)</Label>

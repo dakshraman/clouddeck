@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Archive, Database, Globe, LayoutDashboard, Mail, Network, Settings, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Clock, CloudUpload, Database, FolderOpen, Globe, KeyRound, LayoutDashboard, Mail, Network, Settings, SquareTerminal, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
 interface NavItem {
@@ -60,6 +60,36 @@ const items: NavItem[] = [
     label: "Settings",
     icon: Settings,
     isActive: (pathname) => pathname === "/settings" || pathname.startsWith("/settings/"),
+  },
+  {
+    href: "/files",
+    label: "Files",
+    icon: FolderOpen,
+    isActive: (pathname) => pathname === "/files" || pathname.startsWith("/files/"),
+  },
+  {
+    href: "/ftp",
+    label: "FTP",
+    icon: CloudUpload,
+    isActive: (pathname) => pathname === "/ftp" || pathname.startsWith("/ftp/"),
+  },
+  {
+    href: "/cron",
+    label: "Cron Jobs",
+    icon: Clock,
+    isActive: (pathname) => pathname === "/cron" || pathname.startsWith("/cron/"),
+  },
+  {
+    href: "/terminal",
+    label: "Terminal",
+    icon: SquareTerminal,
+    isActive: (pathname) => pathname === "/terminal" || pathname.startsWith("/terminal/"),
+  },
+  {
+    href: "/ssh",
+    label: "SSH",
+    icon: KeyRound,
+    isActive: (pathname) => pathname === "/ssh" || pathname.startsWith("/ssh/"),
   },
 ];
 

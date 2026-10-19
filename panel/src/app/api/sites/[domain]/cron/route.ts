@@ -66,6 +66,29 @@ function resolveCronCommand(raw: unknown): string {
   return raw;
 }
 
+/**
+ * Mirrors the agent's cron run-as rule so the panel rejects early: empty is
+ * treated as "root"; only "root" and "www" are allowed.
+ */
+function resolveCronRunAs(raw: unknown): "root" | "www" {
+  if (typeof raw !== "string") {
+    throw new HttpError(400, "invalid cron user — allowed: root, www", "invalid_cron");
+  }
+  switch (raw.trim().toLowerCase()) {
+    case "":
+    case "root":
+      return "root";
+    case "www":
+      return "www";
+    default:
+      throw new HttpError(
+        400,
+        `invalid cron user "${raw.trim()}" (allowed: root, www)`,
+        "invalid_cron",
+      );
+  }
+}
+
 /** Forwards the request and passes the agent's status + body through unchanged. */
 async function forwardToAgent(
   agentPath: string,
@@ -115,12 +138,15 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     if (comment !== undefined && typeof comment !== "string") {
       throw new HttpError(400, "invalid cron comment", "invalid_cron");
     }
+    const runAs = body.runAs === undefined ? undefined : resolveCronRunAs(body.runAs);
 
-    const payload: { schedule: string; command: string; comment?: string } = {
-      schedule,
-      command,
-    };
+    const payload: { schedule: string; command: string; comment?: string; runAs?: "root" | "www" } =
+      {
+        schedule,
+        command,
+      };
     if (typeof comment === "string") payload.comment = comment;
+    if (runAs !== undefined) payload.runAs = runAs;
 
     return forwardToAgent(`/v1/sites/${encodeURIComponent(domain)}/cron`, {
       method: "POST",

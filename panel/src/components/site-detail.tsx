@@ -18,6 +18,7 @@ import { RedirectsCard } from "@/components/site/redirects-card";
 import { CronCard } from "@/components/site/cron-card";
 import { PhpCard } from "@/components/site/php-card";
 import { SecurityCard } from "@/components/site/security-card";
+import { WafCard } from "@/components/site/waf-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
@@ -401,6 +402,7 @@ export function SiteDetail({ domain }: { domain: string }) {
 
       <TabPanel id="security" active={tab === "security"}>
         <SecurityCard domain={site.domain} />
+        <WafCard domain={site.domain} />
       </TabPanel>
 
       <TabPanel id="usage" active={tab === "usage"}>

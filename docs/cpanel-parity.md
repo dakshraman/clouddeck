@@ -80,7 +80,7 @@ independent.
 
 ## Feature map (cPanel → CloudDeck)
 
-| cPanel area | cPanel does | CloudDeck today (v0.4.0) | Plan |
+| cPanel area | cPanel does | CloudDeck today (v0.5.0) | Plan |
 |---|---|---|---|
 | Email accounts | Dovecot mailboxes, quotas | **shipped (v0.4)**: file-backed domains, mailboxes (`{SHA256}` passwd-file), quotas, maildirs | — |
 | Forwarders / aliases | MTA alias maps | **shipped (v0.4)**: Postfix virtual-alias syntax | — |
@@ -91,16 +91,17 @@ independent.
 | DNS zones / records | Zone Editor, BIND or PowerDNS | **PowerDNS shipped (v0.3)** | BIND driver later if needed |
 | DNS-only server | `dnsonly` product | — | optional variant, later |
 | Addon domains, subdomains, aliases | per-site management | **shipped (v0.4)**: subdomains (own vhost blocks) and redirects per site | addon domains backlog |
-| File manager | full file manager | **shipped (v0.2)** | — |
+| File manager | full file manager | **shipped (v0.2+v0.5)**: browse/edit/upload/download; chmod, copy, compress/extract (path-confined, symlink-rejecting, audited) | — |
 | Disk usage per site | usage views | **shipped (v0.4)**: per-site usage + access-log statistics | — |
-| FTP accounts | pure-ftpd accounts, quotas | — | backlog |
+| FTP accounts | pure-ftpd accounts, quotas | **shipped (v0.5)**: pure-ftpd account management (SHA-512 crypt), per-site paths, live reload via `pure-pw mkdb` | quotas backlog |
 | Backup & restore | wizard, remote destinations, scheduling | **shipped (v0.3+v0.4)**: site+db, local/Telegram/rclone, scheduled runs with retention | — |
-| MySQL/MariaDB | databases, users, remote access | **shipped (v0.2)**: db/user/grants | remote access later |
+| MySQL/MariaDB | databases, users, remote access, phpMyAdmin | **shipped (v0.2+v0.5)**: db/user/grants; remote-host cloning with grant replay; phpMyAdmin detection/link | — |
 | PHP versions | per-directory handler, ini editor | **shipped (v0.4)**: per-site switching via socket map | ini editor backlog |
 | SSL/TLS | AutoSSL, cert manager | **per-site Let's Encrypt (v0.2)** | AutoSSL-style renewal surface |
-| Cron jobs | full cron UI | **shipped (v0.4)**: per-site jobs → `/etc/cron.d` fragments | per-user cron backlog |
+| Cron jobs | full cron UI | **shipped (v0.4+v0.5)**: per-site jobs → `/etc/cron.d` fragments; all-sites Cron Jobs page with run-as root/www | per-user cron backlog |
+| Terminal / SSH access | web terminal, SSH keys | **shipped (v0.5)**: web terminal (stdlib PTY, SSE) + authorized_keys manager + keypair generation with fingerprints | — |
 | Bandwidth / visitors stats | per-domain reports | **shipped (v0.4)**: per-site requests/bytes/per-day/top-paths from access logs | — |
-| IP blocker / WAF-lite | cphulk, ModSecurity | **shipped (v0.4)**: per-site deny list | full WAF / cphulk backlog |
+| IP blocker / WAF-lite | cphulk, ModSecurity | **shipped (v0.5)**: per-site deny list with CIDR ranges + per-site WAF toggle (ModSecurity directives when the module exists, else the nginx-rule engine) | cphulk backlog |
 | One-click installers | Softaculous, WP Toolkit | — | backlog (WordPress via wp-cli first) |
 | WHM service manager | restart/config services | **services page shipped (v0.3)** | — |
 | WHM packages / resellers / quotas | packages, resellers, limits | single-admin | v0.5 (multi-server), resellers later |
@@ -112,12 +113,16 @@ independent.
   autoresponders, DKIM + SPF/DMARC/MX helpers), site operations (subdomains,
   redirects, cron, PHP switching, IP blocker, per-site disk/bandwidth, log
   viewer), scheduled backups with retention.
-- **v0.4+ — remaining gaps:** webmail frontend, SpamAssassin integration, FTP
-  accounts, one-click WordPress (wp-cli first), php.ini editor, AutoSSL-style
-  renewal surface.
-- **v0.5 — multi-server:** one panel managing several agents (the WHM-shaped
+- **v0.5.0 — shipped:** toolbox wave — FTP accounts, web terminal, SSH key
+  management, file-manager actions (chmod/copy/compress/extract), all-sites
+  Cron Jobs page with run-as user, per-site WAF toggle + CIDR IP blocking,
+  remote MySQL host cloning, phpMyAdmin access.
+- **v0.5.1 — next:** cPanel-style UI pass (shadcn/ui + Animate UI).
+- **v0.6 — multi-server:** one panel managing several agents (the WHM-shaped
   layer), keeping the agent contract identical.
-- **Later:** IP blocker/WAF-lite, one-click installer, reseller/quotas.
+- **Remaining backlog:** webmail frontend, SpamAssassin integration, one-click
+  WordPress (wp-cli first), php.ini editor, AutoSSL-style renewal surface,
+  FTP quotas, reseller/quotas.
 
 ## Deliberately not copied
 
