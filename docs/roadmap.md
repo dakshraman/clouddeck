@@ -41,7 +41,7 @@ Versions are milestones, not dates.
 - Honest caveats: deliverability depends on IP reputation, rDNS and MX setup — CloudDeck configures the software, the operator owns the reputation. No outbound relay service.
 - Not in v0.4 (backlog): webmail frontend, SpamAssassin integration, FTP accounts, one-click WordPress
 
-## v0.5 — toolbox + design system (features shipped: v0.5.0 — UI pass v0.5.1 next)
+## v0.5 — toolbox + design system (features shipped: v0.5.0, webroot-ownership fix: v0.5.1 — UI pass v0.5.2 next)
 
 The cPanel toolbox wave, per the requested feature list:
 
@@ -60,7 +60,7 @@ The cPanel toolbox wave, per the requested feature list:
 variables; theme tokens tuned to the existing slate-dark look so it is an
 upgrade, not a reskin. Motion is curated (animated icons, counters, dialog/tab
 transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
-(v0.5.1)** on top of the v0.5.0 feature release.
+(v0.5.2)** on top of the v0.5.0 feature release.
 
 ## v0.6 — multi-server / SaaS
 

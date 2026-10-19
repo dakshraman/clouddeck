@@ -80,7 +80,7 @@ independent.
 
 ## Feature map (cPanel → CloudDeck)
 
-| cPanel area | cPanel does | CloudDeck today (v0.5.0) | Plan |
+| cPanel area | cPanel does | CloudDeck today (v0.5.1) | Plan |
 |---|---|---|---|
 | Email accounts | Dovecot mailboxes, quotas | **shipped (v0.4)**: file-backed domains, mailboxes (`{SHA256}` passwd-file), quotas, maildirs | — |
 | Forwarders / aliases | MTA alias maps | **shipped (v0.4)**: Postfix virtual-alias syntax | — |
@@ -117,7 +117,10 @@ independent.
   management, file-manager actions (chmod/copy/compress/extract), all-sites
   Cron Jobs page with run-as user, per-site WAF toggle + CIDR IP blocking,
   remote MySQL host cloning, phpMyAdmin access.
-- **v0.5.1 — next:** cPanel-style UI pass (shadcn/ui + Animate UI).
+- **v0.5.1 — shipped:** site webroots the agent creates are owned by the
+  hosting user (`AGENT_WEB_RUNAS`) so FTP accounts and PHP can write into
+  them; installer downloads hardened with retries and stall timeouts.
+- **v0.5.2 — next:** cPanel-style UI pass (shadcn/ui + Animate UI).
 - **v0.6 — multi-server:** one panel managing several agents (the WHM-shaped
   layer), keeping the agent contract identical.
 - **Remaining backlog:** webmail frontend, SpamAssassin integration, one-click
