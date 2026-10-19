@@ -63,6 +63,9 @@ type Config struct {
 	FTPRunAs      string // AGENT_FTP_RUNAS (unix user owning FTP home dirs)
 	FTPReloadCmd  string // AGENT_FTP_RELOAD_CMD (e.g. pure-pw mkdb)
 
+	// v0.5 hosting user: owner of webroots the agent creates
+	WebRunAs string // AGENT_WEB_RUNAS (empty = leave ownership untouched)
+
 	// v0.5 web terminal
 	TermUser  string // AGENT_TERM_USER (unix user the shell runs as)
 	TermShell string // AGENT_TERM_SHELL
@@ -133,6 +136,9 @@ func Load() (Config, error) {
 	cfg.FTPPasswdFile = env("AGENT_FTP_PASSWD_FILE", filepath.Join(cfg.StateDir, "ftp", "passwd"))
 	cfg.FTPRunAs = env("AGENT_FTP_RUNAS", "www")
 	cfg.FTPReloadCmd = env("AGENT_FTP_RELOAD_CMD", "")
+
+	// v0.5 hosting user (webroot ownership)
+	cfg.WebRunAs = env("AGENT_WEB_RUNAS", "")
 
 	// v0.5 web terminal
 	cfg.TermUser = env("AGENT_TERM_USER", "root")

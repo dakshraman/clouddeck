@@ -291,7 +291,7 @@ New in v0.5: FTP accounts, web terminal, SSH keys, phpMyAdmin access, remote MyS
 
 #### FTP accounts (pure-ftpd)
 
-Virtual FTP logins backed by `AGENT_FTP_PASSWD_FILE` (pure-ftpd passwd format `login:hash:uid:gid:gecos:home:shell`, SHA-512 crypt hashes). After every mutation the agent runs `AGENT_FTP_RELOAD_CMD` (whitespace-split argv, never a shell) when set — e.g. `pure-pw mkdb`. Home directories are created under the site root, owned by `AGENT_FTP_RUNAS`.
+Virtual FTP logins backed by `AGENT_FTP_PASSWD_FILE` (pure-ftpd passwd format `login:hash:uid:gid:gecos:home:shell`, SHA-512 crypt hashes). After every mutation the agent runs `AGENT_FTP_RELOAD_CMD` (whitespace-split argv, never a shell) when set — e.g. `pure-pw mkdb`. Home directories are created under the site root, owned by `AGENT_FTP_RUNAS`. Site webroots the agent creates are owned by `AGENT_WEB_RUNAS` when set so accounts whose home is the site root can upload; pre-existing directories and files are never re-owned.
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
@@ -528,6 +528,7 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_FTP_PASSWD_FILE` | `$AGENT_STATE_DIR/ftp/passwd` (pure-ftpd passwd file) |
 | `AGENT_FTP_RUNAS` | `www` (unix user owning FTP home dirs) |
 | `AGENT_FTP_RELOAD_CMD` | (empty — no reload). Whitespace-split argv, e.g. `pure-pw mkdb`; never a shell |
+| `AGENT_WEB_RUNAS` | (empty — ownership left untouched). Unix user owning site webroots the agent creates |
 | `AGENT_TERM_USER` | `root` (unix user the web-terminal shell runs as) |
 | `AGENT_TERM_SHELL` | `/bin/bash` |
 | `AGENT_SSH_KEYS_FILE` | `/root/.ssh/authorized_keys` |

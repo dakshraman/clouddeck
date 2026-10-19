@@ -170,7 +170,7 @@ func (s *Service) CreateSubdomain(domain, name string) (store.Task, error) {
 	subRoot := filepath.Join(site.Root, name)
 	task, err := s.eng.Create(TaskSubdomainCreate, site.Domain, func(ctx context.Context, log tasks.LogFunc) error {
 		log("info", "creating subdomain webroot "+subRoot)
-		if err := ensureWebroot(subRoot, name+"."+site.Domain, log); err != nil {
+		if err := ensureWebroot(subRoot, name+"."+site.Domain, s.cfg.WebRunAs, log); err != nil {
 			return err
 		}
 		if err := s.st.UpdateSite(site.Domain, func(current *store.Site) {

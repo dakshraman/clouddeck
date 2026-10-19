@@ -16,6 +16,7 @@ import (
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/php"
+	"clouddeck/agent/internal/runas"
 	"clouddeck/agent/internal/safeexec"
 	"clouddeck/agent/internal/store"
 	"clouddeck/agent/internal/tasks"
@@ -213,7 +214,7 @@ func (s *Service) provision(ctx context.Context, log tasks.LogFunc, site store.S
 	log("info", "creating webroot "+site.Root)
 	if s.cfg.DryRun {
 		log("info", "dry-run: skipping webroot creation")
-	} else if err := ensureWebroot(site.Root, site.Domain, log); err != nil {
+	} else if err := ensureWebroot(site.Root, site.Domain, s.cfg.WebRunAs, log); err != nil {
 		return err
 	}
 	if err := s.ApplyNginx(ctx, log, site); err != nil {
@@ -301,8 +302,16 @@ func (s *Service) reject(action string, params map[string]any, err error) error 
 	return err
 }
 
-func ensureWebroot(root, domain string, log tasks.LogFunc) error {
-	if err := os.MkdirAll(root, 0o755); err != nil {
+func ensureWebroot(root, domain, runAs string, log tasks.LogFunc) error {
+	uid, gid := -1, -1
+	if runAs != "" {
+		u, g, err := runas.Lookup(runAs)
+		if err != nil {
+			return fmt.Errorf("resolve web run-as user: %w", err)
+		}
+		uid, gid = u, g
+	}
+	if err := mkdirOwned(root, uid, gid); err != nil {
 		return fmt.Errorf("create webroot %s: %w", root, err)
 	}
 	index := filepath.Join(root, "index.html")
@@ -314,6 +323,52 @@ func ensureWebroot(root, domain string, log tasks.LogFunc) error {
 	if err := os.WriteFile(index, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write placeholder index.html: %w", err)
 	}
+	if uid >= 0 {
+		if err := os.Chown(index, uid, gid); err != nil {
+			return fmt.Errorf("chown placeholder index.html: %w", err)
+		}
+	}
 	log("info", "wrote placeholder index.html")
+	return nil
+}
+
+// mkdirOwned creates every missing directory down to root with mode 0755 and
+// chowns exactly the directories it created to uid/gid when uid >= 0;
+// pre-existing directories are left untouched.
+func mkdirOwned(root string, uid, gid int) error {
+	dir := filepath.Clean(root)
+	var missing []string
+	for {
+		info, err := os.Stat(dir)
+		if err == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("path %s exists and is not a directory", dir)
+			}
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		missing = append(missing, dir)
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	for i := len(missing) - 1; i >= 0; i-- {
+		dir := missing[i]
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+		if uid >= 0 {
+			if err := os.Chown(dir, uid, gid); err != nil {
+				return fmt.Errorf("chown %s: %w", dir, err)
+			}
+		}
+		if err := os.Chmod(dir, 0o755); err != nil {
+			return fmt.Errorf("chmod %s: %w", dir, err)
+		}
+	}
 	return nil
 }

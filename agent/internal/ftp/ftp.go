@@ -8,7 +8,6 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
-	"os/user"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -20,6 +19,7 @@ import (
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/runas"
 	"clouddeck/agent/internal/safeexec"
 )
 
@@ -353,17 +353,9 @@ func invalidPath(subdir string) error {
 // lookupRunAs resolves the numeric uid/gid of the configured run-as user.
 // An unknown user is an internal error (500).
 func lookupRunAs(username string) (int, int, error) {
-	account, err := user.Lookup(username)
+	uid, gid, err := runas.Lookup(username)
 	if err != nil {
-		return 0, 0, apierr.Internal(fmt.Sprintf("resolve run-as user %q: %v", username, err))
-	}
-	uid, err := strconv.Atoi(account.Uid)
-	if err != nil {
-		return 0, 0, apierr.Internal(fmt.Sprintf("resolve run-as user %q: invalid uid %q", username, account.Uid))
-	}
-	gid, err := strconv.Atoi(account.Gid)
-	if err != nil {
-		return 0, 0, apierr.Internal(fmt.Sprintf("resolve run-as user %q: invalid gid %q", username, account.Gid))
+		return 0, 0, apierr.Internal(fmt.Sprintf("resolve run-as user: %v", err))
 	}
 	return uid, gid, nil
 }
