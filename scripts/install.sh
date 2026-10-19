@@ -99,18 +99,25 @@ case "$MACHINE" in
 esac
 
 # --- download helpers --------------------------------------------------------
+# Every download is bounded: dead connects fail after 15s, stalled transfers
+# (under 8 KiB/s for 90s) are aborted, and transient failures are retried, so
+# a hung connection can never wedge the installer.
 download() { # download URL OUTFILE  (plain public download, e.g. nodejs.org)
-  curl -fsSL -o "$2" "$1" || die "download failed: $1"
+  curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
+    --speed-limit 8192 --speed-time 90 --max-time 3600 -o "$2" "$1" \
+    || die "download failed: $1"
 }
 
 resolve_latest() { # sets VERSION to the latest tag
   [ "$VERSION" = "latest" ] || return 0
   if [ -n "$GH_TOKEN" ]; then
-    VERSION="$(curl -fsSL -H "Authorization: token $GH_TOKEN" \
+    VERSION="$(curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
+        -H "Authorization: token $GH_TOKEN" \
         "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
         | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
   else
-    VERSION="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+    VERSION="$(curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
+        "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
         | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
   fi
   [ -n "$VERSION" ] || die "could not resolve the latest release (private repo without --gh-token?)"
@@ -118,9 +125,11 @@ resolve_latest() { # sets VERSION to the latest tag
 
 release_json() { # fetch the release JSON for $VERSION
   if [ -n "$GH_TOKEN" ]; then
-    curl -fsSL -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
+      -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
   else
-    curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
+    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
+      "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
   fi
 }
 
@@ -136,11 +145,15 @@ download_asset() { # download_asset FILENAME OUTFILE
     # the release asset API does.
     _id="$(asset_id "$_name")"
     [ -n "$_id" ] || die "release asset $_name not found in $VERSION"
-    curl -fsSL -H "Authorization: token $GH_TOKEN" -H "Accept: application/octet-stream" \
+    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
+      --speed-limit 8192 --speed-time 90 --max-time 3600 \
+      -H "Authorization: token $GH_TOKEN" -H "Accept: application/octet-stream" \
       -o "$2" "https://api.github.com/repos/$REPO/releases/assets/$_id" \
       || die "download failed: $_name"
   else
-    curl -fsSL -o "$2" "https://github.com/$REPO/releases/download/$VERSION/$_name" \
+    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
+      --speed-limit 8192 --speed-time 90 --max-time 3600 \
+      -o "$2" "https://github.com/$REPO/releases/download/$VERSION/$_name" \
       || die "download failed: $_name (private repo? pass --gh-token)"
   fi
 }
