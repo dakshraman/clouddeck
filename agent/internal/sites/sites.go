@@ -7,10 +7,13 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
@@ -37,11 +40,17 @@ type Service struct {
 	eng   *tasks.Engine
 	audit *audit.Log
 	cfg   config.Config
+	apps  AppLister
 }
 
 // New creates the site service.
 func New(st *store.Store, eng *tasks.Engine, auditLog *audit.Log, cfg config.Config) *Service {
 	return &Service{st: st, eng: eng, audit: auditLog, cfg: cfg}
+}
+
+// SetAppLister wires app-aware nginx rendering after both services exist.
+func (s *Service) SetAppLister(lister AppLister) {
+	s.apps = lister
 }
 
 // ValidateDomain lowercases the input and checks it against the domain regex,
@@ -166,7 +175,8 @@ func (s *Service) ApplyNginx(ctx context.Context, log tasks.LogFunc, site store.
 	if site.WAFEnabled {
 		engine = detectWAFEngine(s.cfg)
 	}
-	conf := renderNginxConfig(site, s.cfg.LogDir, s.fpmSockFor(site.PHPVersion), engine, s.cfg.ModsecConf)
+	proxies, rootProxy := s.proxyTargets(site.Domain)
+	conf := renderNginxConfigWithApps(site, s.cfg.LogDir, s.fpmSockFor(site.PHPVersion), engine, s.cfg.ModsecConf, proxies, rootProxy)
 	if err := os.WriteFile(confPath, []byte(conf), 0o644); err != nil {
 		return fmt.Errorf("write nginx config %s: %w", confPath, err)
 	}
@@ -262,15 +272,104 @@ func (s *Service) deprovision(ctx context.Context, log tasks.LogFunc, site store
 // reload asks systemd first and falls back to the nginx binary.
 func (s *Service) reload(ctx context.Context, log tasks.LogFunc) error {
 	log("info", "reloading nginx")
+	before := nginxWorkerPIDs(ctx)
 	err := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "reload", "nginx")
-	if err == nil {
+	if err != nil {
+		log("warn", fmt.Sprintf("systemctl reload nginx failed (%v), trying nginx -s reload", err))
+		if err := safeexec.Run(ctx, s.cfg.DryRun, log, "nginx", "-s", "reload"); err != nil {
+			return fmt.Errorf("reload nginx: %w", err)
+		}
+	}
+	// `nginx -s reload` only signals the master. Old workers keep serving the
+	// previous vhost until they drain, so wait for them before returning;
+	// otherwise an immediate request can hit stale config. A worker that never
+	// retires (a stuck keep-alive connection) would keep serving stale routes
+	// indefinitely, so fall back to a clean restart in that case.
+	if s.waitForWorkers(ctx, before, 2*time.Second) {
 		return nil
 	}
-	log("warn", fmt.Sprintf("systemctl reload nginx failed (%v), trying nginx -s reload", err))
-	if err := safeexec.Run(ctx, s.cfg.DryRun, log, "nginx", "-s", "reload"); err != nil {
-		return fmt.Errorf("reload nginx: %w", err)
+	log("warn", "old nginx workers did not retire; restarting nginx")
+	if err := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "restart", "nginx"); err != nil {
+		return fmt.Errorf("restart nginx: %w", err)
+	}
+	if !s.waitForWorkers(ctx, before, 3*time.Second) {
+		log("warn", "nginx still has pre-reload workers after restart")
 	}
 	return nil
+}
+
+// nginxWorkerPIDs returns the PIDs of the current nginx worker processes,
+// restricted to children of the real nginx master (aaPanel's own webserver
+// also names its workers "nginx: worker process").
+func nginxWorkerPIDs(ctx context.Context) []int {
+	out, err := exec.CommandContext(ctx, "ps", "-eo", "pid,ppid,args").Output()
+	if err != nil {
+		return nil
+	}
+	masterPID := 0
+	type proc struct{ pid, ppid int }
+	var workers []proc
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		pid, err1 := strconv.Atoi(fields[0])
+		ppid, err2 := strconv.Atoi(fields[1])
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		rest := strings.Join(fields[2:], " ")
+		if strings.Contains(rest, "nginx: master process") {
+			masterPID = pid
+		}
+		if strings.Contains(rest, "nginx: worker process") {
+			workers = append(workers, proc{pid: pid, ppid: ppid})
+		}
+	}
+	var pids []int
+	for _, worker := range workers {
+		if masterPID != 0 && worker.ppid == masterPID {
+			pids = append(pids, worker.pid)
+		}
+	}
+	return pids
+}
+
+// waitForWorkers reports whether every worker in before has exited.
+func (s *Service) waitForWorkers(ctx context.Context, before []int, limit time.Duration) bool {
+	if s.cfg.DryRun || len(before) == 0 {
+		return true
+	}
+	deadline := time.Now().Add(limit)
+	for {
+		alive := 0
+		for _, pid := range before {
+			if processAlive(pid) {
+				alive++
+			}
+		}
+		if alive == 0 {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+// processAlive reports whether pid is still running.
+func processAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := exec.Command("kill", "-0", strconv.Itoa(pid)).Run()
+	return err == nil
 }
 
 func (s *Service) rootFor(domain string) string {

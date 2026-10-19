@@ -73,8 +73,10 @@ func (s *Service) GetWAF(domain string) (WAFInfo, error) {
 	return wafInfo(site.WAFEnabled, detectWAFEngine(s.cfg)), nil
 }
 
-// ensureModsecConf writes a minimal rules file for the ModSecurity engine when
-// none exists yet. An existing file is never overwritten.
+// ensureModsecConf writes the ModSecurity rules file for the modsecurity engine
+// when none exists yet. An existing file is never overwritten. When the OWASP
+// Core Rule Set is installed, it is included ahead of the built-in rules so a
+// site gets real CRS coverage instead of the demo rule alone.
 func ensureModsecConf(path string) error {
 	if path == "" {
 		return errors.New("modsecurity rules file path is not configured")
@@ -82,9 +84,26 @@ func ensureModsecConf(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create modsecurity dir: %w", err)
 	}
-	content := "# managed-by: clouddeck\n" +
-		"SecRuleEngine On\n" +
-		"SecRule REQUEST_URI \"@rx (\\.env|\\.git/|\\.htaccess)\" \"id:9000001,phase:1,deny,status:403,log,msg:'CloudDeck WAF demo rule'\"\n"
+	content := "# managed-by: clouddeck\n" + "SecRuleEngine On\n"
+	for _, crs := range []string{
+		"/usr/share/modsecurity-crs/crs-setup.conf",
+		"/etc/modsecurity/crs/crs-setup.conf",
+	} {
+		if _, err := os.Stat(crs); err == nil {
+			content += "Include " + crs + "\n"
+			for _, rules := range []string{
+				"/usr/share/modsecurity-crs/rules/*.conf",
+				"/etc/modsecurity/crs/rules/*.conf",
+			} {
+				if matches, _ := filepath.Glob(rules); len(matches) > 0 {
+					content += "Include " + rules + "\n"
+					break
+				}
+			}
+			break
+		}
+	}
+	content += "SecRule REQUEST_URI \"@rx (\\.env|\\.git/|\\.htaccess)\" \"id:9000001,phase:1,deny,status:403,log,msg:'CloudDeck WAF rule'\"\n"
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if errors.Is(err, os.ErrExist) {
 		return nil

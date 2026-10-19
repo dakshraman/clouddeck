@@ -80,6 +80,11 @@ type Config struct {
 	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
 	NginxBin      string // AGENT_NGINX_BIN (used for -V module detection)
 	ModsecConf    string // AGENT_MODSEC_CONF (rules file when the module exists)
+
+	// v0.6 application hosting (Node/Python/Go/Ruby/custom)
+	AppSupervisor string // AGENT_APP_SUPERVISOR: systemd (default), pm2 or supervisor
+	AppUnitDir    string // AGENT_APP_UNIT_DIR: unit/program definitions
+	AppLogDir     string // AGENT_APP_LOG_DIR: app stdout/stderr logs
 }
 
 // Load reads the environment and applies documented defaults.
@@ -154,6 +159,11 @@ func Load() (Config, error) {
 	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")
 	cfg.NginxBin = env("AGENT_NGINX_BIN", "nginx")
 	cfg.ModsecConf = env("AGENT_MODSEC_CONF", "/etc/nginx/modsec/clouddeck.conf")
+
+	// v0.6 application hosting (Node/Python/Go/Ruby/custom)
+	cfg.AppSupervisor = env("AGENT_APP_SUPERVISOR", "systemd")
+	cfg.AppUnitDir = env("AGENT_APP_UNIT_DIR", "/etc/systemd/system")
+	cfg.AppLogDir = env("AGENT_APP_LOG_DIR", filepath.Join(cfg.StateDir, "logs", "apps"))
 
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
 		dryRun, err := strconv.ParseBool(raw)

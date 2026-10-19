@@ -374,6 +374,64 @@ The cron fragment user column is the job's `runAs` (`"root"` default, or `"www"`
 
 Audit actions: `files.chmod`, `files.copy`, `files.compress`, `files.extract`.
 
+### 1.10 v0.6 application hosting, firewall and security
+
+New in v0.6: application runtimes, supervised app processes behind nginx, the host firewall, and a security overview (ModSecurity / fail2ban / SSH posture). App create/update/delete/start/stop are synchronous + audited, and each mutation re-renders the owning site's vhost (apply / `nginx -t` / reload with rollback).
+
+#### Runtimes
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/runtimes` | — | `200 {runtimes:[{kind,label,description,defaultPort?,versions:[{kind,label,version,bin?,default?}],available}],supervisor:{backend,note}}` — `kind` is `static`, `php`, `node`, `python`, `go`, `ruby` or `custom`; detection looks at well-known install paths plus `PATH` | — |
+
+`supervisor.backend` is the configured process manager (`systemd`, `pm2` or `supervisor`).
+
+#### Applications
+
+An app belongs to a site (`site` + `name` is the key, `name` matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`), runs as `AGENT_WEB_RUNAS` when set, and listens on a local port the agent allocates (3000–3999 unless `port` is given and free). A site with exactly one app serves it at `/`; a site with several apps mounts each at `/<name>/` and leaves `/` static.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/apps` | `?site=` (optional) | `200 {apps:[…]}` | — |
+| `POST /v1/apps` | `{site,name,kind,command,dir?,version?,bin?,port?,env?,healthPath?,autoRestart?}` — `dir` is relative to the site root, `command` runs through `/bin/sh -lc` with `$PORT` exported | `201 app` | `400 invalid_name`/`invalid_kind`/`invalid_command`/`invalid_port`, `404 site_not_found`, `409 app_exists`/`port_in_use`, `409 dry_run` |
+| `GET /v1/sites/{domain}/apps` | — | `200 {apps:[…]}` | `404 site_not_found` |
+| `GET /v1/sites/{domain}/apps/{name}` | — | `200 app` | `404 site_not_found`, `404 app_not_found` |
+| `PUT /v1/sites/{domain}/apps/{name}` | `{command?,dir?,version?,bin?,port?,env?,healthPath?,autoRestart?}` | `200 app` — restart plus vhost re-render | `400 …`, `404 app_not_found`, `409 port_in_use`, `409 dry_run` |
+| `DELETE /v1/sites/{domain}/apps/{name}` | — | `204` — process stopped, unit removed, vhost re-rendered | `404 app_not_found`, `409 dry_run` |
+| `POST /v1/sites/{domain}/apps/{name}/start` | — | `200 app` | `404 app_not_found`, `500` when the supervisor refuses |
+| `POST /v1/sites/{domain}/apps/{name}/stop` | — | `200 app` | `404 app_not_found` |
+| `GET /v1/sites/{domain}/apps/{name}/logs` | `?lines=200` (1–1000) | `200 {lines:[…]}` from the supervisor log file | `404 app_not_found` |
+
+An app response is `{id,site,name,kind,version?,bin?,command,dir,port,env,healthPath?,runAs,supervisor,autoRestart,createdAt,updatedAt,status:{state,pid?,startedAt?,uptimeSeconds?,detail?}}` where `state` is `running`, `stopped`, `error` or `unknown`.
+
+Audit actions: `app.create`, `app.update`, `app.delete`, `app.start`, `app.stop`.
+
+#### Firewall
+
+Backed by `ufw` or `firewalld`, whichever the host runs. CloudDeck only ever deletes rules it created (identified by a comment marker); pre-existing rules are never touched.
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/firewall` | — | `200 {backend,available,enabled,detail?,defaults?,rules:[{id,port,protocol,action,from?,comment?,createdAt}]}` | — |
+| `PUT /v1/firewall` | `{enabled}` | `200` status after the change | `409 firewall_unavailable`, `409 dry_run` |
+| `POST /v1/firewall/rules` | `{port,protocol,action,from?,comment?}` — `protocol` `tcp`/`udp`, `action` `allow`/`deny`, `from` a CIDR or address | `201 rule` | `400 invalid_port`/`invalid_protocol`/`invalid_action`/`invalid_from`, `409 rule_exists`, `409 dry_run` |
+| `DELETE /v1/firewall/rules/{id}` | — | `200` status | `404 rule_not_found`, `409 dry_run` |
+
+Audit actions: `firewall.rule.add`, `firewall.rule.delete`, `firewall.set`.
+
+#### Security overview
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/security` | — | `200 {modsec,fail2ban,ssh,checks}` — see below | — |
+| `GET /v1/security/modsec` | — | `200 modsec` | — |
+| `POST /v1/security/unban` | `{jail,ip}` | `200 {ok:true}` | `400 invalid_jail`/`invalid_ip`, `409 fail2ban_unavailable` |
+| `PUT /v1/security/jails/{jail}` | `{enabled}` | `200 {ok:true}` | `400 invalid_jail`, `409 fail2ban_unavailable` |
+
+`modsec` is `{moduleInstalled,modulePath?,crsInstalled,crsPath?,engine,note?}` where `engine` is `modsecurity` when the nginx module is loaded, otherwise `nginx-rules` (the built-in per-site rules). `fail2ban` is `{installed,active,jails:[{name,banned,total,ips,enabled}],note?}`. `ssh` reports the effective `port`, `permitRootLogin`, `passwordAuthentication` and `pubkeyAuthentication` read from `sshd_config` and its drop-ins. `checks` is the hardening checklist: `[{id,label,status,detail,hint?}]` with `status` `pass`, `warn`, `fail` or `info`.
+
+Audit action: `security.unban`.
+
 ## 2. Panel API
 
 Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.
@@ -475,6 +533,19 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/sites/{domain}/files/copy` | `{from,to,overwrite?}` |
 | POST | `/api/sites/{domain}/files/compress` | `{paths,format,target}` |
 | POST | `/api/sites/{domain}/files/extract` | `{archive,dest}` |
+| GET | `/api/runtimes` | passthrough `/v1/runtimes` |
+| GET | `/api/apps` | `?site=` → `{apps:[...]}` (proxied) |
+| POST | `/api/apps` | `{site,name,kind,command,…}` → `201 app` |
+| GET/PUT/DELETE | `/api/sites/{domain}/apps/{name}` | read / update / delete |
+| POST | `/api/sites/{domain}/apps/{name}/start` | start the process |
+| POST | `/api/sites/{domain}/apps/{name}/stop` | stop the process |
+| GET | `/api/sites/{domain}/apps/{name}/logs` | `?lines=200` → `{lines:[...]}` |
+| GET/PUT | `/api/firewall` | status / `{enabled}` |
+| POST | `/api/firewall/rules` | `{port,protocol,action,from?,comment?}` |
+| DELETE | `/api/firewall/rules/{id}` | delete a CloudDeck-managed rule |
+| GET | `/api/security` | passthrough `/v1/security` |
+| POST | `/api/security` | `{jail,ip}` → unban |
+| PUT | `/api/security/jails/{jail}` | `{enabled}` |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 
@@ -538,6 +609,11 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |
+| `AGENT_APP_SUPERVISOR` | `systemd` (also `pm2` or `supervisor`) |
+| `AGENT_APP_UNIT_DIR` | `/etc/systemd/system` (systemd unit dir; PM2/`supervisor` use it for their program files) |
+| `AGENT_APP_LOG_DIR` | `$AGENT_STATE_DIR/logs/apps` |
+
+The firewall and security services discover `ufw`, `firewall-cmd` and `fail2ban-client` on `PATH`; there are no overrides for them.
 
 **Panel:**
 
@@ -561,3 +637,4 @@ Setting both `PANEL_SEED_*` vars creates that admin account on first start and s
 - Panel routes for v0.3 (/api/services, /api/dns/**, /api/backups/**) mirror the agent shape 1:1.
 - v0.4: mail and site-operation mutations are synchronous + audited (`mail.*`, `site.*`) except subdomain create/delete and every backup run (tasks). Panel routes for v0.4 mirror the agent shape 1:1.
 - v0.5: toolbox mutations are synchronous + audited (`ftp.*`, `term.*`, `ssh.*`, `mysql.remote.*`, `site.waf.set`, `files.*`); the terminal `stream` endpoint is SSE and the panel proxies it as a streaming body. Cron jobs gained `runAs`; IP blocking gained CIDR. Panel routes mirror the agent shape 1:1.
+- v0.6: app, firewall and security-unban mutations are synchronous + audited (`app.*`, `firewall.*`, `security.unban`). Every app mutation re-renders the owning site's vhost through `sites.ApplyNginx`. The panel forwards to the agent with `src/lib/agent-proxy.ts` (`proxyAgent(path, method, body)`), which passes status and body through unchanged.

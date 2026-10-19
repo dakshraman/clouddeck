@@ -29,6 +29,8 @@ type nginxData struct {
 	WAF        bool   // emit the CloudDeck WAF block (v0.5)
 	WAFModSec  bool   // emit the modsecurity variant of the WAF block
 	ModsecConf string // modsecurity_rules_file target (modsecurity variant only)
+	Proxies    ProxyTargets
+	RootProxy  int // port of the primary app when it owns "/"
 }
 
 // RenderNginxConfig renders the site's nginx config. With SSL enabled it emits
@@ -47,7 +49,12 @@ func RenderNginxConfig(site store.Site, logDir, fpmSock string) string {
 // block unless wafEngine is WAFEngineModSecurity, which switches the WAF block
 // to the module's server-level directives with modsecConf as the rules file.
 func renderNginxConfig(site store.Site, logDir, fpmSock, wafEngine, modsecConf string) string {
-	data := nginxData{Domain: site.Domain, Root: site.Root, LogDir: logDir}
+	return renderNginxConfigWithApps(site, logDir, fpmSock, wafEngine, modsecConf, ProxyTargets{}, 0)
+}
+
+// renderNginxConfigWithApps also emits proxy blocks for a site's apps.
+func renderNginxConfigWithApps(site store.Site, logDir, fpmSock, wafEngine, modsecConf string, proxies ProxyTargets, rootProxy int) string {
+	data := nginxData{Domain: site.Domain, Root: site.Root, LogDir: logDir, Proxies: proxies, RootProxy: rootProxy}
 	if site.PHPVersion != "" && site.PHPVersion != "none" {
 		data.PHP = site.PHPVersion
 		data.FpmSock = strings.ReplaceAll(fpmSock, "{{version}}", site.PHPVersion)
@@ -96,7 +103,7 @@ const wafBlock = `{{define "waf"}}{{if .WAF}}{{if .WAFModSec}}
     if ($request_uri ~* "(\.env|\.git/|\.svn/|\.htaccess|\.htpasswd|\.user\.ini|wp-config\.php\.(bak|old|save|txt))") { return 403; }
     if ($query_string ~* "(<script|%3Cscript|union[ ]+select|%20union|concat\(|base64_|%2e%2e%2f|\.\./\.\.)") { return 403; }{{end}}{{end}}{{end}}`
 
-var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\n" + wafBlock + `server {
+var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\n" + wafBlock + proxyBlock + `server {
     listen 80;
     listen [::]:80;
     server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
@@ -107,11 +114,11 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
     error_log {{.LogDir}}/{{.Domain}}.error.log;
 {{range .Denies}}    deny {{.}};
 {{end}}
-    location / {
+{{if eq .RootProxy 0}}    location / {
         try_files $uri $uri/ =404;
     }
-{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
-{{end}}{{if .PHP}}
+{{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
+{{end}}{{template "proxy" .}}{{if .PHP}}
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -143,7 +150,7 @@ server {
 {{end}}}
 {{end}}`))
 
-var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMarker + "\n" + wafBlock + `server {
+var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMarker + "\n" + wafBlock + proxyBlock + `server {
     listen 80;
     listen [::]:80;
     server_name {{.Domain}} www.{{.Domain}};
@@ -166,11 +173,11 @@ server {
     error_log {{.LogDir}}/{{.Domain}}.error.log;
 {{range .Denies}}    deny {{.}};
 {{end}}
-    location / {
+{{if eq .RootProxy 0}}    location / {
         try_files $uri $uri/ =404;
     }
-{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
-{{end}}{{if .PHP}}
+{{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
+{{end}}{{template "proxy" .}}{{if .PHP}}
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;

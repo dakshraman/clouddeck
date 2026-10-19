@@ -497,3 +497,144 @@ export interface RemoteMysqlUser {
 export interface RemoteMysqlUsersResponse {
   users: RemoteMysqlUser[];
 }
+// ---- v0.6: app runtimes, process supervision, firewall and security ----
+
+export type RuntimeKind = "static" | "php" | "node" | "python" | "go" | "ruby" | "custom";
+
+export interface RuntimeInstall {
+  kind: RuntimeKind;
+  label: string;
+  version: string;
+  bin?: string;
+  paths?: string[];
+  default?: boolean;
+}
+
+export interface RuntimeKindInfo {
+  kind: RuntimeKind;
+  label: string;
+  description: string;
+  defaultPort?: number;
+  versions: RuntimeInstall[];
+  available: boolean;
+}
+
+export interface RuntimesResponse {
+  runtimes: RuntimeKindInfo[];
+  supervisor: { backend: string; note: string };
+}
+
+export type AppState = "running" | "stopped" | "error" | "unknown";
+
+export interface AppStatus {
+  state: AppState;
+  pid?: number;
+  startedAt?: string;
+  uptimeSeconds?: number;
+  detail?: string;
+}
+
+export interface AppInfo {
+  id: string;
+  site: string;
+  name: string;
+  kind: RuntimeKind;
+  version?: string;
+  bin?: string;
+  command: string;
+  dir: string;
+  port: number;
+  env?: Record<string, string>;
+  healthPath?: string;
+  runAs?: string;
+  supervisor?: string;
+  autoRestart: boolean;
+  createdAt: string;
+  updatedAt: string;
+  status: AppStatus;
+}
+
+export interface AppsResponse {
+  apps: AppInfo[];
+}
+
+export interface AppLogsResponse {
+  lines: string[];
+}
+
+export interface CreateAppRequest {
+  site: string;
+  name: string;
+  kind: RuntimeKind;
+  version?: string;
+  bin?: string;
+  command: string;
+  dir?: string;
+  port?: number;
+  env?: Record<string, string>;
+  healthPath?: string;
+  autoRestart?: boolean;
+}
+
+export interface FirewallRule {
+  id: string;
+  port: number;
+  protocol: string;
+  action: string;
+  from?: string;
+  comment?: string;
+  createdAt: string;
+}
+
+export interface FirewallStatus {
+  backend: string;
+  available: boolean;
+  enabled: boolean;
+  detail?: string;
+  defaults?: Record<string, string>;
+  rules: FirewallRule[];
+}
+
+export interface Fail2banJail {
+  name: string;
+  banned: number;
+  total: number;
+  ips: string[];
+  enabled: boolean;
+}
+
+export interface Fail2banInfo {
+  installed: boolean;
+  active: boolean;
+  jails: Fail2banJail[];
+  note?: string;
+}
+
+export interface ModsecInfo {
+  moduleInstalled: boolean;
+  modulePath?: string;
+  crsInstalled: boolean;
+  crsPath?: string;
+  engine: string;
+  note?: string;
+}
+
+export interface SecurityCheck {
+  id: string;
+  label: string;
+  status: "pass" | "warn" | "fail" | "info";
+  detail: string;
+  hint?: string;
+}
+
+export interface SecurityStatus {
+  modsec: ModsecInfo;
+  fail2ban: Fail2banInfo;
+  ssh: {
+    port: string;
+    permitRootLogin: string;
+    passwordAuthentication: string;
+    pubkeyAuthentication: string;
+  };
+  checks: SecurityCheck[];
+}

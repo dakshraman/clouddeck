@@ -19,6 +19,7 @@ import { CronCard } from "@/components/site/cron-card";
 import { PhpCard } from "@/components/site/php-card";
 import { SecurityCard } from "@/components/site/security-card";
 import { WafCard } from "@/components/site/waf-card";
+import { SiteAppCard } from "@/components/site/app-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
@@ -34,6 +35,7 @@ type SiteTabId =
   | "redirects"
   | "cron"
   | "php"
+  | "apps"
   | "security"
   | "usage"
   | "logs";
@@ -44,6 +46,7 @@ const SITE_TABS: { id: SiteTabId; label: string }[] = [
   { id: "redirects", label: "Redirects" },
   { id: "cron", label: "Cron jobs" },
   { id: "php", label: "PHP" },
+  { id: "apps", label: "Applications" },
   { id: "security", label: "Security" },
   { id: "usage", label: "Usage & stats" },
   { id: "logs", label: "Logs" },
@@ -398,6 +401,10 @@ export function SiteDetail({ domain }: { domain: string }) {
 
       <TabPanel id="php" active={tab === "php"}>
         <PhpCard domain={site.domain} currentVersion={site.phpVersion} onUpdated={setSite} />
+      </TabPanel>
+
+      <TabPanel id="apps" active={tab === "apps"}>
+        <SiteAppCard domain={site.domain} />
       </TabPanel>
 
       <TabPanel id="security" active={tab === "security"}>

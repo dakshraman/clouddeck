@@ -3,6 +3,7 @@ import {
   Archive,
   Clock,
   CloudUpload,
+  Cpu,
   Database,
   FolderOpen,
   Globe,
@@ -11,6 +12,7 @@ import {
   Mail,
   Network,
   Settings,
+  ShieldAlert,
   SquareTerminal,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +62,13 @@ export const navGroups: NavGroup[] = [
         icon: FolderOpen,
         description: "Browse and edit site document roots.",
         keywords: "file manager editor",
+      },
+      {
+        href: "/apps",
+        label: "Applications",
+        icon: Cpu,
+        description: "Node.js, Python, Go and Ruby processes under supervision.",
+        keywords: "node python go ruby runtime process pm2 supervisor systemd app",
       },
       {
         href: "/ftp",
@@ -141,6 +150,19 @@ export const navGroups: NavGroup[] = [
         icon: KeyRound,
         description: "Authorized SSH keys.",
         keywords: "keys access",
+      },
+    ],
+  },
+  {
+    id: "security",
+    label: "Security",
+    items: [
+      {
+        href: "/security",
+        label: "Security",
+        icon: ShieldAlert,
+        description: "Firewall rules, fail2ban, ModSecurity and hardening checks.",
+        keywords: "firewall ufw fail2ban modsecurity waf hardening security",
       },
     ],
   },

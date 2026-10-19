@@ -13,16 +13,19 @@ import (
 	"time"
 
 	"clouddeck/agent/internal/apierr"
+	"clouddeck/agent/internal/apps"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/firewall"
 	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/phpmyadmin"
 	"clouddeck/agent/internal/services"
+	"clouddeck/agent/internal/security"
 	"clouddeck/agent/internal/siteinfo"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/sshkeys"
@@ -33,7 +36,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.5.1"
+const Version = "0.6.0"
 
 const maxBodyBytes = 1 << 20
 
@@ -54,11 +57,14 @@ type Server struct {
 	term     *term.Service
 	ssh      *sshkeys.Service
 	pma      *phpmyadmin.Service
+	apps     *apps.Service
+	firewall *firewall.Service
+	security *security.Service
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -183,6 +189,25 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/sites/{domain}/files/copy", s.handleFileCopy)
 	mux.HandleFunc("POST /v1/sites/{domain}/files/compress", s.handleFileCompress)
 	mux.HandleFunc("POST /v1/sites/{domain}/files/extract", s.handleFileExtract)
+
+	// v0.6 — application runtimes, app workloads and firewall
+	mux.HandleFunc("GET /v1/runtimes", s.handleListRuntimes)
+	mux.HandleFunc("GET /v1/apps", s.handleListApps)
+	mux.HandleFunc("POST /v1/apps", s.handleCreateApp)
+	mux.HandleFunc("GET /v1/sites/{domain}/apps/{name}", s.handleGetApp)
+	mux.HandleFunc("PUT /v1/sites/{domain}/apps/{name}", s.handleUpdateApp)
+	mux.HandleFunc("DELETE /v1/sites/{domain}/apps/{name}", s.handleDeleteApp)
+	mux.HandleFunc("POST /v1/sites/{domain}/apps/{name}/start", s.handleStartApp)
+	mux.HandleFunc("POST /v1/sites/{domain}/apps/{name}/stop", s.handleStopApp)
+	mux.HandleFunc("GET /v1/sites/{domain}/apps/{name}/logs", s.handleAppLogs)
+	mux.HandleFunc("GET /v1/firewall", s.handleFirewallStatus)
+	mux.HandleFunc("POST /v1/firewall/rules", s.handleFirewallAddRule)
+	mux.HandleFunc("DELETE /v1/firewall/rules/{id}", s.handleFirewallDeleteRule)
+	mux.HandleFunc("PUT /v1/firewall", s.handleFirewallSetEnabled)
+	mux.HandleFunc("GET /v1/security", s.handleSecurityStatus)
+	mux.HandleFunc("GET /v1/security/modsec", s.handleModsecStatus)
+	mux.HandleFunc("POST /v1/security/unban", s.handleSecurityUnban)
+	mux.HandleFunc("PUT /v1/security/jails/{jail}", s.handleSecurityJail)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

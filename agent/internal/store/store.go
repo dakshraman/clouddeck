@@ -129,10 +129,12 @@ func Now() time.Time {
 
 // Store is the agent's persistent state.
 type Store struct {
-	mu    sync.Mutex
-	dir   string
-	sites map[string]Site
-	tasks []Task // newest first
+	mu       sync.Mutex
+	dir      string
+	sites    map[string]Site
+	tasks    []Task // newest first
+	apps     map[string]App
+	firewall map[string]FirewallRule
 }
 
 type stateFile struct {
@@ -143,12 +145,26 @@ type tasksFile struct {
 	Tasks []Task `json:"tasks"`
 }
 
-// Open loads state.json and tasks.json from dir, creating dir if needed.
+type appsFile struct {
+	Apps []App `json:"apps"`
+}
+
+type firewallFile struct {
+	Rules []FirewallRule `json:"rules"`
+}
+
+// Open loads state.json, tasks.json, apps.json and firewall.json from dir,
+// creating dir if needed.
 func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create state dir: %w", err)
 	}
-	s := &Store{dir: dir, sites: make(map[string]Site)}
+	s := &Store{
+		dir:      dir,
+		sites:    make(map[string]Site),
+		apps:     make(map[string]App),
+		firewall: make(map[string]FirewallRule),
+	}
 	if err := s.load(); err != nil {
 		return nil, err
 	}
@@ -170,6 +186,20 @@ func (s *Store) load() error {
 	s.tasks = tasks.Tasks
 	if s.tasks == nil {
 		s.tasks = []Task{}
+	}
+	var apps appsFile
+	if err := readJSON(filepath.Join(s.dir, "apps.json"), &apps); err != nil {
+		return fmt.Errorf("load apps.json: %w", err)
+	}
+	for _, app := range apps.Apps {
+		s.apps[app.Site+"/"+app.Name] = app
+	}
+	var firewall firewallFile
+	if err := readJSON(filepath.Join(s.dir, "firewall.json"), &firewall); err != nil {
+		return fmt.Errorf("load firewall.json: %w", err)
+	}
+	for _, rule := range firewall.Rules {
+		s.firewall[rule.ID] = rule
 	}
 	return nil
 }
@@ -323,6 +353,48 @@ func (s *Store) saveTasks() error {
 	}
 	if err := writeFileAtomic(filepath.Join(s.dir, "tasks.json"), data, 0o600); err != nil {
 		return fmt.Errorf("write tasks.json: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) saveApps() error {
+	apps := make([]App, 0, len(s.apps))
+	for _, app := range s.apps {
+		apps = append(apps, app)
+	}
+	sort.Slice(apps, func(i, j int) bool {
+		if apps[i].Site != apps[j].Site {
+			return apps[i].Site < apps[j].Site
+		}
+		return apps[i].Name < apps[j].Name
+	})
+	data, err := json.MarshalIndent(appsFile{Apps: apps}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode apps.json: %w", err)
+	}
+	if err := writeFileAtomic(filepath.Join(s.dir, "apps.json"), data, 0o600); err != nil {
+		return fmt.Errorf("write apps.json: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) saveFirewall() error {
+	rules := make([]FirewallRule, 0, len(s.firewall))
+	for _, rule := range s.firewall {
+		rules = append(rules, rule)
+	}
+	sort.Slice(rules, func(i, j int) bool {
+		if rules[i].Port != rules[j].Port {
+			return rules[i].Port < rules[j].Port
+		}
+		return rules[i].Protocol < rules[j].Protocol
+	})
+	data, err := json.MarshalIndent(firewallFile{Rules: rules}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode firewall.json: %w", err)
+	}
+	if err := writeFileAtomic(filepath.Join(s.dir, "firewall.json"), data, 0o600); err != nil {
+		return fmt.Errorf("write firewall.json: %w", err)
 	}
 	return nil
 }

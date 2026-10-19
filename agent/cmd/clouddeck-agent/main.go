@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,14 +15,18 @@ import (
 	"time"
 
 	"clouddeck/agent/internal/audit"
+	"clouddeck/agent/internal/apps"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
+	"clouddeck/agent/internal/firewall"
 	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/phpmyadmin"
+	"clouddeck/agent/internal/safeexec"
+	"clouddeck/agent/internal/security"
 	"clouddeck/agent/internal/server"
 	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
@@ -71,17 +76,39 @@ func main() {
 	termSvc := term.New(cfg, auditLog)
 	sshSvc := sshkeys.New(cfg, auditLog)
 	pmaSvc := phpmyadmin.New(cfg)
+	appSvc := apps.New(st, cfg, auditLog)
+	fwSvc := firewall.New(st, cfg, auditLog)
+	secSvc := security.New(cfg)
+	siteSvc.SetAppLister(appSvc)
+	appSvc.SetNginxApplier(func(ctx context.Context, log safeexec.Logger, domain string) error {
+		site, ok := st.GetSite(domain)
+		if !ok {
+			return fmt.Errorf("site %q does not exist", domain)
+		}
+		return siteSvc.ApplyNginx(ctx, log, site)
+	})
 	backupSvc.Start()
 
 	if cfg.DryRun {
 		log.Printf("clouddeck-agent: dry-run mode, skipping reconciliation")
 	} else {
 		siteSvc.Reconcile()
+		// Apps may have been restored from state while nginx kept an older
+		// vhost; re-render every site that owns an app.
+		appSvc.ReconcileApps(ctx, func(level, message string) {
+			log.Printf("clouddeck-agent: apps: [%s] %s", level, message)
+		}, func(ctx context.Context, log safeexec.Logger, domain string) error {
+			site, ok := st.GetSite(domain)
+			if !ok {
+				return fmt.Errorf("site %q does not exist", domain)
+			}
+			return siteSvc.ApplyNginx(ctx, log, site)
+		})
 	}
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc, appSvc, fwSvc, secSvc),
 	}
 	go func() {
 		<-ctx.Done()
