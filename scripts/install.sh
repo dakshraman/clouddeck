@@ -341,8 +341,17 @@ WantedBy=multi-user.target
 EOF
   fi
   systemctl daemon-reload
-  [ "$DO_AGENT" = "1" ] && systemctl enable --now clouddeck-agent >/dev/null 2>&1 || true
-  [ "$DO_PANEL" = "1" ] && systemctl enable --now clouddeck-panel >/dev/null 2>&1 || true
+  # enable for boot, then restart: `enable --now` is a no-op for services that
+  # are already running, which would leave the old processes serving after an
+  # upgrade (new binaries on disk, old version still answering).
+  if [ "$DO_AGENT" = "1" ]; then
+    systemctl enable clouddeck-agent >/dev/null 2>&1 || true
+    systemctl restart clouddeck-agent >/dev/null 2>&1 || true
+  fi
+  if [ "$DO_PANEL" = "1" ]; then
+    systemctl enable clouddeck-panel >/dev/null 2>&1 || true
+    systemctl restart clouddeck-panel >/dev/null 2>&1 || true
+  fi
   WROTE_SYSTEMD=1
   say "-- systemd services enabled: clouddeck-agent, clouddeck-panel"
 fi
