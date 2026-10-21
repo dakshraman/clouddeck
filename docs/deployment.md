@@ -45,6 +45,30 @@ Check that nginx is running:
 systemctl status nginx --no-pager
 ```
 
+### Application hosting (Node / Python / Go / Ruby)
+
+CloudDeck detects runtimes from the host `PATH` and from the usual install
+locations (`/usr/local/go/bin`, `/usr/local/bin`, `/usr/bin`), so installing a
+runtime is all it takes to offer it in the panel.
+
+Apps are supervised by **systemd** by default. To use **PM2** or
+**supervisord** instead, install the supervisor and set the backend in
+`/etc/clouddeck/agent.env`, then restart the agent:
+
+```ini
+AGENT_APP_SUPERVISOR=pm2          # or: supervisor
+# AGENT_APP_SUPERVISOR_DIR=/etc/supervisor/conf.d
+# AGENT_APP_UNIT_DIR=/etc/systemd/system
+```
+
+- `pm2` — `npm install -g pm2`; CloudDeck writes one ecosystem file per app
+  (working directory, `PORT`, merged logs).
+- `supervisor` — `apt-get install supervisor`; `AGENT_APP_SUPERVISOR_DIR` must
+  be the `conf.d` directory included by `supervisord.conf`
+  (default `/etc/supervisor/conf.d`).
+
+Apps are not migrated between backends: recreate them after switching.
+
 ## 2. Install the agent (topology A; skip for the full compose stack)
 
 The installer builds from a checkout when Go 1.23+ is available, falls back to
