@@ -36,7 +36,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.0"
+const Version = "0.6.1"
 
 const maxBodyBytes = 1 << 20
 
@@ -243,6 +243,8 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	info := systeminfo.Collect()
 	info.DryRun = s.cfg.DryRun
+	info.AgentVersion = Version
+	info.AgentTime = time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusOK, info)
 }
 

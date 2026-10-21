@@ -86,6 +86,47 @@ export function getUser(username: string): StoredUser | null {
   return load().users.find((user) => user.username === username) ?? null;
 }
 
+export interface UserProfile {
+  username: string;
+  email: string | null;
+  createdAt: string;
+}
+
+function toProfile(user: StoredUser): UserProfile {
+  return {
+    username: user.username,
+    email: user.email ?? null,
+    createdAt: user.createdAt,
+  };
+}
+
+export function getUserProfile(username: string): UserProfile | null {
+  const user = getUser(username);
+  return user ? toProfile(user) : null;
+}
+
+export function setUserEmail(username: string, email: string | null): UserProfile | null {
+  const current = load();
+  const user = current.users.find((candidate) => candidate.username === username);
+  if (!user) return null;
+  if (email) {
+    user.email = email;
+  } else {
+    delete user.email;
+  }
+  persist(current);
+  return toProfile(user);
+}
+
+export function setUserPassword(username: string, password: string): boolean {
+  const current = load();
+  const user = current.users.find((candidate) => candidate.username === username);
+  if (!user) return false;
+  user.passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+  persist(current);
+  return true;
+}
+
 export async function verifyUser(username: string, password: string): Promise<boolean> {
   const user = getUser(username);
   if (!user) return false;

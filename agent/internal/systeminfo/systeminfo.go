@@ -22,6 +22,8 @@ type System struct {
 	Memory        Memory  `json:"memory"`
 	Disk          Disk    `json:"disk"`
 	DryRun        bool    `json:"dryRun"`
+	AgentVersion  string  `json:"agentVersion,omitempty"`
+	AgentTime     string  `json:"agentTime,omitempty"`
 }
 
 // CPU holds processor details.

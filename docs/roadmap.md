@@ -62,7 +62,9 @@ upgrade, not a reskin. Motion is curated (animated icons, counters, dialog/tab
 transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
 (v0.5.2)** on top of the v0.5.0 feature release.
 
-## v0.6 — app runtimes, firewall + security (shipped: v0.6.0)
+## v0.6 — app runtimes, firewall + security (shipped: v0.6.0; UI patch: v0.6.1)
+
+**v0.6.1** replaces the placeholder Settings page with account profile/email, password change, reduced-motion preference, live server/agent details, session policy, sign out and a GitHub release checker.
 
 - **Application runtimes** — detects Node.js, Python, Go, Ruby, PHP and custom; version pickers in New Site; static sites unchanged
 - **App workloads** — one supervised process per app, automatic local port allocation, per-app env vars, auto-restart, live logs, start/stop/restart; a single app owns `/`, several apps are proxied under `/<name>/`

@@ -6,7 +6,7 @@ import { isSetupComplete } from "@/lib/users";
 import type { SessionUser } from "@/lib/types";
 
 const COOKIE_NAME = "cd_session";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 interface SessionPayload {
   u: string;

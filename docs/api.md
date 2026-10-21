@@ -16,7 +16,7 @@ Base URL: `http://127.0.0.1:9090` (configurable via `AGENT_LISTEN`). Prefix `/v1
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/v1/health` | Liveness + version |
-| GET | `/v1/system` | Host metrics (CPU/RAM/disk) |
+| GET | `/v1/system` | Host metrics (CPU/RAM/disk) + `agentVersion` and `agentTime` |
 | GET | `/v1/php/versions` | Offered PHP versions |
 | GET | `/v1/sites` | List sites |
 | POST | `/v1/sites` | Create site → `202 {taskId}` |
@@ -441,8 +441,11 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/auth/login` | `{username,password}` → `200 {user:{username}}` + Set-Cookie; `401` invalid |
 | POST | `/api/setup` | First-run only: `{username,password,email?}` → `201 {user:{username}}` + Set-Cookie (setup wizard, auto sign-in); `400 invalid_setup`, `409 already_setup` |
 | POST | `/api/auth/logout` | → `204`, clears cookie |
-| GET | `/api/auth/me` | → `{user:{username}}` or `401` |
-| GET | `/api/system` | Passthrough agent `/v1/system` |
+| GET | `/api/auth/me` | → `{user:{username,email,createdAt},session:{ttlDays,cookieSecure}}` or `401` |
+| PATCH | `/api/auth/me` | `{email?,currentPassword?,newPassword?}` → updated `{user,session}`; `400 invalid_email`, `400 invalid_current_password`, `400 current_password_required` |
+| GET | `/api/system` | Passthrough agent `/v1/system` (includes `agentVersion`, `agentTime`) |
+| GET | `/api/panel` | → `{version,agentUrl,cookieSecure,sessionTtlDays,nodeVersion}` |
+| GET | `/api/updates` | → `{panelVersion,latest,checkedAt,error}`; `?refresh=1` forces a GitHub check (min 60s between checks) |
 | GET | `/api/php-versions` | Passthrough → `{versions:[...]}` |
 | GET | `/api/sites` | → `{sites:[...]}` |
 | POST | `/api/sites` | `{domain,phpVersion}` → `202 {taskId}` |

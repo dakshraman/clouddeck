@@ -110,11 +110,12 @@ Makefile            developer entry points
 
 ## Status
 
-Current release (`v0.6.0`): **application runtimes + supervision, firewall, and security surface**.
+Current release (`v0.6.1`): **application runtimes + supervision, firewall, security surface, and a real Settings page**.
 
 - **v0.5.x foundation** — one-command installer, first-run setup wizard, sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring/restarts, PowerDNS, backups, mail (quotas, forwarders, autoresponders, DKIM), site operations (subdomains, redirects, cron, PHP switching, IP blocker, stats, logs), scheduled backups, FTP accounts, web terminal, SSH keys, file actions, per-site WAF, remote MySQL and phpMyAdmin.
 - **v0.5.2 UI pass** — every page rebuilt on shadcn/ui with Animate UI transitions, cPanel-style site tabs, and a dark-first layout.
 - **v0.6.0** — host **Node.js, Python, Go, Ruby and custom** apps as first-class workloads: runtime detection (with version pickers), one supervised process per app, automatic local port allocation, and an nginx reverse proxy in the site's vhost (a single app owns `/`, several apps get `/<name>/` prefixes). Supervision runs on **systemd** by default, with **PM2** and **supervisord** selectable via `AGENT_APP_SUPERVISOR`; start/stop/restart, live logs and auto-restart are managed from the new **Applications** page and each site's Applications tab. Also new: **host firewall** management (ufw/firewalld rules, enable/disable, audit trail) and a **Security** page covering ModSecurity/OWASP CRS detection, fail2ban jails (enable/disable, unban) and SSH hardening checks.
+- **v0.6.1** — proper **Settings** page: account profile and contact email, password change with current-password verification, reduced-motion preference, live server/agent details, session policy, sign out, and a GitHub release checker with the one-command update path.
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
