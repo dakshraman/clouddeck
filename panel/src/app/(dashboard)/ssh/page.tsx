@@ -28,7 +28,7 @@ type LoadState = "loading" | "ready" | "error";
 const KEY_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 const TEXTAREA_CLASS =
-  "h-20 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/60 p-3 font-mono text-xs leading-relaxed text-slate-200 transition-colors placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50";
+  "h-20 w-full resize-y rounded-lg border border-input bg-background/60 p-3 font-mono text-xs leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-50";
 
 function errorText(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
@@ -329,30 +329,30 @@ export default function SshPage() {
             <CardBody className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Hostname</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Hostname</p>
                   <p
-                    className="mt-1 truncate font-mono text-sm text-slate-100"
+                    className="mt-1 truncate font-mono text-sm text-foreground"
                     title={status.hostname}
                   >
                     {status.hostname || "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Port</p>
-                  <p className="mt-1 font-mono text-sm text-slate-100">{status.port}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Port</p>
+                  <p className="mt-1 font-mono text-sm text-foreground">{status.port}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">User</p>
-                  <p className="mt-1 truncate font-mono text-sm text-slate-100" title={status.user}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">User</p>
+                  <p className="mt-1 truncate font-mono text-sm text-foreground" title={status.user}>
                     {status.user || "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Authorized keys file
                   </p>
                   <p
-                    className="mt-1 truncate font-mono text-sm text-slate-100"
+                    className="mt-1 truncate font-mono text-sm text-foreground"
                     title={status.keysFile}
                   >
                     {status.keysFile || "—"}
@@ -360,17 +360,17 @@ export default function SshPage() {
                 </div>
               </div>
 
-              <div className="grid gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className="grid gap-2 rounded-lg border border-border bg-background/40 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Connect from your machine
                 </p>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <code className="min-w-0 break-all font-mono text-sm text-slate-200">
+                  <code className="min-w-0 break-all font-mono text-sm text-foreground">
                     {sshCommand}
                   </code>
                   <CopyButton value={sshCommand} label="Copy command" />
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Authorize a public key below (or generate a keypair), then sign in with the matching
                   private key. Existing non-CloudDeck lines in the keys file are preserved.
                 </p>
@@ -407,7 +407,7 @@ export default function SshPage() {
               {addOpen ? (
                 <form
                   onSubmit={onAddKey}
-                  className="mx-5 mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                  className="mx-5 mt-4 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                 >
                   <div className="grid gap-1.5">
                     <Label htmlFor="ssh-public-key">Public key</Label>
@@ -423,7 +423,7 @@ export default function SshPage() {
                       aria-label="Public key"
                       className={TEXTAREA_CLASS}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       One line from e.g. ~/.ssh/id_ed25519.pub: type, base64 blob and an optional
                       comment.
                     </p>
@@ -485,7 +485,7 @@ export default function SshPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs uppercase tracking-wide text-slate-500">
+                      <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-5 py-3 text-left font-medium">Type</th>
                         <th className="px-5 py-3 text-left font-medium">Fingerprint</th>
                         <th className="px-5 py-3 text-left font-medium">Comment</th>
@@ -500,30 +500,30 @@ export default function SshPage() {
                         return (
                           <tr
                             key={key.fingerprint}
-                            className="border-t border-slate-800 hover:bg-slate-800/40"
+                            className="border-t border-border hover:bg-muted/40"
                           >
-                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-300">
+                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-foreground/80">
                               {key.type}
                             </td>
                             <td className="px-5 py-3">
                               <span
-                                className="block max-w-64 truncate font-mono text-xs text-slate-400"
+                                className="block max-w-64 truncate font-mono text-xs text-muted-foreground"
                                 title={key.fingerprint}
                               >
                                 {key.fingerprint}
                               </span>
                             </td>
-                            <td className="px-5 py-3 text-slate-300">{key.comment || "—"}</td>
+                            <td className="px-5 py-3 text-foreground/80">{key.comment || "—"}</td>
                             <td className="px-5 py-3">
                               <div className="flex items-center justify-end gap-2">
                                 {isDeleting ? (
-                                  <span className="flex items-center gap-2 text-xs text-slate-400">
-                                    <Spinner size={14} className="text-slate-400" />
+                                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Spinner size={14} className="text-muted-foreground" />
                                     deleting…
                                   </span>
                                 ) : isConfirming ? (
                                   <>
-                                    <span className="text-xs text-slate-400">Delete?</span>
+                                    <span className="text-xs text-muted-foreground">Delete?</span>
                                     <Button
                                       variant="danger"
                                       size="sm"
@@ -543,7 +543,7 @@ export default function SshPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-slate-400 hover:text-red-400"
+                                    className="text-muted-foreground hover:text-red-400"
                                     onClick={() => setConfirmFingerprint(key.fingerprint)}
                                     aria-label={`Delete key ${key.fingerprint}`}
                                   >
@@ -578,7 +578,7 @@ export default function SshPage() {
                   <CardTitle>Generated keys</CardTitle>
                   <CardDescription>
                     Keypairs created by the agent under{" "}
-                    <span className="font-mono text-slate-400">{status.keyDir || "the key directory"}</span>.
+                    <span className="font-mono text-muted-foreground">{status.keyDir || "the key directory"}</span>.
                   </CardDescription>
                 </div>
                 <Button
@@ -598,7 +598,7 @@ export default function SshPage() {
               {genOpen ? (
                 <form
                   onSubmit={onGenerate}
-                  className="mx-5 mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                  className="mx-5 mt-4 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                 >
                   <div className="grid gap-1.5">
                     <Label htmlFor="ssh-key-name">Key name</Label>
@@ -613,7 +613,7 @@ export default function SshPage() {
                       disabled={generating}
                       className="font-mono"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Start with a letter or number, then lowercase letters, numbers and dashes - 1 to
                       32 characters.
                     </p>
@@ -684,7 +684,7 @@ export default function SshPage() {
                     </div>
                   </div>
                   {freshKey.privateKey ? (
-                    <pre className="max-h-44 overflow-auto rounded-lg border border-slate-800 bg-slate-950/60 p-3 font-mono text-[11px] leading-relaxed text-slate-300">
+                    <pre className="max-h-44 overflow-auto rounded-lg border border-border bg-background/60 p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
                       {freshKey.privateKey}
                     </pre>
                   ) : (
@@ -703,12 +703,12 @@ export default function SshPage() {
                     </Button>
                   </div>
                   <div className="grid gap-1.5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Public key
                     </p>
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 p-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background/60 p-2.5">
                       <code
-                        className="min-w-0 flex-1 truncate font-mono text-xs text-slate-300"
+                        className="min-w-0 flex-1 truncate font-mono text-xs text-foreground/80"
                         title={freshKey.publicKey}
                       >
                         {freshKey.publicKey}
@@ -754,7 +754,7 @@ export default function SshPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs uppercase tracking-wide text-slate-500">
+                      <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-5 py-3 text-left font-medium">Name</th>
                         <th className="px-5 py-3 text-left font-medium">Type</th>
                         <th className="px-5 py-3 text-left font-medium">Fingerprint</th>
@@ -770,17 +770,17 @@ export default function SshPage() {
                         return (
                           <tr
                             key={key.name}
-                            className="border-t border-slate-800 hover:bg-slate-800/40"
+                            className="border-t border-border hover:bg-muted/40"
                           >
-                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-200">
+                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-foreground">
                               {key.name}
                             </td>
-                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-300">
+                            <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-foreground/80">
                               {key.type}
                             </td>
                             <td className="px-5 py-3">
                               <span
-                                className="block max-w-64 truncate font-mono text-xs text-slate-400"
+                                className="block max-w-64 truncate font-mono text-xs text-muted-foreground"
                                 title={key.fingerprint}
                               >
                                 {key.fingerprint}
@@ -813,13 +813,13 @@ export default function SshPage() {
                                   Download public
                                 </Button>
                                 {isDeleting ? (
-                                  <span className="flex items-center gap-2 text-xs text-slate-400">
-                                    <Spinner size={14} className="text-slate-400" />
+                                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Spinner size={14} className="text-muted-foreground" />
                                     deleting…
                                   </span>
                                 ) : isConfirming ? (
                                   <>
-                                    <span className="text-xs text-slate-400">Delete?</span>
+                                    <span className="text-xs text-muted-foreground">Delete?</span>
                                     <Button
                                       variant="danger"
                                       size="sm"
@@ -839,7 +839,7 @@ export default function SshPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-slate-400 hover:text-red-400"
+                                    className="text-muted-foreground hover:text-red-400"
                                     disabled={isBusy}
                                     onClick={() => setConfirmGenerated(key.name)}
                                     aria-label={`Delete keypair ${key.name}`}

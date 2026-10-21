@@ -16,7 +16,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
         </select>
         <ChevronDown
           size={14}
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
       </div>

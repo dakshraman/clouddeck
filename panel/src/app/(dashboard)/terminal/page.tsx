@@ -159,27 +159,27 @@ export default function TerminalPage() {
         fontSize: 13,
         scrollback: 5000,
         theme: {
-          background: "#0B0F17",
-          foreground: "#e2e8f0",
-          cursor: "#a5b4fc",
-          cursorAccent: "#0B0F17",
-          selectionBackground: "#4338ca",
-          black: "#0f172a",
+          background: "#0a0a0a",
+          foreground: "#fafafa",
+          cursor: "#00b8db",
+          cursorAccent: "#0a0a0a",
+          selectionBackground: "#155e75",
+          black: "#262626",
           red: "#f87171",
           green: "#4ade80",
           yellow: "#fbbf24",
-          blue: "#818cf8",
+          blue: "#60a5fa",
           magenta: "#e879f9",
           cyan: "#22d3ee",
-          white: "#e2e8f0",
-          brightBlack: "#64748b",
+          white: "#e5e5e5",
+          brightBlack: "#737373",
           brightRed: "#fca5a5",
           brightGreen: "#86efac",
           brightYellow: "#fde68a",
-          brightBlue: "#a5b4fc",
+          brightBlue: "#93c5fd",
           brightMagenta: "#f0abfc",
           brightCyan: "#67e8f9",
-          brightWhite: "#f8fafc",
+          brightWhite: "#fafafa",
         },
       });
       const fit = new FitAddon();
@@ -375,32 +375,32 @@ export default function TerminalPage() {
             <CardBody className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Login</p>
-                  <p className="mt-1 truncate font-mono text-sm text-slate-100" title={login}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Login</p>
+                  <p className="mt-1 truncate font-mono text-sm text-foreground" title={login}>
                     {login}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">Agent shell user</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Agent shell user</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Shell</p>
-                  <p className="mt-1 truncate font-mono text-sm text-slate-100" title={status.shell}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Shell</p>
+                  <p className="mt-1 truncate font-mono text-sm text-foreground" title={status.shell}>
                     {status.shell || "—"}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">AGENT_TERM_SHELL</p>
+                  <p className="mt-1 text-xs text-muted-foreground">AGENT_TERM_SHELL</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Panel port</p>
-                  <p className="mt-1 truncate font-mono text-sm text-slate-100">{location?.port ?? "…"}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Panel port</p>
+                  <p className="mt-1 truncate font-mono text-sm text-foreground">{location?.port ?? "…"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     The shell is proxied through the panel; no SSH port is exposed.
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Live sessions
                   </p>
-                  <p className="mt-1 font-mono text-sm text-slate-100">{status.sessions}</p>
-                  <p className="mt-1 text-xs text-slate-500">At most 4; 15 minutes idle timeout</p>
+                  <p className="mt-1 font-mono text-sm text-foreground">{status.sessions}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">At most 4; 15 minutes idle timeout</p>
                 </div>
               </div>
 
@@ -409,16 +409,16 @@ export default function TerminalPage() {
                   <p className="font-medium">The web terminal is disabled.</p>
                   <p className="mt-1">
                     The agent is running in dry-run mode, so it refuses to spawn shells (
-                    <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-200">
+                    <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
                       term_disabled
                     </code>
                     ). Restart the agent without dry-run to enable it.
                   </p>
                 </Alert>
               ) : (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Sessions run as{" "}
-                  <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-300">
+                  <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground/80">
                     {status.user || "—"}
                   </code>{" "}
                   and end when you close this page or after 15 minutes without keystrokes.
@@ -464,16 +464,16 @@ export default function TerminalPage() {
                   </Alert>
                 ) : null}
 
-                <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-[#0B0F17]">
+                <div className="relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]">
                   <div ref={containerRef} className="h-[60vh] min-h-[320px] w-full" />
                   {overlayVisible ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0B0F17] px-6 text-center">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-800 bg-slate-900/60 text-indigo-400">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60 text-brand">
                         <TerminalIcon size={22} aria-hidden="true" />
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-slate-200">Open a shell on this server</p>
-                        <p className="mt-1 max-w-sm text-xs text-slate-500">
+                        <p className="text-sm font-medium text-foreground">Open a shell on this server</p>
+                        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
                           The session runs as {status.user || "—"} with {status.shell || "—"}. Closing this
                           page ends it.
                         </p>

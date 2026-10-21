@@ -104,7 +104,7 @@ export function CronCard({ domain }: { domain: string }) {
             selected user (root or www).
           </CardDescription>
         </div>
-        <Clock size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <Clock size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
         <form onSubmit={onSubmit} className="grid gap-4">
@@ -121,7 +121,7 @@ export function CronCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 <span className="font-mono">0 3 * * *</span> = daily at 03:00 — five fields:
                 minute, hour, day of month, month, weekday.
               </p>
@@ -138,7 +138,7 @@ export function CronCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">Runs as the user selected for the job.</p>
+              <p className="text-xs text-muted-foreground">Runs as the user selected for the job.</p>
             </div>
           </div>
 
@@ -165,7 +165,7 @@ export function CronCard({ domain }: { domain: string }) {
                 <option value="root">root</option>
                 <option value="www">www</option>
               </Select>
-              <p className="text-xs text-slate-500">root or the www web user.</p>
+              <p className="text-xs text-muted-foreground">root or the www web user.</p>
             </div>
           </div>
 
@@ -193,12 +193,12 @@ export function CronCard({ domain }: { domain: string }) {
             <Skeleton className="h-8" />
           </div>
         ) : jobs.length === 0 ? (
-          <p className="text-sm text-slate-500">No cron jobs yet.</p>
+          <p className="text-sm text-muted-foreground">No cron jobs yet.</p>
         ) : (
-          <div className="overflow-x-auto border-t border-slate-800">
+          <div className="overflow-x-auto border-t border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-5 text-left font-medium">Schedule</th>
                   <th className="py-3 pr-5 text-left font-medium">Command</th>
                   <th className="py-3 pr-5 text-left font-medium">Run as</th>
@@ -212,15 +212,15 @@ export function CronCard({ domain }: { domain: string }) {
                   const deleting = pendingDelete === job.id;
                   const rowError = rowErrors[job.id];
                   return (
-                    <tr key={job.id} className="border-t border-slate-800">
+                    <tr key={job.id} className="border-t border-border">
                       <td className="py-3 pr-5">
-                        <span className="whitespace-pre font-mono text-slate-200">
+                        <span className="whitespace-pre font-mono text-foreground">
                           {job.schedule}
                         </span>
                       </td>
                       <td className="py-3 pr-5">
                         <span
-                          className="block max-w-[18rem] truncate font-mono text-slate-400"
+                          className="block max-w-[18rem] truncate font-mono text-muted-foreground"
                           title={job.command}
                         >
                           {job.command}
@@ -229,20 +229,20 @@ export function CronCard({ domain }: { domain: string }) {
                       <td className="py-3 pr-5">
                         <Badge variant="neutral">{job.runAs || "root"}</Badge>
                       </td>
-                      <td className="py-3 pr-5 text-slate-400">{job.comment || "—"}</td>
-                      <td className="py-3 pr-5 text-slate-400">{shortDateTime(job.createdAt)}</td>
+                      <td className="py-3 pr-5 text-muted-foreground">{job.comment || "—"}</td>
+                      <td className="py-3 pr-5 text-muted-foreground">{shortDateTime(job.createdAt)}</td>
                       <td className="py-3">
                         <div className="flex items-center justify-end">
                           {deleting ? (
-                            <span className="flex items-center gap-2 text-xs text-slate-400">
-                              <Spinner size={14} className="text-slate-400" />
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Spinner size={14} className="text-muted-foreground" />
                               deleting…
                             </span>
                           ) : (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-slate-400 hover:text-red-400"
+                              className="text-muted-foreground hover:text-red-400"
                               disabled={busy}
                               onClick={() => void onDelete(job.id)}
                               aria-label={`Delete cron job ${job.schedule}`}

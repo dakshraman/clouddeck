@@ -175,17 +175,17 @@ export function BackupScheduleCard() {
           </Alert>
         ) : (
           <form onSubmit={onSave} className="grid gap-5 sm:max-w-xl">
-            <label className="flex items-start gap-2 text-sm text-slate-300">
+            <label className="flex items-start gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => setEnabled(event.target.checked)}
                 disabled={busy}
-                className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                className="mt-0.5 h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
               />
               <span>
                 Enable scheduled backups
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-muted-foreground">
                   When due, the agent starts one backup task per site and optionally per database.
                 </span>
               </span>
@@ -249,40 +249,40 @@ export function BackupScheduleCard() {
                   disabled={busy}
                   className="font-mono"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Scheduled archives kept per site or database (1–365).
                 </p>
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={includeDatabases}
                 onChange={(event) => setIncludeDatabases(event.target.checked)}
                 disabled={busy}
-                className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
               />
               Include databases
             </label>
 
             <fieldset className="grid gap-3" disabled={busy}>
-              <legend className="text-xs font-medium text-slate-400">Upload every archive to</legend>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <legend className="text-xs font-medium text-muted-foreground">Upload every archive to</legend>
+              <label className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={telegram}
                   onChange={(event) => setTelegram(event.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                  className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
                 />
                 Telegram
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-foreground/80">
                 <input
                   type="checkbox"
                   checked={rclone}
                   onChange={(event) => setRclone(event.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                  className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
                 />
                 rclone remote
               </label>
@@ -318,12 +318,12 @@ export function BackupScheduleCard() {
               >
                 Run now
               </Button>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Run now uses the saved schedule and does not change the next run.
               </p>
             </div>
 
-            <div className="grid gap-1 border-t border-slate-800 pt-4 text-xs text-slate-500">
+            <div className="grid gap-1 border-t border-border pt-4 text-xs text-muted-foreground">
               <span>
                 Last run:{" "}
                 {schedule?.lastRunAt ? shortDateTime(schedule.lastRunAt) : "never"}

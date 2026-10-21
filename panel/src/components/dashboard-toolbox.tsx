@@ -107,7 +107,7 @@ export function DashboardToolbox() {
                 onClick={() => toggle(section.id)}
                 aria-expanded={!isCollapsed}
                 aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${section.title} tools`}
-                className="cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                className="cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <motion.span
                   animate={{ rotate: isCollapsed ? 0 : 90 }}
@@ -140,13 +140,13 @@ export function DashboardToolbox() {
                             className={cn(
                               "group flex items-start gap-3 rounded-lg border border-transparent p-2.5 transition-colors",
                               "hover:border-border hover:bg-accent/60",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             )}
                           >
                             <motion.span
                               whileHover={{ scale: 1.05, rotate: -2 }}
                               transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-primary"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-brand"
                             >
                               <Icon size={16} aria-hidden="true" />
                             </motion.span>

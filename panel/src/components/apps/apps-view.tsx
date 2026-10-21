@@ -250,7 +250,7 @@ export function AppsView() {
                     <CardDescription>
                       <Link
                         href={`/sites/${encodeURIComponent(app.site)}`}
-                        className="font-mono hover:text-slate-300"
+                        className="font-mono hover:text-foreground/80"
                       >
                         {app.site}
                       </Link>{" "}
@@ -261,7 +261,7 @@ export function AppsView() {
                   </div>
                 </CardHeader>
                 <CardBody className="grid gap-4">
-                  <code className="block overflow-x-auto rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-slate-300">
+                  <code className="block overflow-x-auto rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground/80">
                     {app.command}
                   </code>
 
@@ -319,7 +319,7 @@ export function AppsView() {
                   </div>
 
                   {logsFor === key ? (
-                    <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-slate-950/60 p-3 font-mono text-[11px] leading-relaxed text-slate-300">
+                    <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-background/60 p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
                       {logs === null ? "Loading…" : logs.length === 0 ? "No log output yet." : logs.join("\n")}
                     </pre>
                   ) : null}
@@ -438,7 +438,7 @@ function NewAppForm({
                 className="font-mono"
                 required
               />
-              <p className="text-xs text-slate-500">Lowercase letters, digits and hyphens. Used in the URL prefix.</p>
+              <p className="text-xs text-muted-foreground">Lowercase letters, digits and hyphens. Used in the URL prefix.</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="app-kind">Runtime</Label>
@@ -474,7 +474,7 @@ function NewAppForm({
               className="font-mono"
               required
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Runs from the app directory. Use $PORT in the command to pick up the port below.
             </p>
           </div>
@@ -516,7 +516,7 @@ function NewAppForm({
               placeholder={"NODE_ENV=production\nPORT=3000"}
               className={cn(
                 "w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             />
           </div>

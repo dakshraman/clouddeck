@@ -117,7 +117,7 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
       {createOpen ? (
         <form
           onSubmit={onCreate}
-          className="mx-5 mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+          className="mx-5 mt-4 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
         >
           <div className="grid gap-1.5">
             <Label htmlFor="zone-name">Zone name</Label>
@@ -132,7 +132,7 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
               disabled={creating}
               className="font-mono"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Lowercase letters, numbers and hyphens per label, separated by dots.
             </p>
           </div>
@@ -198,7 +198,7 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">Zone</th>
                     <th className="px-5 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -213,8 +213,8 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
                       <tr
                         key={zone.name}
                         className={cn(
-                          "border-t border-slate-800 hover:bg-slate-800/40",
-                          isSelected && "bg-slate-800/40",
+                          "border-t border-border hover:bg-muted/40",
+                          isSelected && "bg-muted/40",
                         )}
                       >
                         <td className="px-5 py-3">
@@ -226,26 +226,26 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
                             className={cn(
                               "cursor-pointer font-mono text-sm transition-colors",
                               isSelected
-                                ? "text-indigo-300"
-                                : "text-slate-200 hover:text-indigo-300",
+                                ? "text-brand"
+                                : "text-foreground hover:text-brand",
                             )}
                           >
                             {zone.name}
                           </button>
                           {isSelected ? (
-                            <span className="ml-2 text-xs text-slate-500">viewing records</span>
+                            <span className="ml-2 text-xs text-muted-foreground">viewing records</span>
                           ) : null}
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
                             {isDeleting ? (
-                              <span className="flex items-center gap-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : isConfirming ? (
                               <>
-                                <span className="text-xs text-slate-400">Delete?</span>
+                                <span className="text-xs text-muted-foreground">Delete?</span>
                                 <Button variant="danger" size="sm" onClick={() => void onDelete(zone.name)}>
                                   Confirm
                                 </Button>
@@ -257,7 +257,7 @@ export function ZonesCard({ zones, error, selected, onSelect, onRefresh }: Zones
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-slate-400 hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmName(zone.name)}
                                 aria-label={`Delete ${zone.name}`}
                               >

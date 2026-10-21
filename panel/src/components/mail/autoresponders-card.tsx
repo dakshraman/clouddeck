@@ -163,11 +163,11 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
 
       <div className={loadedEmail ? "px-5 pt-4" : "px-5 pb-5 pt-4"}>
         {noDomains ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Add a mail domain first to configure a reply for one of its mailboxes.
           </p>
         ) : domains === null ? (
-          <p className="text-sm text-slate-500">Loading mail domains…</p>
+          <p className="text-sm text-muted-foreground">Loading mail domains…</p>
         ) : (
           <form onSubmit={onLoad} className="flex flex-wrap items-end gap-3">
             <div className="grid gap-1.5">
@@ -202,7 +202,7 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
             <Button type="submit" variant="secondary" size="sm" loading={loading}>
               Load
             </Button>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Address:{" "}
               <span className="font-mono">
                 {localPart.trim() === "" ? "local" : localPart.trim().toLowerCase()}@
@@ -222,8 +222,8 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
       {loadedEmail ? (
         <div className="px-5 pb-5 pt-5">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Mail size={14} className="text-slate-500" aria-hidden="true" />
-            <span className="font-mono text-sm text-slate-200">{loadedEmail}</span>
+            <Mail size={14} className="text-muted-foreground" aria-hidden="true" />
+            <span className="font-mono text-sm text-foreground">{loadedEmail}</span>
             {notConfigured ? (
               <Badge variant="neutral">Not configured</Badge>
             ) : (
@@ -263,20 +263,20 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
                 spellCheck={false}
                 disabled={saving || deleting}
                 aria-label="Autoresponder message"
-                className="h-40 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/60 p-3 font-mono text-xs leading-relaxed text-slate-200 transition-colors placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-40 w-full resize-y rounded-lg border border-input bg-background/60 p-3 font-mono text-xs leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Plain text; sent once per sender while the autoresponder is enabled.
               </p>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => setEnabled(event.target.checked)}
                 disabled={saving || deleting}
-                className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
               />
               Enabled
             </label>
@@ -291,7 +291,7 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
               </Button>
               {confirmDelete ? (
                 <>
-                  <span className="text-xs text-slate-400">Delete autoresponder?</span>
+                  <span className="text-xs text-muted-foreground">Delete autoresponder?</span>
                   <Button
                     type="button"
                     variant="danger"
@@ -316,7 +316,7 @@ export function AutorespondersCard({ domains }: AutorespondersCardProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-slate-400 hover:text-red-400"
+                    className="text-muted-foreground hover:text-red-400"
                     onClick={() => setConfirmDelete(true)}
                     disabled={saving || deleting || notConfigured}
                     title={

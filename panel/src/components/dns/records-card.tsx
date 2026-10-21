@@ -261,7 +261,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
       {addOpen && zone ? (
         <form
           onSubmit={onAdd}
-          className="mx-5 mt-4 grid gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+          className="mx-5 mt-4 grid gap-4 rounded-lg border border-border bg-background/40 p-4"
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-1.5">
@@ -277,7 +277,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                 disabled={adding}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">Relative to the zone - @ is the zone apex.</p>
+              <p className="text-xs text-muted-foreground">Relative to the zone - @ is the zone apex.</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="record-type">Type</Label>
@@ -296,7 +296,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="record-ttl">
-                TTL <span className="font-normal text-slate-500">(optional)</span>
+                TTL <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="record-ttl"
@@ -308,7 +308,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                 disabled={adding}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Seconds, 0 to {RECORD_TTL_MAX}. Empty uses the PowerDNS default.
               </p>
             </div>
@@ -325,7 +325,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
               disabled={adding}
               className="font-mono"
             />
-            <p className="text-xs text-slate-500">Record value - TXT values are quoted automatically.</p>
+            <p className="text-xs text-muted-foreground">Record value - TXT values are quoted automatically.</p>
           </div>
           {addError ? <Alert variant="error">{addError}</Alert> : null}
           <div className="flex items-center gap-2">
@@ -347,7 +347,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
 
       {zone === null ? (
         <CardBody>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Select a zone above to view and edit its records.
           </p>
         </CardBody>
@@ -395,7 +395,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">Name</th>
                     <th className="px-5 py-3 text-left font-medium">Type</th>
                     <th className="px-5 py-3 text-left font-medium">TTL</th>
@@ -410,10 +410,10 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                     const isConfirming = confirmKey === key;
                     const rowError = rowErrors[key];
                     return (
-                      <tr key={key} className="border-t border-slate-800 hover:bg-slate-800/40">
+                      <tr key={key} className="border-t border-border hover:bg-muted/40">
                         <td className="px-5 py-3 align-top">
                           <span
-                            className="font-mono text-sm text-slate-200"
+                            className="font-mono text-sm text-foreground"
                             title={set.name === "@" ? "Zone apex" : undefined}
                           >
                             {set.name}
@@ -422,13 +422,13 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                         <td className="px-5 py-3 align-top">
                           <Badge variant="neutral">{set.type}</Badge>
                         </td>
-                        <td className="px-5 py-3 align-top text-slate-400">{set.ttl}</td>
+                        <td className="px-5 py-3 align-top text-muted-foreground">{set.ttl}</td>
                         <td className="w-full max-w-0 px-5 py-3 align-top">
                           <div className="grid gap-1">
                             {set.contents.map((value, index) => (
                               <div
                                 key={`${key}-${index}`}
-                                className="truncate font-mono text-xs text-slate-400"
+                                className="truncate font-mono text-xs text-muted-foreground"
                                 title={value}
                               >
                                 {value}
@@ -439,13 +439,13 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                         <td className="px-5 py-3 align-top">
                           <div className="flex items-center justify-end gap-2">
                             {isDeleting ? (
-                              <span className="flex items-center gap-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : isConfirming ? (
                               <>
-                                <span className="text-xs text-slate-400">Delete set?</span>
+                                <span className="text-xs text-muted-foreground">Delete set?</span>
                                 <Button variant="danger" size="sm" onClick={() => void onDeleteSet(set)}>
                                   Confirm
                                 </Button>
@@ -457,7 +457,7 @@ export function RecordsCard({ zone }: RecordsCardProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-slate-400 hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmKey(key)}
                                 aria-label={`Delete ${set.name} ${set.type} records`}
                                 title={`Deletes all ${set.name} ${set.type} records`}

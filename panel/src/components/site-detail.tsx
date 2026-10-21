@@ -55,8 +55,8 @@ const SITE_TABS: { id: SiteTabId; label: string }[] = [
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-200">{children}</dd>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-sm text-foreground">{children}</dd>
     </div>
   );
 }
@@ -214,13 +214,13 @@ export function SiteDetail({ domain }: { domain: string }) {
       <div className="mb-6">
         <Link
           href="/sites"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition-colors hover:text-slate-300"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground/80"
         >
           <ArrowLeft size={14} aria-hidden="true" />
           All sites
         </Link>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <h1 className="font-mono text-xl font-semibold tracking-tight text-slate-100">
+          <h1 className="font-mono text-xl font-semibold tracking-tight text-foreground">
             {site.domain}
           </h1>
           <Badge variant={siteStatusVariant(site.status)}>{titleCase(site.status)}</Badge>
@@ -235,7 +235,7 @@ export function SiteDetail({ domain }: { domain: string }) {
         </div>
       </div>
 
-      <div className="mb-6 overflow-x-auto border-b border-slate-800">
+      <div className="mb-6 overflow-x-auto border-b border-border">
         <div role="tablist" aria-label="Site tools" className="flex min-w-max gap-1">
           {SITE_TABS.map((entry) => (
             <button
@@ -249,8 +249,8 @@ export function SiteDetail({ domain }: { domain: string }) {
               className={cn(
                 "-mb-px cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
                 tab === entry.id
-                  ? "border-indigo-500 text-slate-100"
-                  : "border-transparent text-slate-500 hover:text-slate-300",
+                  ? "border-brand text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground/80",
               )}
             >
               {entry.label}
@@ -266,7 +266,7 @@ export function SiteDetail({ domain }: { domain: string }) {
               <CardTitle>Site</CardTitle>
               <CardDescription>Configuration managed by the CloudDeck agent.</CardDescription>
             </div>
-            <Globe size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+            <Globe size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardBody>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -300,7 +300,7 @@ export function SiteDetail({ domain }: { domain: string }) {
                   : "No certificate issued for this domain yet."}
               </CardDescription>
             </div>
-            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardBody className="grid gap-5">
             {site.ssl.enabled ? (
@@ -328,7 +328,7 @@ export function SiteDetail({ domain }: { domain: string }) {
                     autoComplete="off"
                     disabled={sslSubmitting}
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Used for expiry notices from the certificate authority.
                   </p>
                 </div>
@@ -362,8 +362,8 @@ export function SiteDetail({ domain }: { domain: string }) {
               <TaskLog taskId={deleteTaskId} onComplete={onDeleteTaskDone} />
             ) : confirmDelete ? (
               <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm text-slate-400">
-                  This permanently removes <span className="font-mono text-slate-300">{site.domain}</span>.
+                <p className="text-sm text-muted-foreground">
+                  This permanently removes <span className="font-mono text-foreground/80">{site.domain}</span>.
                   This cannot be undone.
                 </p>
                 <div className="flex items-center gap-2">

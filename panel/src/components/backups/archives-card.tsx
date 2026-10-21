@@ -106,7 +106,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-500">
+              <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3 text-left font-medium">Archive</th>
                 <th className="px-5 py-3 text-left font-medium">Kind</th>
                 <th className="px-5 py-3 text-left font-medium">Source</th>
@@ -123,10 +123,10 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                 const confirmingAction = confirming?.id === archive.id ? confirming.action : null;
                 const rowError = rowErrors[archive.id];
                 return (
-                  <tr key={archive.id} className="border-t border-slate-800 hover:bg-slate-800/40">
+                  <tr key={archive.id} className="border-t border-border hover:bg-muted/40">
                     <td className="px-5 py-3">
                       <span
-                        className="block max-w-64 truncate font-mono text-sm text-slate-200"
+                        className="block max-w-64 truncate font-mono text-sm text-foreground"
                         title={archive.id}
                       >
                         {archive.id}
@@ -139,33 +139,33 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                     </td>
                     <td className="px-5 py-3">
                       <span
-                        className="block max-w-48 truncate font-mono text-sm text-slate-400"
+                        className="block max-w-48 truncate font-mono text-sm text-muted-foreground"
                         title={archive.source}
                       >
                         {archive.source}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right font-mono text-xs text-slate-400">
+                    <td className="px-5 py-3 text-right font-mono text-xs text-muted-foreground">
                       {formatBytes(archive.sizeBytes)}
                     </td>
-                    <td className="px-5 py-3 text-slate-400">
+                    <td className="px-5 py-3 text-muted-foreground">
                       {shortDateTime(archive.createdAt)}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {isDeleting ? (
-                          <span className="flex items-center gap-2 px-2 text-xs text-slate-400">
-                            <Spinner size={14} className="text-slate-400" />
+                          <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                            <Spinner size={14} className="text-muted-foreground" />
                             deleting…
                           </span>
                         ) : isRestoring ? (
-                          <span className="flex items-center gap-2 px-2 text-xs text-slate-400">
-                            <Spinner size={14} className="text-slate-400" />
+                          <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                            <Spinner size={14} className="text-muted-foreground" />
                             restoring…
                           </span>
                         ) : confirmingAction === "restore" ? (
                           <>
-                            <span className="text-xs text-slate-400">Restore?</span>
+                            <span className="text-xs text-muted-foreground">Restore?</span>
                             <Button
                               variant="secondary"
                               size="sm"
@@ -179,7 +179,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                           </>
                         ) : confirmingAction === "delete" ? (
                           <>
-                            <span className="text-xs text-slate-400">Delete?</span>
+                            <span className="text-xs text-muted-foreground">Delete?</span>
                             <Button
                               variant="danger"
                               size="sm"
@@ -212,7 +212,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-slate-400 hover:text-red-400"
+                              className="text-muted-foreground hover:text-red-400"
                               disabled={busyElsewhere}
                               onClick={() => setConfirming({ id: archive.id, action: "delete" })}
                               aria-label={`Delete ${archive.id}`}

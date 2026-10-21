@@ -101,34 +101,34 @@ export function MailPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Card className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Hostname
                 </p>
-                <Server size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                <Server size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </div>
               <p
-                className="mt-3 truncate font-mono text-lg font-semibold text-slate-100"
+                className="mt-3 truncate font-mono text-lg font-semibold text-foreground"
                 title={status.hostname}
               >
                 {status.hostname || "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">MX target for new records</p>
+              <p className="mt-1 text-xs text-muted-foreground">MX target for new records</p>
             </Card>
 
             <Card className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Base directory
                 </p>
-                <FolderOpen size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                <FolderOpen size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </div>
               <p
-                className="mt-3 truncate font-mono text-lg font-semibold text-slate-100"
+                className="mt-3 truncate font-mono text-lg font-semibold text-foreground"
                 title={status.baseDir}
               >
                 {status.baseDir || "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Agent mail state on disk</p>
+              <p className="mt-1 text-xs text-muted-foreground">Agent mail state on disk</p>
             </Card>
 
             <StatCard

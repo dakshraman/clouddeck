@@ -23,10 +23,10 @@ export function LogoutButton({ username }: { username: string }) {
 
   return (
     <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-xs font-semibold uppercase text-indigo-300">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/15 text-xs font-semibold uppercase text-brand">
         {username.slice(0, 1)}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm text-slate-200" title={username}>
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground" title={username}>
         {username}
       </span>
       <Button

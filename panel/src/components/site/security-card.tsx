@@ -98,7 +98,7 @@ export function SecurityCard({ domain }: { domain: string }) {
             IP addresses and CIDR ranges.
           </CardDescription>
         </div>
-        <ShieldBan size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <ShieldBan size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
         <Alert variant="info">
@@ -120,7 +120,7 @@ export function SecurityCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.
               </p>
             </div>
@@ -161,12 +161,12 @@ export function SecurityCard({ domain }: { domain: string }) {
             <Skeleton className="h-8" />
           </div>
         ) : blockedIps.length === 0 ? (
-          <p className="text-sm text-slate-500">No blocked IP addresses.</p>
+          <p className="text-sm text-muted-foreground">No blocked IP addresses.</p>
         ) : (
-          <div className="overflow-x-auto border-t border-slate-800">
+          <div className="overflow-x-auto border-t border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-5 text-left font-medium">IP address</th>
                   <th className="py-3 pr-5 text-left font-medium">Note</th>
                   <th className="py-3 pr-5 text-left font-medium">Created</th>
@@ -178,24 +178,24 @@ export function SecurityCard({ domain }: { domain: string }) {
                   const removing = pendingDelete === entry.ip;
                   const rowError = rowErrors[entry.ip];
                   return (
-                    <tr key={entry.ip} className="border-t border-slate-800">
-                      <td className="py-3 pr-5 font-mono text-slate-200">
+                    <tr key={entry.ip} className="border-t border-border">
+                      <td className="py-3 pr-5 font-mono text-foreground">
                         <span className="break-all">{entry.ip}</span>
                       </td>
-                      <td className="py-3 pr-5 text-slate-400">{entry.note || "—"}</td>
-                      <td className="py-3 pr-5 text-slate-400">{shortDateTime(entry.createdAt)}</td>
+                      <td className="py-3 pr-5 text-muted-foreground">{entry.note || "—"}</td>
+                      <td className="py-3 pr-5 text-muted-foreground">{shortDateTime(entry.createdAt)}</td>
                       <td className="py-3">
                         <div className="flex items-center justify-end">
                           {removing ? (
-                            <span className="flex items-center gap-2 text-xs text-slate-400">
-                              <Spinner size={14} className="text-slate-400" />
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Spinner size={14} className="text-muted-foreground" />
                               removing…
                             </span>
                           ) : (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-slate-400 hover:text-red-400"
+                              className="text-muted-foreground hover:text-red-400"
                               disabled={busy}
                               onClick={() => void onRemove(entry.ip)}
                               aria-label={`Remove ${entry.ip}`}

@@ -40,28 +40,28 @@ export function ServiceCard({
       <CardBody className="flex flex-1 flex-col gap-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
           <div>
-            <dt className="text-xs text-slate-500">PID</dt>
-            <dd className="mt-1 font-mono text-sm text-slate-200">{service.pid ?? "—"}</dd>
+            <dt className="text-xs text-muted-foreground">PID</dt>
+            <dd className="mt-1 font-mono text-sm text-foreground">{service.pid ?? "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs text-slate-500">Version</dt>
-            <dd className="mt-1 truncate font-mono text-sm text-slate-200" title={service.version}>
+            <dt className="text-xs text-muted-foreground">Version</dt>
+            <dd className="mt-1 truncate font-mono text-sm text-foreground" title={service.version}>
               {service.version ?? "—"}
             </dd>
           </div>
         </dl>
 
         <div className="min-w-0">
-          <p className="text-xs text-slate-500">Details</p>
-          <p className="mt-1 break-words text-sm text-slate-400">{service.details ?? "—"}</p>
+          <p className="text-xs text-muted-foreground">Details</p>
+          <p className="mt-1 break-words text-sm text-muted-foreground">{service.details ?? "—"}</p>
         </div>
 
         {error ? <Alert variant="error">{error}</Alert> : null}
 
         <div className="mt-auto pt-1">
           {restarting ? (
-            <span className="flex h-8 items-center gap-2 text-xs text-slate-400">
-              <Spinner size={14} className="text-slate-400" />
+            <span className="flex h-8 items-center gap-2 text-xs text-muted-foreground">
+              <Spinner size={14} className="text-muted-foreground" />
               restarting…
             </span>
           ) : (

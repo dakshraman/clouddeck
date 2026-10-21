@@ -143,11 +143,11 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
 
       <div className={noDomains || domains === null ? "px-5 pb-5 pt-4" : "px-5 pt-4"}>
         {noDomains ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Add a mail domain first to publish its SPF, DMARC, DKIM and MX records.
           </p>
         ) : domains === null ? (
-          <p className="text-sm text-slate-500">Loading mail domains…</p>
+          <p className="text-sm text-muted-foreground">Loading mail domains…</p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <Label htmlFor="mail-dns-domain">Domain</Label>
@@ -167,16 +167,16 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
                 </option>
               ))}
             </Select>
-            {dkimLoading ? <Spinner size={14} className="text-slate-400" /> : null}
+            {dkimLoading ? <Spinner size={14} className="text-muted-foreground" /> : null}
           </div>
         )}
       </div>
 
       {!noDomains && domains !== null && domain ? (
         <div className="px-5 pb-5 pt-5">
-          <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+          <div className="rounded-lg border border-border bg-background/40 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">DKIM</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">DKIM</p>
               {dkim ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={dkim.enabled ? "green" : "neutral"}>
@@ -215,13 +215,13 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
               dkim.enabled ? (
                 <div className="mt-3 grid gap-3">
                   <div className="grid gap-1">
-                    <p className="text-xs text-slate-500">Selector</p>
-                    <p className="font-mono text-sm text-slate-200">{dkim.selector}</p>
+                    <p className="text-xs text-muted-foreground">Selector</p>
+                    <p className="font-mono text-sm text-foreground">{dkim.selector}</p>
                   </div>
                   <div className="grid gap-1">
-                    <p className="text-xs text-slate-500">DNS name</p>
+                    <p className="text-xs text-muted-foreground">DNS name</p>
                     <div className="flex flex-wrap items-center gap-2">
-                      <code className="select-all break-all rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 font-mono text-xs text-slate-300">
+                      <code className="select-all break-all rounded-md border border-border bg-background/60 px-2 py-1 font-mono text-xs text-foreground/80">
                         {dnsName}
                       </code>
                       <CopyButton value={dnsName} label="Copy name" />
@@ -229,21 +229,21 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
                   </div>
                   {dkim.dnsRecord ? (
                     <div className="grid gap-1">
-                      <p className="text-xs text-slate-500">TXT value</p>
+                      <p className="text-xs text-muted-foreground">TXT value</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <code className="select-all break-all rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 font-mono text-xs text-slate-300">
+                        <code className="select-all break-all rounded-md border border-border bg-background/60 px-2 py-1 font-mono text-xs text-foreground/80">
                           {dkim.dnsRecord}
                         </code>
                         <CopyButton value={dkim.dnsRecord} label="Copy TXT" />
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         Add this TXT record at {dnsName} if the zone is hosted elsewhere.
                       </p>
                     </div>
                   ) : null}
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">
+                <p className="mt-3 text-sm text-muted-foreground">
                   No DKIM key exists for {domain} yet. Use Generate DKIM to create a keypair and
                   publish its TXT record.
                 </p>
@@ -310,7 +310,7 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
                 Add MX
               </Button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Records are published with TTL 3600 into the domain&apos;s PowerDNS zone. Per-record
               failures are listed below.
             </p>
@@ -329,19 +329,19 @@ export function EmailDnsCard({ domains, onRefresh }: EmailDnsCardProps) {
           ) : null}
 
           {result ? (
-            <div className="mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <div className="mt-4 grid gap-3 rounded-lg border border-border bg-background/40 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Applied records
               </p>
               {appliedEntries.length === 0 ? (
-                <p className="text-sm text-slate-500">No records were applied.</p>
+                <p className="text-sm text-muted-foreground">No records were applied.</p>
               ) : (
                 <div className="grid gap-2">
                   {appliedEntries.map(([name, value]) => (
                     <div key={name} className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-slate-300">{name}</span>
+                      <span className="font-mono text-xs text-foreground/80">{name}</span>
                       <span
-                        className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500"
+                        className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
                         title={value}
                       >
                         {value}

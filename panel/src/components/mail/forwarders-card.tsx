@@ -221,13 +221,13 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
             ))
           )}
         </Select>
-        {loading ? <Spinner size={14} className="text-slate-400" /> : null}
+        {loading ? <Spinner size={14} className="text-muted-foreground" /> : null}
       </div>
 
       {createOpen ? (
         <form
           onSubmit={onCreate}
-          className="mx-5 mt-4 grid gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+          className="mx-5 mt-4 grid gap-4 rounded-lg border border-border bg-background/40 p-4"
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
@@ -243,7 +243,7 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 The alias becomes{" "}
                 <span className="font-mono">
                   {localPart.trim() === "" ? "local" : localPart.trim().toLowerCase()}@
@@ -283,7 +283,7 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
               disabled={creating}
               className="font-mono"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               One address or a comma-separated list of destination addresses.
             </p>
           </div>
@@ -307,13 +307,13 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
 
       {noDomains ? (
         <CardBody>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Add a mail domain first to route its addresses to other mailboxes.
           </p>
         </CardBody>
       ) : domains === null ? (
         <CardBody>
-          <p className="text-sm text-slate-500">Loading mail domains…</p>
+          <p className="text-sm text-muted-foreground">Loading mail domains…</p>
         </CardBody>
       ) : error && forwarders === null ? (
         <CardBody>
@@ -359,7 +359,7 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">Source</th>
                     <th className="px-2 py-3" aria-hidden="true" />
                     <th className="w-full max-w-0 px-5 py-3 text-left font-medium">Forward to</th>
@@ -375,20 +375,20 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
                     return (
                       <tr
                         key={forwarder.source}
-                        className="border-t border-slate-800 hover:bg-slate-800/40"
+                        className="border-t border-border hover:bg-muted/40"
                       >
-                        <td className="px-5 py-3 align-top font-mono text-sm text-slate-200">
+                        <td className="px-5 py-3 align-top font-mono text-sm text-foreground">
                           {forwarder.source}
                         </td>
                         <td className="px-2 py-3 align-top">
-                          <ArrowRight size={14} className="text-slate-600" aria-hidden="true" />
+                          <ArrowRight size={14} className="text-muted-foreground/60" aria-hidden="true" />
                         </td>
                         <td className="w-full max-w-0 px-5 py-3 align-top">
                           <div className="grid gap-1">
                             {forwarder.target.split(",").map((part, index) => (
                               <div
                                 key={`${forwarder.source}-${index}`}
-                                className="truncate font-mono text-xs text-slate-400"
+                                className="truncate font-mono text-xs text-muted-foreground"
                                 title={part.trim()}
                               >
                                 {part.trim()}
@@ -396,19 +396,19 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
                             ))}
                           </div>
                         </td>
-                        <td className="px-5 py-3 align-top text-slate-400">
+                        <td className="px-5 py-3 align-top text-muted-foreground">
                           {shortDateTime(forwarder.createdAt)}
                         </td>
                         <td className="px-5 py-3 align-top">
                           <div className="flex items-center justify-end gap-2">
                             {isDeleting ? (
-                              <span className="flex items-center gap-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : isConfirming ? (
                               <>
-                                <span className="text-xs text-slate-400">Delete?</span>
+                                <span className="text-xs text-muted-foreground">Delete?</span>
                                 <Button
                                   variant="danger"
                                   size="sm"
@@ -428,7 +428,7 @@ export function ForwardersCard({ domains, onRefresh }: ForwardersCardProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-slate-400 hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmSource(forwarder.source)}
                                 aria-label={`Delete ${forwarder.source}`}
                               >

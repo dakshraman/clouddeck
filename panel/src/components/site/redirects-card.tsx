@@ -100,7 +100,7 @@ export function RedirectsCard({ domain }: { domain: string }) {
             subdomains.
           </CardDescription>
         </div>
-        <CornerUpRight size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <CornerUpRight size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
         <form onSubmit={onSubmit} className="grid gap-4">
@@ -133,17 +133,17 @@ export function RedirectsCard({ domain }: { domain: string }) {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-foreground/80">
             <input
               type="checkbox"
               checked={permanent}
               onChange={(event) => setPermanent(event.target.checked)}
               disabled={busy}
-              className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+              className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
             />
             Permanent redirect (301)
           </label>
-          <p className="-mt-2 text-xs text-slate-500">
+          <p className="-mt-2 text-xs text-muted-foreground">
             Unchecked sends a 302 temporary redirect.
           </p>
 
@@ -171,12 +171,12 @@ export function RedirectsCard({ domain }: { domain: string }) {
             <Skeleton className="h-8" />
           </div>
         ) : redirects.length === 0 ? (
-          <p className="text-sm text-slate-500">No redirects yet.</p>
+          <p className="text-sm text-muted-foreground">No redirects yet.</p>
         ) : (
-          <div className="overflow-x-auto border-t border-slate-800">
+          <div className="overflow-x-auto border-t border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-5 text-left font-medium">From</th>
                   <th className="py-3 pr-5 text-left font-medium">To</th>
                   <th className="py-3 pr-5 text-left font-medium">Type</th>
@@ -188,15 +188,15 @@ export function RedirectsCard({ domain }: { domain: string }) {
                   const deleting = pendingDelete === redirect.id;
                   const rowError = rowErrors[redirect.id];
                   return (
-                    <tr key={redirect.id} className="border-t border-slate-800">
-                      <td className="py-3 pr-5 font-mono text-slate-200">
+                    <tr key={redirect.id} className="border-t border-border">
+                      <td className="py-3 pr-5 font-mono text-foreground">
                         <span className="break-all">{redirect.from}</span>
                       </td>
                       <td className="py-3 pr-5">
-                        <span className="mr-2 text-slate-600" aria-hidden="true">
+                        <span className="mr-2 text-muted-foreground/60" aria-hidden="true">
                           →
                         </span>
-                        <span className="break-all font-mono text-slate-400">{redirect.to}</span>
+                        <span className="break-all font-mono text-muted-foreground">{redirect.to}</span>
                       </td>
                       <td className="py-3 pr-5">
                         {redirect.permanent ? (
@@ -212,15 +212,15 @@ export function RedirectsCard({ domain }: { domain: string }) {
                       <td className="py-3">
                         <div className="flex items-center justify-end">
                           {deleting ? (
-                            <span className="flex items-center gap-2 text-xs text-slate-400">
-                              <Spinner size={14} className="text-slate-400" />
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Spinner size={14} className="text-muted-foreground" />
                               deleting…
                             </span>
                           ) : (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-slate-400 hover:text-red-400"
+                              className="text-muted-foreground hover:text-red-400"
                               disabled={busy}
                               onClick={() => void onDelete(redirect.id)}
                               aria-label={`Delete redirect from ${redirect.from}`}

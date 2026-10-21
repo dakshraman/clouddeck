@@ -8,7 +8,7 @@ const variantClass: Record<AlertVariant, string> = {
   error: "border-destructive/40 bg-destructive/10 text-red-300 [--alert-accent:theme(colors.red.500)]",
   success: "border-success/30 bg-success/10 text-emerald-300 [--alert-accent:theme(colors.emerald.500)]",
   warning: "border-warning/40 bg-warning/10 text-amber-200 [--alert-accent:theme(colors.amber.500)]",
-  info: "border-primary/30 bg-primary/10 text-indigo-200 [--alert-accent:theme(colors.indigo.500)]",
+  info: "border-brand/30 bg-brand/10 text-brand [--alert-accent:theme(colors.cyan.500)]",
 };
 
 const variantIcon: Record<AlertVariant, LucideIcon> = {

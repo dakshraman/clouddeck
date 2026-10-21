@@ -317,13 +317,13 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
             </option>
           ))}
         </Select>
-        {loading ? <Spinner size={14} className="text-slate-400" /> : null}
+        {loading ? <Spinner size={14} className="text-muted-foreground" /> : null}
       </div>
 
       {createOpen ? (
         <form
           onSubmit={onCreate}
-          className="mx-5 mt-4 grid gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+          className="mx-5 mt-4 grid gap-4 rounded-lg border border-border bg-background/40 p-4"
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
@@ -339,7 +339,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 1-63 lowercase letters, numbers, dots, underscores or hyphens.
               </p>
             </div>
@@ -360,7 +360,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                   </option>
                 ))}
               </Select>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 The mailbox address is{" "}
                 <span className="font-mono">
                   {localPart.trim() === "" ? "local" : localPart.trim().toLowerCase()}@
@@ -389,7 +389,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                   disabled={creating}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   title={showPassword ? "Hide password" : "Show password"}
-                  className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {showPassword ? (
                     <EyeOff size={14} aria-hidden="true" />
@@ -398,7 +398,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Stored as a Dovecot passwd-file entry ({PASSWORD_MIN_LENGTH}+ characters).
               </p>
             </div>
@@ -413,7 +413,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">0 = unlimited.</p>
+              <p className="text-xs text-muted-foreground">0 = unlimited.</p>
             </div>
           </div>
           {createError ? <Alert variant="error">{createError}</Alert> : null}
@@ -484,7 +484,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">Email</th>
                     <th className="px-5 py-3 text-left font-medium">Quota</th>
                     <th className="px-5 py-3 text-right font-medium">Usage</th>
@@ -501,29 +501,29 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                     const rowError = rowErrors[account.email];
                     return (
                       <Fragment key={account.email}>
-                        <tr className="border-t border-slate-800 hover:bg-slate-800/40">
-                          <td className="px-5 py-3 font-mono text-sm text-slate-200">
+                        <tr className="border-t border-border hover:bg-muted/40">
+                          <td className="px-5 py-3 font-mono text-sm text-foreground">
                             {account.email}
                           </td>
-                          <td className="px-5 py-3 text-slate-400">
+                          <td className="px-5 py-3 text-muted-foreground">
                             {quotaLabel(account.quotaMb)}
                           </td>
-                          <td className="px-5 py-3 text-right font-mono text-xs text-slate-400">
+                          <td className="px-5 py-3 text-right font-mono text-xs text-muted-foreground">
                             {formatBytes(account.bytes)}
                           </td>
-                          <td className="px-5 py-3 text-slate-400">
+                          <td className="px-5 py-3 text-muted-foreground">
                             {shortDateTime(account.createdAt)}
                           </td>
                           <td className="px-5 py-3">
                             <div className="flex flex-wrap items-center justify-end gap-2">
                               {isDeleting ? (
-                                <span className="flex items-center gap-2 text-xs text-slate-400">
-                                  <Spinner size={14} className="text-slate-400" />
+                                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Spinner size={14} className="text-muted-foreground" />
                                   deleting…
                                 </span>
                               ) : isConfirming ? (
                                 <>
-                                  <span className="text-xs text-slate-400">Delete mailbox?</span>
+                                  <span className="text-xs text-muted-foreground">Delete mailbox?</span>
                                   <Button
                                     variant="danger"
                                     size="sm"
@@ -560,7 +560,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-slate-400 hover:text-red-400"
+                                    className="text-muted-foreground hover:text-red-400"
                                     onClick={() => setConfirmEmail(account.email)}
                                     aria-label={`Delete ${account.email}`}
                                   >
@@ -582,7 +582,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                         </tr>
 
                         {isPasswordEditing ? (
-                          <tr className="border-t border-slate-800 bg-slate-950/40">
+                          <tr className="border-t border-border bg-background/40">
                             <td colSpan={5} className="px-5 py-3">
                               <form
                                 onSubmit={(event) => void onPasswordChange(event, account.email)}
@@ -591,7 +591,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                 <div className="grid gap-1.5">
                                   <Label htmlFor={`password-${account.email}`}>
                                     New password for{" "}
-                                    <span className="font-mono text-slate-300">
+                                    <span className="font-mono text-foreground/80">
                                       {account.email}
                                     </span>
                                   </Label>
@@ -616,7 +616,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                         showNewPassword ? "Hide password" : "Show password"
                                       }
                                       title={showNewPassword ? "Hide password" : "Show password"}
-                                      className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                       {showNewPassword ? (
                                         <EyeOff size={14} aria-hidden="true" />
@@ -647,7 +647,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                         ) : null}
 
                         {isQuotaEditing ? (
-                          <tr className="border-t border-slate-800 bg-slate-950/40">
+                          <tr className="border-t border-border bg-background/40">
                             <td colSpan={5} className="px-5 py-3">
                               <form
                                 onSubmit={(event) => void onQuotaChange(event, account.email)}
@@ -656,7 +656,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                 <div className="grid gap-1.5">
                                   <Label htmlFor={`quota-${account.email}`}>
                                     New quota (MB) for{" "}
-                                    <span className="font-mono text-slate-300">
+                                    <span className="font-mono text-foreground/80">
                                       {account.email}
                                     </span>
                                   </Label>
@@ -670,7 +670,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                     disabled={changingQuota}
                                     className="w-40 font-mono"
                                   />
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     0 = unlimited, up to {QUOTA_MAX_MB.toLocaleString()} MB.
                                   </p>
                                 </div>

@@ -141,7 +141,7 @@ export function SubdomainsCard({ domain }: { domain: string }) {
             server block and log files.
           </CardDescription>
         </div>
-        <Network size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <Network size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
         <form onSubmit={onCreate} className="grid gap-4">
@@ -158,11 +158,11 @@ export function SubdomainsCard({ domain }: { domain: string }) {
                 disabled={busy}
                 className="min-w-0 flex-1 rounded-r-none font-mono"
               />
-              <span className="flex h-9 shrink-0 items-center rounded-r-lg border border-l-0 border-slate-700 bg-slate-900 px-3 font-mono text-sm text-slate-500">
+              <span className="flex h-9 shrink-0 items-center rounded-r-lg border border-l-0 border-input bg-muted px-3 font-mono text-sm text-muted-foreground">
                 .{domain}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Served from{" "}
               <span className="font-mono">{name.trim() === "" ? "name" : name.trim()}.{domain}</span>{" "}
               with a placeholder index page.
@@ -193,14 +193,14 @@ export function SubdomainsCard({ domain }: { domain: string }) {
             <Skeleton className="h-8" />
           </div>
         ) : subdomains.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             No subdomains yet. Add one to serve an extra hostname from this site.
           </p>
         ) : (
-          <div className="overflow-x-auto border-t border-slate-800">
+          <div className="overflow-x-auto border-t border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-5 text-left font-medium">Name</th>
                   <th className="py-3 pr-5 text-left font-medium">Hostname</th>
                   <th className="py-3 pr-5 text-left font-medium">Created</th>
@@ -213,24 +213,24 @@ export function SubdomainsCard({ domain }: { domain: string }) {
                   const confirming = confirmName === subdomain.name;
                   const rowError = rowErrors[subdomain.name];
                   return (
-                    <tr key={subdomain.name} className="border-t border-slate-800">
-                      <td className="py-3 pr-5 font-mono text-slate-200">{subdomain.name}</td>
-                      <td className="py-3 pr-5 font-mono text-slate-400">
+                    <tr key={subdomain.name} className="border-t border-border">
+                      <td className="py-3 pr-5 font-mono text-foreground">{subdomain.name}</td>
+                      <td className="py-3 pr-5 font-mono text-muted-foreground">
                         <span className="break-all">{subdomain.name}.{domain}</span>
                       </td>
-                      <td className="py-3 pr-5 text-slate-400">
+                      <td className="py-3 pr-5 text-muted-foreground">
                         {shortDateTime(subdomain.createdAt)}
                       </td>
                       <td className="py-3">
                         <div className="flex items-center justify-end gap-2">
                           {deleting ? (
-                            <span className="flex items-center gap-2 text-xs text-slate-400">
-                              <Spinner size={14} className="text-slate-400" />
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Spinner size={14} className="text-muted-foreground" />
                               deleting…
                             </span>
                           ) : confirming ? (
                             <>
-                              <span className="text-xs text-slate-400">Delete?</span>
+                              <span className="text-xs text-muted-foreground">Delete?</span>
                               <Button
                                 variant="danger"
                                 size="sm"
@@ -246,7 +246,7 @@ export function SubdomainsCard({ domain }: { domain: string }) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-slate-400 hover:text-red-400"
+                              className="text-muted-foreground hover:text-red-400"
                               disabled={busy}
                               onClick={() => setConfirmName(subdomain.name)}
                               aria-label={`Delete ${subdomain.name}.${domain}`}

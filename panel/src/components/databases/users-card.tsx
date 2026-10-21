@@ -239,7 +239,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
               {created.password ? (
                 <>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <code className="select-all rounded-md border border-amber-500/30 bg-slate-950/60 px-3 py-1.5 font-mono text-sm text-amber-200">
+                    <code className="select-all rounded-md border border-amber-500/30 bg-background/60 px-3 py-1.5 font-mono text-sm text-amber-200">
                       {created.password}
                     </code>
                     <Button variant="secondary" size="sm" onClick={() => void onCopyPassword()}>
@@ -282,11 +282,11 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
       {grantTarget ? (
         <form
           onSubmit={onGrant}
-          className="mx-5 mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+          className="mx-5 mt-4 rounded-lg border border-border bg-background/40 p-4"
         >
-          <p className="text-sm text-slate-200">
+          <p className="text-sm text-foreground">
             Grant privileges on a database to{" "}
-            <span className="font-mono text-slate-100">
+            <span className="font-mono text-foreground">
               {grantTarget.user}@{grantTarget.host}
             </span>
           </p>
@@ -313,7 +313,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                     </option>
                   ))}
                 </Select>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Grants ALL privileges on the selected database.
                 </p>
               </div>
@@ -335,7 +335,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
             </div>
           ) : (
             <div className="mt-3 grid gap-3">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 No databases are available to grant. Create a database first.
               </p>
               <div>
@@ -351,7 +351,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
       {createOpen && !disabled ? (
         <form
           onSubmit={onCreate}
-          className="mx-5 mt-4 grid gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+          className="mx-5 mt-4 grid gap-4 rounded-lg border border-border bg-background/40 p-4"
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-1.5">
@@ -367,11 +367,11 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">1-32 letters, numbers, underscores.</p>
+              <p className="text-xs text-muted-foreground">1-32 letters, numbers, underscores.</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="mysql-password">
-                Password <span className="font-normal text-slate-500">(optional)</span>
+                Password <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="mysql-password"
@@ -384,7 +384,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Empty means the server generates a secure password.
               </p>
             </div>
@@ -400,7 +400,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                 disabled={creating}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">Defaults to {DEFAULT_HOST}.</p>
+              <p className="text-xs text-muted-foreground">Defaults to {DEFAULT_HOST}.</p>
             </div>
           </div>
           {createError ? <Alert variant="error">{createError}</Alert> : null}
@@ -423,7 +423,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
 
       {disabled ? (
         <CardBody>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             MariaDB/MySQL is unreachable, so users cannot be listed or changed right now.
           </p>
         </CardBody>
@@ -471,7 +471,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">User</th>
                     <th className="px-5 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -483,21 +483,21 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                     const isConfirming = confirmUser === key;
                     const rowError = rowErrors[key];
                     return (
-                      <tr key={key} className="border-t border-slate-800 hover:bg-slate-800/40">
+                      <tr key={key} className="border-t border-border hover:bg-muted/40">
                         <td className="px-5 py-3 font-mono text-sm">
-                          <span className="text-slate-200">{entry.user}</span>
-                          <span className="text-slate-500">@{entry.host}</span>
+                          <span className="text-foreground">{entry.user}</span>
+                          <span className="text-muted-foreground">@{entry.host}</span>
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
                             {isDeleting ? (
-                              <span className="flex items-center gap-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : isConfirming ? (
                               <>
-                                <span className="text-xs text-slate-400">Delete?</span>
+                                <span className="text-xs text-muted-foreground">Delete?</span>
                                 <Button variant="danger" size="sm" onClick={() => void onDelete(entry)}>
                                   Confirm
                                 </Button>
@@ -520,7 +520,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-slate-400 hover:text-red-400"
+                                  className="text-muted-foreground hover:text-red-400"
                                   onClick={() => setConfirmUser(key)}
                                   aria-label={`Delete ${key}`}
                                 >

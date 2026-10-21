@@ -586,7 +586,7 @@ export default function SettingsPage() {
                 onClick={() => setReduceMotion(!reduceMotion)}
                 className={cn(
                   "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   reduceMotion ? "border-primary bg-primary" : "border-border bg-muted",
                 )}
               >
@@ -763,7 +763,7 @@ export default function SettingsPage() {
                   href={updates.latest.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-brand hover:underline"
                 >
                   Release notes
                   <ExternalLink size={12} aria-hidden="true" />

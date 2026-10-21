@@ -5,9 +5,9 @@ import { Spinner } from "@/components/ui/spinner";
 
 export const buttonVariants = cva(
   [
-    "inline-flex cursor-pointer select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium",
+    "inline-flex cursor-pointer select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium",
     "transition-[background-color,border-color,color,box-shadow,transform] duration-150",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     "disabled:pointer-events-none disabled:opacity-50 active:translate-y-px",
   ].join(" "),
   {

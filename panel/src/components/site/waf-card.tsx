@@ -70,7 +70,7 @@ export function WafCard({ domain }: { domain: string }) {
             re-renders the nginx vhost and reloads the web server; a failed reload reverts.
           </CardDescription>
         </div>
-        <Shield size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <Shield size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-4">
         {loadError ? (
@@ -95,20 +95,20 @@ export function WafCard({ domain }: { domain: string }) {
                 checked={info.enabled}
                 disabled={toggling}
                 onChange={(event) => void onToggle(event.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <span className="text-sm text-slate-200">
+              <span className="text-sm text-foreground">
                 {info.enabled ? "WAF enabled" : "WAF disabled"}
               </span>
-              {toggling ? <span className="text-xs text-slate-500">saving…</span> : null}
+              {toggling ? <span className="text-xs text-muted-foreground">saving…</span> : null}
             </label>
 
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               Engine:
               <Badge variant="indigo">{engineLabel(info.engine)}</Badge>
             </div>
 
-            {info.note ? <p className="text-xs text-slate-500">{info.note}</p> : null}
+            {info.note ? <p className="text-xs text-muted-foreground">{info.note}</p> : null}
           </>
         )}
 

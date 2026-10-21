@@ -442,7 +442,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         <>
           <Link
             href={siteHref}
-            className="mb-4 inline-flex items-center gap-1.5 text-xs text-slate-500 transition-colors hover:text-slate-300"
+            className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground/80"
           >
             <ArrowLeft size={14} aria-hidden="true" />
             {domain}
@@ -502,12 +502,12 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
 
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
         {path === "" ? (
-          <span className="font-mono text-slate-200">root</span>
+          <span className="font-mono text-foreground">root</span>
         ) : (
           <button
             type="button"
             onClick={() => setPath("")}
-            className="cursor-pointer font-mono text-slate-400 transition-colors hover:text-indigo-300"
+            className="cursor-pointer font-mono text-muted-foreground transition-colors hover:text-brand"
           >
             root
           </button>
@@ -517,14 +517,14 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
           const isCurrent = index === segments.length - 1;
           return (
             <span key={target} className="flex items-center gap-1.5">
-              <ChevronRight size={14} className="text-slate-600" aria-hidden="true" />
+              <ChevronRight size={14} className="text-muted-foreground/60" aria-hidden="true" />
               {isCurrent ? (
-                <span className="font-mono text-slate-200">{segment}</span>
+                <span className="font-mono text-foreground">{segment}</span>
               ) : (
                 <button
                   type="button"
                   onClick={() => setPath(target)}
-                  className="cursor-pointer font-mono text-slate-400 transition-colors hover:text-indigo-300"
+                  className="cursor-pointer font-mono text-muted-foreground transition-colors hover:text-brand"
                 >
                   {segment}
                 </button>
@@ -583,7 +583,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Name</th>
                   <th className="px-5 py-3 text-right font-medium">Size</th>
                   <th className="px-5 py-3 text-left font-medium">Modified</th>
@@ -598,53 +598,53 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                     action && action.entry.name === entry.name ? action.kind : null;
                   return (
                     <Fragment key={entry.name}>
-                      <tr className="border-t border-slate-800 hover:bg-slate-800/40">
+                      <tr className="border-t border-border hover:bg-muted/40">
                         <td className="px-5 py-3">
                           {entry.type === "dir" ? (
                             <button
                               type="button"
                               onClick={() => setPath(childPath)}
-                              className="flex items-center gap-2 text-left text-slate-200 transition-colors hover:text-indigo-300"
+                              className="flex items-center gap-2 text-left text-foreground transition-colors hover:text-brand"
                             >
                               <Folder
                                 size={15}
-                                className="shrink-0 text-indigo-400/80"
+                                className="shrink-0 text-brand/80"
                                 aria-hidden="true"
                               />
                               <span className="break-all font-mono text-sm">{entry.name}</span>
                             </button>
                           ) : entry.type === "symlink" ? (
-                            <span className="flex items-center gap-2 text-slate-400">
+                            <span className="flex items-center gap-2 text-muted-foreground">
                               <Link2
                                 size={15}
-                                className="shrink-0 text-slate-500"
+                                className="shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                               />
                               <span className="break-all font-mono text-sm">{entry.name}</span>
                               <Badge variant="neutral">symlink</Badge>
                             </span>
                           ) : (
-                            <span className="flex items-center gap-2 text-slate-200">
+                            <span className="flex items-center gap-2 text-foreground">
                               <FileIcon
                                 size={15}
-                                className="shrink-0 text-slate-500"
+                                className="shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                               />
                               <span className="break-all font-mono text-sm">{entry.name}</span>
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-right font-mono text-xs text-slate-400">
+                        <td className="px-5 py-3 text-right font-mono text-xs text-muted-foreground">
                           {entry.type === "dir" ? "—" : formatBytes(entry.sizeBytes)}
                         </td>
-                        <td className="px-5 py-3 text-slate-400">
+                        <td className="px-5 py-3 text-muted-foreground">
                           {shortDateTime(entry.modifiedAt)}
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex flex-wrap items-center justify-end gap-1.5">
                             {deleting === entry.name ? (
-                              <span className="flex items-center gap-2 px-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : (
@@ -728,7 +728,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="text-slate-400 hover:text-red-400"
+                                  className="text-muted-foreground hover:text-red-400"
                                   disabled={rowBusy}
                                   onClick={() => void onDelete(entry)}
                                 >
@@ -741,17 +741,17 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                         </td>
                       </tr>
                       {activeAction ? (
-                        <tr className="border-t border-slate-800">
+                        <tr className="border-t border-border">
                           <td colSpan={4} className="px-5 py-4">
                             {activeAction === "chmod" ? (
                               <form
                                 onSubmit={onSubmitChmod}
-                                className="grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                                className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                               >
                                 <div className="grid gap-1.5">
                                   <Label htmlFor="chmod-mode">
                                     Mode for{" "}
-                                    <span className="font-mono text-slate-300">{entry.name}</span>
+                                    <span className="font-mono text-foreground/80">{entry.name}</span>
                                   </Label>
                                   <Input
                                     id="chmod-mode"
@@ -765,7 +765,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                     disabled={actionBusy}
                                     className="w-32 font-mono"
                                   />
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     Octal permissions, three or four digits (644, 0755).
                                   </p>
                                 </div>
@@ -788,12 +788,12 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                             ) : activeAction === "copy" ? (
                               <form
                                 onSubmit={onSubmitCopy}
-                                className="grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                                className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                               >
                                 <div className="grid gap-1.5">
                                   <Label htmlFor="copy-target">
                                     Copy{" "}
-                                    <span className="font-mono text-slate-300">{entry.name}</span>{" "}
+                                    <span className="font-mono text-foreground/80">{entry.name}</span>{" "}
                                     to
                                   </Label>
                                   <Input
@@ -807,17 +807,17 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                     disabled={actionBusy}
                                     className="font-mono"
                                   />
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     Destination path relative to the webroot.
                                   </p>
                                 </div>
-                                <label className="flex items-center gap-2 text-sm text-slate-300">
+                                <label className="flex items-center gap-2 text-sm text-foreground/80">
                                   <input
                                     type="checkbox"
                                     checked={copyOverwrite}
                                     onChange={(event) => setCopyOverwrite(event.target.checked)}
                                     disabled={actionBusy}
-                                    className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                                    className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
                                   />
                                   Overwrite the destination if it already exists
                                 </label>
@@ -840,11 +840,11 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                             ) : activeAction === "compress" ? (
                               <form
                                 onSubmit={onSubmitCompress}
-                                className="grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                                className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                               >
-                                <p className="text-sm font-medium text-slate-200">
+                                <p className="text-sm font-medium text-foreground">
                                   Compress{" "}
-                                  <span className="font-mono text-slate-300">{entry.name}</span>
+                                  <span className="font-mono text-foreground/80">{entry.name}</span>
                                 </p>
                                 <div className="grid gap-1.5">
                                   <Label htmlFor="compress-format">Format</Label>
@@ -878,7 +878,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                     disabled={actionBusy}
                                     className="font-mono"
                                   />
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     Relative to the site root. An existing target is not replaced.
                                   </p>
                                 </div>
@@ -901,12 +901,12 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                             ) : (
                               <form
                                 onSubmit={onSubmitExtract}
-                                className="grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+                                className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
                               >
                                 <div className="grid gap-1.5">
                                   <Label htmlFor="extract-dest">
                                     Extract{" "}
-                                    <span className="font-mono text-slate-300">{entry.name}</span>{" "}
+                                    <span className="font-mono text-foreground/80">{entry.name}</span>{" "}
                                     into
                                   </Label>
                                   <Input
@@ -920,7 +920,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                     disabled={actionBusy}
                                     className="font-mono"
                                   />
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     Relative to the site root; empty extracts into the site root.
                                   </p>
                                 </div>

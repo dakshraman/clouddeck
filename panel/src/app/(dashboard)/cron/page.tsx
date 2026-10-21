@@ -51,13 +51,13 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
 
       {jobs.length === 0 ? (
         <CardBody>
-          <p className="text-sm text-slate-500">No cron jobs for this site yet.</p>
+          <p className="text-sm text-muted-foreground">No cron jobs for this site yet.</p>
         </CardBody>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-500">
+              <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3 text-left font-medium">Schedule</th>
                 <th className="px-5 py-3 text-left font-medium">Command</th>
                 <th className="px-5 py-3 text-left font-medium">Run as</th>
@@ -71,22 +71,22 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
                 const deleting = pendingDelete === key;
                 const rowError = rowErrors[key];
                 return (
-                  <tr key={key} className="border-t border-slate-800 hover:bg-slate-800/40">
+                  <tr key={key} className="border-t border-border hover:bg-muted/40">
                     <td className="px-5 py-3">
-                      <span className="whitespace-pre font-mono text-slate-200">
+                      <span className="whitespace-pre font-mono text-foreground">
                         {job.schedule}
                       </span>
                     </td>
                     <td className="px-5 py-3">
                       <span
-                        className="block max-w-[20rem] truncate font-mono text-slate-400"
+                        className="block max-w-[20rem] truncate font-mono text-muted-foreground"
                         title={job.command}
                       >
                         {job.command}
                       </span>
                       {job.comment ? (
                         <span
-                          className="mt-0.5 block max-w-[20rem] truncate text-xs text-slate-500"
+                          className="mt-0.5 block max-w-[20rem] truncate text-xs text-muted-foreground"
                           title={job.comment}
                         >
                           {job.comment}
@@ -96,19 +96,19 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
                     <td className="px-5 py-3">
                       <Badge variant="neutral">{job.runAs || "root"}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-slate-400">{shortDateTime(job.createdAt)}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{shortDateTime(job.createdAt)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end">
                         {deleting ? (
-                          <span className="flex items-center gap-2 text-xs text-slate-400">
-                            <Spinner size={14} className="text-slate-400" />
+                          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Spinner size={14} className="text-muted-foreground" />
                             deleting…
                           </span>
                         ) : (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-slate-400 hover:text-red-400"
+                            className="text-muted-foreground hover:text-red-400"
                             disabled={busy}
                             onClick={() => onDelete(domain, job.id)}
                             aria-label={`Delete cron job ${job.schedule} on ${domain}`}
@@ -311,12 +311,12 @@ export default function CronPage() {
                   The job is written to the selected site&apos;s dedicated cron.d fragment.
                 </CardDescription>
               </div>
-              <Clock size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+              <Clock size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </CardHeader>
 
             <form
               onSubmit={onSubmit}
-              className="mx-5 mt-4 mb-5 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+              className="mx-5 mt-4 mb-5 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
             >
               <div className="grid gap-1.5">
                 <Label htmlFor="cron-site">Site</Label>
@@ -350,7 +350,7 @@ export default function CronPage() {
                   disabled={busy}
                   className="font-mono"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   <span className="font-mono">0 3 * * *</span> = daily at 03:00 — five fields:
                   minute, hour, day of month, month, weekday.
                 </p>
@@ -393,7 +393,7 @@ export default function CronPage() {
                   <option value="root">root</option>
                   <option value="www">www</option>
                 </Select>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   root runs as the system administrator; www runs as the web user.
                 </p>
               </div>

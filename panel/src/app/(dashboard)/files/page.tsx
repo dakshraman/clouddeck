@@ -103,7 +103,7 @@ export default function FilesPage() {
                 </option>
               ))}
             </Select>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               The file manager operates inside this site&apos;s webroot.
             </p>
           </div>

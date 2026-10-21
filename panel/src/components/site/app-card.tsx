@@ -86,7 +86,7 @@ export function SiteAppCard({ domain }: { domain: string }) {
             Supervised app processes proxied by nginx for <span className="font-mono">{domain}</span>.
           </CardDescription>
         </div>
-        <Cpu size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <Cpu size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-4">
         {error ? <Alert variant="error">{error}</Alert> : null}
@@ -94,23 +94,23 @@ export function SiteAppCard({ domain }: { domain: string }) {
         {apps === null && !error ? (
           <Skeleton className="h-12 w-full" />
         ) : apps && apps.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             No application runtime attached. Add one from the{" "}
-            <span className="text-slate-300">Applications</span> page to host Node.js, Python, Go or Ruby here.
+            <span className="text-foreground/80">Applications</span> page to host Node.js, Python, Go or Ruby here.
           </p>
         ) : apps ? (
           apps.map((app) => (
             <div key={app.name} className="rounded-lg border border-border bg-muted/20 p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm text-slate-200">{app.name}</span>
+                <span className="font-mono text-sm text-foreground">{app.name}</span>
                 <Badge variant="indigo">{app.kind}</Badge>
                 <Badge variant={stateVariant(app.status.state)}>{app.status.state}</Badge>
-                <span className="font-mono text-xs text-slate-500">127.0.0.1:{app.port}</span>
+                <span className="font-mono text-xs text-muted-foreground">127.0.0.1:{app.port}</span>
                 {app.status.pid ? (
-                  <span className="font-mono text-xs text-slate-500">pid {app.status.pid}</span>
+                  <span className="font-mono text-xs text-muted-foreground">pid {app.status.pid}</span>
                 ) : null}
               </div>
-              <code className="mt-2 block overflow-x-auto rounded-md border border-border bg-slate-950/50 px-2 py-1.5 font-mono text-[11px] text-slate-400">
+              <code className="mt-2 block overflow-x-auto rounded-md border border-border bg-background/50 px-2 py-1.5 font-mono text-[11px] text-muted-foreground">
                 {app.command}
               </code>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -140,7 +140,7 @@ export function SiteAppCard({ domain }: { domain: string }) {
                 </Button>
               </div>
               {logsFor === app.name ? (
-                <pre className="mt-2 max-h-56 overflow-auto rounded-md border border-border bg-slate-950/60 p-2 font-mono text-[11px] leading-relaxed text-slate-300">
+                <pre className="mt-2 max-h-56 overflow-auto rounded-md border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground/80">
                   {logs === null ? "Loading…" : logs.length === 0 ? "No log output yet." : logs.join("\n")}
                 </pre>
               ) : null}

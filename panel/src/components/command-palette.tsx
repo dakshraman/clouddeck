@@ -106,7 +106,7 @@ export function CommandPalette() {
       <Dialog.Trigger asChild>
         <button
           type="button"
-          className="group flex h-9 w-full max-w-md cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-background/60 px-3 text-left text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          className="group flex h-9 w-full max-w-md cursor-pointer items-center gap-2.5 rounded-full border border-border bg-input/50 px-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand/40 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Search size={15} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate">Search tools and pages</span>

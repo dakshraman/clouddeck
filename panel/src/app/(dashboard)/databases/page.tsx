@@ -115,15 +115,15 @@ export default function DatabasesPage() {
           <p className="mt-1">
             Database and user management is disabled. Make sure the database server is running, and
             check the agent configuration: the client binary path (
-            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-200">
+            <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
               AGENT_MYSQL_BIN
             </code>
             ) and the root credentials (
-            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-200">
+            <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
               AGENT_MYSQL_ROOT_USER
             </code>{" "}
             /{" "}
-            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-200">
+            <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
               AGENT_MYSQL_ROOT_PASSWORD
             </code>
             ) may need to be configured.

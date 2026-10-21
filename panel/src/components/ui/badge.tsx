@@ -10,7 +10,7 @@ const badgeVariants = cva(
         green: "border-success/30 bg-success/10 text-emerald-400",
         red: "border-destructive/40 bg-destructive/10 text-red-400",
         amber: "border-warning/40 bg-warning/10 text-amber-400",
-        indigo: "border-primary/40 bg-primary/10 text-indigo-300",
+        indigo: "border-brand/40 bg-brand/10 text-brand",
       },
     },
     defaultVariants: {

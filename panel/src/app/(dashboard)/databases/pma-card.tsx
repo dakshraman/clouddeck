@@ -97,7 +97,7 @@ export function PmaCard() {
             Browser-based database administration detected on this server.
           </CardDescription>
         </div>
-        <Database size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <Database size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
 
       {loadError ? (
@@ -118,10 +118,10 @@ export function PmaCard() {
         </CardBody>
       ) : !status.installed ? (
         <CardBody>
-          <p className="text-sm text-slate-400">phpMyAdmin not detected on this server.</p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="text-sm text-muted-foreground">phpMyAdmin not detected on this server.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Install phpMyAdmin on the server, or point{" "}
-            <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-xs text-slate-200">
+            <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
               AGENT_PHPMYADMIN_DIR
             </code>{" "}
             at an existing installation.
@@ -131,20 +131,20 @@ export function PmaCard() {
         <CardBody className="grid gap-5">
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
             <div>
-              <dt className="text-xs text-slate-500">Version</dt>
-              <dd className="mt-1 font-mono text-sm text-slate-200">
+              <dt className="text-xs text-muted-foreground">Version</dt>
+              <dd className="mt-1 font-mono text-sm text-foreground">
                 {status.version ? status.version : "Unknown"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Port</dt>
-              <dd className="mt-1 font-mono text-sm text-slate-200">
+              <dt className="text-xs text-muted-foreground">Port</dt>
+              <dd className="mt-1 font-mono text-sm text-foreground">
                 {typeof status.port === "number" ? status.port : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Reachable</dt>
-              <dd className="mt-1 flex items-center gap-2 text-sm text-slate-200">
+              <dt className="text-xs text-muted-foreground">Reachable</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                 <span
                   className={
                     status.reachable
@@ -182,7 +182,7 @@ export function PmaCard() {
               ) : null}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               The panel could not determine phpMyAdmin&apos;s URL; check the agent&apos;s detection
               output.
             </p>

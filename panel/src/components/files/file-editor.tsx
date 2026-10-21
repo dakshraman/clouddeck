@@ -111,7 +111,7 @@ export function FileEditor({ domain, path, name, isNew, onClose, onSaved }: File
             }}
             spellCheck={false}
             aria-label={`Edit ${name}`}
-            className="h-96 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/60 p-3 font-mono text-xs leading-relaxed text-slate-200 transition-colors placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="h-96 w-full resize-y rounded-lg border border-input bg-background/60 p-3 font-mono text-xs leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
           />
         )}
       </CardBody>

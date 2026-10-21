@@ -77,10 +77,10 @@ export function PhpCard({ domain, currentVersion, onUpdated }: PhpCardProps) {
             web server; a failed reload reverts.
           </CardDescription>
         </div>
-        <CodeXml size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <CodeXml size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-5">
-        <div className="flex items-center gap-2 text-sm text-slate-300">
+        <div className="flex items-center gap-2 text-sm text-foreground/80">
           Current version:
           <Badge variant="indigo">{phpVersionLabel(currentVersion)}</Badge>
         </div>
@@ -115,7 +115,7 @@ export function PhpCard({ domain, currentVersion, onUpdated }: PhpCardProps) {
                   </option>
                 ))}
               </Select>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 &quot;Static&quot; removes PHP handling for this site.
               </p>
             </div>

@@ -320,32 +320,32 @@ export default function FtpPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Card className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Passwd file
                 </p>
-                <FileText size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                <FileText size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </div>
               <p
-                className="mt-3 truncate font-mono text-lg font-semibold text-slate-100"
+                className="mt-3 truncate font-mono text-lg font-semibold text-foreground"
                 title={status.passwdFile}
               >
                 {status.passwdFile || "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">pure-ftpd passwd database</p>
+              <p className="mt-1 text-xs text-muted-foreground">pure-ftpd passwd database</p>
             </Card>
 
             <Card className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Run as</p>
-                <User size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Run as</p>
+                <User size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </div>
               <p
-                className="mt-3 truncate font-mono text-lg font-semibold text-slate-100"
+                className="mt-3 truncate font-mono text-lg font-semibold text-foreground"
                 title={status.runAs}
               >
                 {status.runAs || "—"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">owner of FTP home directories</p>
+              <p className="mt-1 text-xs text-muted-foreground">owner of FTP home directories</p>
             </Card>
 
             <StatCard
@@ -387,7 +387,7 @@ export default function FtpPage() {
               {createOpen ? (
                 <form
                   onSubmit={onCreate}
-                  className="mx-5 mt-4 grid gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+                  className="mx-5 mt-4 grid gap-4 rounded-lg border border-border bg-background/40 p-4"
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-1.5">
@@ -407,7 +407,7 @@ export default function FtpPage() {
                           </option>
                         ))}
                       </Select>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         The login is jailed to this site&apos;s webroot.
                       </p>
                     </div>
@@ -423,7 +423,7 @@ export default function FtpPage() {
                         disabled={creating}
                         className="font-mono"
                       />
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         Folder inside the webroot; empty means the site root.
                       </p>
                     </div>
@@ -440,7 +440,7 @@ export default function FtpPage() {
                         disabled={creating}
                         className="font-mono"
                       />
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         2-33 letters, numbers and . _ @ - (starts with a letter or number).
                       </p>
                     </div>
@@ -465,7 +465,7 @@ export default function FtpPage() {
                             disabled={creating}
                             aria-label="Generate password"
                             title="Generate password"
-                            className="flex cursor-pointer items-center px-2 py-1 text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex cursor-pointer items-center px-2 py-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Wand2 size={14} aria-hidden="true" />
                           </button>
@@ -475,7 +475,7 @@ export default function FtpPage() {
                             disabled={creating}
                             aria-label={showCreatePassword ? "Hide password" : "Show password"}
                             title={showCreatePassword ? "Hide password" : "Show password"}
-                            className="flex cursor-pointer items-center px-2 py-1 text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex cursor-pointer items-center px-2 py-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {showCreatePassword ? (
                               <EyeOff size={14} aria-hidden="true" />
@@ -485,7 +485,7 @@ export default function FtpPage() {
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         Stored as a SHA-512 crypt hash ({PASSWORD_MIN_LENGTH}+ characters); use the
                         wand for a random password.
                       </p>
@@ -497,13 +497,13 @@ export default function FtpPage() {
                       <button
                         type="button"
                         onClick={() => void load({ silent: true })}
-                        className="cursor-pointer text-indigo-300 underline-offset-2 hover:underline"
+                        className="cursor-pointer text-brand underline-offset-2 hover:underline"
                       >
                         Retry
                       </button>
                     </p>
                   ) : noSites ? (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       No sites exist yet — create a site first.
                     </p>
                   ) : null}
@@ -573,7 +573,7 @@ export default function FtpPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-xs uppercase tracking-wide text-slate-500">
+                        <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                           <th className="px-5 py-3 text-left font-medium">Login</th>
                           <th className="px-5 py-3 text-left font-medium">Site</th>
                           <th className="px-5 py-3 text-left font-medium">Path</th>
@@ -588,15 +588,15 @@ export default function FtpPage() {
                           const rowError = rowErrors[account.name];
                           return (
                             <Fragment key={account.name}>
-                              <tr className="border-t border-slate-800 hover:bg-slate-800/40">
-                                <td className="px-5 py-3 font-mono text-sm text-slate-200">
+                              <tr className="border-t border-border hover:bg-muted/40">
+                                <td className="px-5 py-3 font-mono text-sm text-foreground">
                                   {account.name}
                                 </td>
-                                <td className="px-5 py-3 text-slate-400">
+                                <td className="px-5 py-3 text-muted-foreground">
                                   {account.site ?? "—"}
                                 </td>
                                 <td
-                                  className="px-5 py-3 font-mono text-xs text-slate-400"
+                                  className="px-5 py-3 font-mono text-xs text-muted-foreground"
                                   title={account.home}
                                 >
                                   {accountPath(account)}
@@ -604,13 +604,13 @@ export default function FtpPage() {
                                 <td className="px-5 py-3">
                                   <div className="flex flex-wrap items-center justify-end gap-2">
                                     {isDeleting ? (
-                                      <span className="flex items-center gap-2 text-xs text-slate-400">
-                                        <Spinner size={14} className="text-slate-400" />
+                                      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Spinner size={14} className="text-muted-foreground" />
                                         deleting…
                                       </span>
                                     ) : isConfirming ? (
                                       <>
-                                        <span className="text-xs text-slate-400">
+                                        <span className="text-xs text-muted-foreground">
                                           Delete login? The home directory is kept.
                                         </span>
                                         <Button
@@ -641,7 +641,7 @@ export default function FtpPage() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="text-slate-400 hover:text-red-400"
+                                          className="text-muted-foreground hover:text-red-400"
                                           onClick={() => setConfirmName(account.name)}
                                           aria-label={`Delete ${account.name}`}
                                         >
@@ -663,7 +663,7 @@ export default function FtpPage() {
                               </tr>
 
                               {isPasswordEditing ? (
-                                <tr className="border-t border-slate-800 bg-slate-950/40">
+                                <tr className="border-t border-border bg-background/40">
                                   <td colSpan={4} className="px-5 py-3">
                                     <form
                                       onSubmit={(event) =>
@@ -674,7 +674,7 @@ export default function FtpPage() {
                                       <div className="grid gap-1.5">
                                         <Label htmlFor={`ftp-password-${account.name}`}>
                                           New password for{" "}
-                                          <span className="font-mono text-slate-300">
+                                          <span className="font-mono text-foreground/80">
                                             {account.name}
                                           </span>
                                         </Label>
@@ -703,7 +703,7 @@ export default function FtpPage() {
                                             title={
                                               showNewPassword ? "Hide password" : "Show password"
                                             }
-                                            className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="absolute inset-y-0 right-0 flex cursor-pointer items-center px-2.5 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                                           >
                                             {showNewPassword ? (
                                               <EyeOff size={14} aria-hidden="true" />

@@ -145,7 +145,7 @@ export default function SitesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Domain</th>
                   <th className="px-5 py-3 text-left font-medium">PHP</th>
                   <th className="px-5 py-3 text-left font-medium">SSL</th>
@@ -162,17 +162,17 @@ export default function SitesPage() {
                   return (
                     <tr
                       key={site.domain}
-                      className="border-t border-slate-800 hover:bg-slate-800/40"
+                      className="border-t border-border hover:bg-muted/40"
                     >
                       <td className="px-5 py-3">
                         <Link
                           href={`/sites/${encodeURIComponent(site.domain)}`}
-                          className="font-mono text-sm text-slate-200 hover:text-indigo-300"
+                          className="font-mono text-sm text-foreground hover:text-brand"
                         >
                           {site.domain}
                         </Link>
                       </td>
-                      <td className="px-5 py-3 text-slate-400">{phpVersionLabel(site.phpVersion)}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{phpVersionLabel(site.phpVersion)}</td>
                       <td className="px-5 py-3">
                         {site.ssl.enabled ? (
                           <Badge variant="green">SSL</Badge>
@@ -185,17 +185,17 @@ export default function SitesPage() {
                           {titleCase(site.status)}
                         </Badge>
                       </td>
-                      <td className="px-5 py-3 text-slate-400">{shortDateTime(site.createdAt)}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{shortDateTime(site.createdAt)}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {isDeleting ? (
-                            <span className="flex items-center gap-2 text-xs text-slate-400">
-                              <Spinner size={14} className="text-slate-400" />
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Spinner size={14} className="text-muted-foreground" />
                               deleting…
                             </span>
                           ) : isConfirming ? (
                             <>
-                              <span className="text-xs text-slate-400">Delete?</span>
+                              <span className="text-xs text-muted-foreground">Delete?</span>
                               <Button
                                 variant="danger"
                                 size="sm"
@@ -222,7 +222,7 @@ export default function SitesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-slate-400 hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmDomain(site.domain)}
                                 aria-label={`Delete ${site.domain}`}
                               >

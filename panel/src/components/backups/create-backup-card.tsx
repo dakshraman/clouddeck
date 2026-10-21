@@ -152,7 +152,7 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
                 <option value="site">Site</option>
                 <option value="database">Database</option>
               </Select>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Site archives the webroot files; Database dumps the schema.
               </p>
             </div>
@@ -181,13 +181,13 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
                   <button
                     type="button"
                     onClick={() => void (isSite ? loadSites() : loadDatabases())}
-                    className="cursor-pointer text-indigo-300 underline-offset-2 hover:underline"
+                    className="cursor-pointer text-brand underline-offset-2 hover:underline"
                   >
                     Retry
                   </button>
                 </p>
               ) : noSources ? (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   {isSite
                     ? "No sites exist yet — create a site first."
                     : "No databases exist yet — create a database first."}
@@ -197,22 +197,22 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
           </div>
 
           <fieldset className="grid gap-3" disabled={busy}>
-            <legend className="text-xs font-medium text-slate-400">Upload after the backup</legend>
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <legend className="text-xs font-medium text-muted-foreground">Upload after the backup</legend>
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={telegram}
                 onChange={(event) => setTelegram(event.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
               />
               Telegram
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"
                 checked={rclone}
                 onChange={(event) => setRclone(event.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded border-slate-700 bg-slate-950/60 accent-indigo-500"
+                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
               />
               rclone remote
             </label>

@@ -9,7 +9,7 @@ import { cn } from "@/components/ui/cn";
 import { shortTime, taskStatusVariant, taskTypeLabel, titleCase } from "@/components/format";
 
 const levelClass: Record<TaskLogLevel, string> = {
-  info: "text-slate-300",
+  info: "text-foreground/80",
   warn: "text-amber-400",
   error: "text-red-400",
 };
@@ -83,21 +83,21 @@ export function TaskLog({ initial = null, taskId, onComplete }: TaskLogProps) {
   const logs = task?.logs ?? [];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-3">
+    <div className="overflow-hidden rounded-xl border border-border bg-muted/60">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="text-sm font-medium text-slate-200">
+          <span className="text-sm font-medium text-foreground">
             {task ? taskTypeLabel(task.type) : "Task"}
           </span>
           {task ? (
             <Badge variant={taskStatusVariant(task.status)}>{titleCase(task.status)}</Badge>
           ) : null}
-          {active ? <Spinner size={14} className="text-indigo-400" /> : null}
+          {active ? <Spinner size={14} className="text-brand" /> : null}
         </div>
         <span className="sr-only" aria-live="polite">
           {task ? `Task ${task.status}` : "Loading task"}
         </span>
-        {task?.site ? <span className="truncate font-mono text-xs text-slate-500">{task.site}</span> : null}
+        {task?.site ? <span className="truncate font-mono text-xs text-muted-foreground">{task.site}</span> : null}
       </div>
 
       <div
@@ -105,11 +105,11 @@ export function TaskLog({ initial = null, taskId, onComplete }: TaskLogProps) {
         className="max-h-80 overflow-y-auto px-5 py-3 font-mono text-xs leading-5"
       >
         {logs.length === 0 ? (
-          <p className="text-slate-500">{active ? "Waiting for output…" : "No output."}</p>
+          <p className="text-muted-foreground">{active ? "Waiting for output…" : "No output."}</p>
         ) : (
           logs.map((entry, index) => (
             <div key={index} className="flex gap-3">
-              <span className="shrink-0 text-slate-600">{shortTime(entry.at)}</span>
+              <span className="shrink-0 text-muted-foreground/60">{shortTime(entry.at)}</span>
               <span className={cn("min-w-0 break-words", levelClass[entry.level])}>{entry.message}</span>
             </div>
           ))
@@ -117,7 +117,7 @@ export function TaskLog({ initial = null, taskId, onComplete }: TaskLogProps) {
 
         {task?.status === "failed" ? (
           <div className="mt-2 flex gap-3 border-t border-red-500/20 pt-2">
-            <span className="shrink-0 text-slate-600">error</span>
+            <span className="shrink-0 text-muted-foreground/60">error</span>
             <span className="min-w-0 break-words text-red-400">
               {task.error ?? "The task failed."}
             </span>

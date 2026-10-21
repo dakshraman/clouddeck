@@ -151,7 +151,7 @@ export function RemoteMysqlCard() {
       {createOpen ? (
         <form
           onSubmit={onCreate}
-          className="mx-5 mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4 sm:max-w-md"
+          className="mx-5 mt-4 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
         >
           <div className="grid gap-1.5">
             <Label htmlFor="remote-mysql-user">User</Label>
@@ -166,7 +166,7 @@ export function RemoteMysqlCard() {
               disabled={creating}
               className="font-mono"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               An existing MySQL user name (1-32 letters, numbers, underscores).
             </p>
           </div>
@@ -182,7 +182,7 @@ export function RemoteMysqlCard() {
               disabled={creating}
               className="font-mono"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               IP address, hostname or % — connections from other machines.
             </p>
           </div>
@@ -248,7 +248,7 @@ export function RemoteMysqlCard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-5 py-3 text-left font-medium">User@host</th>
                     <th className="px-5 py-3 text-right font-medium">Actions</th>
                   </tr>
@@ -260,21 +260,21 @@ export function RemoteMysqlCard() {
                     const isConfirming = confirmKey === key;
                     const rowError = rowErrors[key];
                     return (
-                      <tr key={key} className="border-t border-slate-800 hover:bg-slate-800/40">
+                      <tr key={key} className="border-t border-border hover:bg-muted/40">
                         <td className="px-5 py-3 font-mono text-sm">
-                          <span className="text-slate-200">{entry.user}</span>
-                          <span className="text-slate-500">@{entry.host}</span>
+                          <span className="text-foreground">{entry.user}</span>
+                          <span className="text-muted-foreground">@{entry.host}</span>
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
                             {isDeleting ? (
-                              <span className="flex items-center gap-2 text-xs text-slate-400">
-                                <Spinner size={14} className="text-slate-400" />
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Spinner size={14} className="text-muted-foreground" />
                                 deleting…
                               </span>
                             ) : isConfirming ? (
                               <>
-                                <span className="text-xs text-slate-400">Delete?</span>
+                                <span className="text-xs text-muted-foreground">Delete?</span>
                                 <Button variant="danger" size="sm" onClick={() => void onDelete(entry)}>
                                   Confirm
                                 </Button>
@@ -286,7 +286,7 @@ export function RemoteMysqlCard() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-slate-400 hover:text-red-400"
+                                className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmKey(key)}
                                 aria-label={`Delete ${key}`}
                               >

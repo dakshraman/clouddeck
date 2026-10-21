@@ -183,13 +183,13 @@ export function MonitoringClient() {
             />
             <Card className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Host</p>
-                <Server size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Host</p>
+                <Server size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               </div>
-              <p className="mt-3 truncate font-mono text-lg font-semibold text-slate-100">
+              <p className="mt-3 truncate font-mono text-lg font-semibold text-foreground">
                 {system.hostname}
               </p>
-              <p className="mt-1 truncate text-xs text-slate-500">
+              <p className="mt-1 truncate text-xs text-muted-foreground">
                 {system.os}
                 {system.agentVersion ? ` · v${system.agentVersion}` : ""}
               </p>

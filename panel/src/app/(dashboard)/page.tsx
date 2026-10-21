@@ -29,7 +29,7 @@ type LoadState = "loading" | "ready" | "error";
 const toneBar: Record<string, string> = {
   red: "bg-red-500",
   amber: "bg-amber-500",
-  indigo: "bg-primary",
+  indigo: "bg-brand",
   green: "bg-emerald-500",
 };
 

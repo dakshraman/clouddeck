@@ -37,7 +37,7 @@ export function UsageCard({ domain }: { domain: string }) {
             Total size of this site&apos;s webroot; symlinks are skipped.
           </CardDescription>
         </div>
-        <HardDrive size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <HardDrive size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody>
         {loadError ? (
@@ -58,20 +58,20 @@ export function UsageCard({ domain }: { domain: string }) {
         ) : (
           <dl className="grid gap-4 sm:grid-cols-3">
             <div>
-              <dt className="text-xs text-slate-500">Size</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
+              <dt className="text-xs text-muted-foreground">Size</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
                 {formatBytes(usage.bytes)}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Files</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
+              <dt className="text-xs text-muted-foreground">Files</dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
                 {usage.files.toLocaleString()}
               </dd>
             </div>
             <div className="min-w-0">
-              <dt className="text-xs text-slate-500">Root</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-400">{usage.root}</dd>
+              <dt className="text-xs text-muted-foreground">Root</dt>
+              <dd className="mt-1 break-all font-mono text-xs text-muted-foreground">{usage.root}</dd>
             </div>
           </dl>
         )}

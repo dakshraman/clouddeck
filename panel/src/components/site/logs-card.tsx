@@ -57,7 +57,7 @@ export function LogsCard({ domain }: { domain: string }) {
             .
           </CardDescription>
         </div>
-        <ScrollText size={16} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
+        <ScrollText size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </CardHeader>
       <CardBody className="grid gap-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -97,7 +97,7 @@ export function LogsCard({ domain }: { domain: string }) {
             Refresh
           </Button>
           {data !== null && !loading ? (
-            <span className="pb-2 text-xs text-slate-500">
+            <span className="pb-2 text-xs text-muted-foreground">
               {data.lines.length.toLocaleString()} {data.lines.length === 1 ? "line" : "lines"}
             </span>
           ) : null}
@@ -115,9 +115,9 @@ export function LogsCard({ domain }: { domain: string }) {
         ) : loading || data === null ? (
           <Skeleton className="h-64" />
         ) : data.lines.length === 0 ? (
-          <p className="text-sm text-slate-500">No log entries</p>
+          <p className="text-sm text-muted-foreground">No log entries</p>
         ) : (
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-950/60 p-4 font-mono text-xs leading-5 text-slate-300">
+          <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-border bg-background/60 p-4 font-mono text-xs leading-5 text-foreground/80">
             {data.lines.join("\n")}
           </pre>
         )}

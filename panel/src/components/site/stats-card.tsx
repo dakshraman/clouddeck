@@ -91,38 +91,38 @@ export function StatsCard({ domain }: { domain: string }) {
           <>
             <dl className="grid gap-4 sm:grid-cols-2">
               <div>
-                <dt className="text-xs text-slate-500">Requests</dt>
-                <dd className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
+                <dt className="text-xs text-muted-foreground">Requests</dt>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
                   {stats.requests.toLocaleString()}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-500">Data served</dt>
-                <dd className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">
+                <dt className="text-xs text-muted-foreground">Data served</dt>
+                <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
                   {formatBytes(stats.bytes)}
                 </dd>
               </div>
             </dl>
 
             <div>
-              <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Per day
               </h3>
               {stats.perDay.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No traffic recorded in this period.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No traffic recorded in this period.</p>
               ) : (
                 <div className="mt-3 grid gap-2.5">
                   {stats.perDay.map((day) => (
                     <div key={day.date}>
                       <div className="flex items-baseline justify-between gap-3 text-xs">
-                        <span className="font-mono text-slate-500">{day.date}</span>
-                        <span className="text-slate-400">
+                        <span className="font-mono text-muted-foreground">{day.date}</span>
+                        <span className="text-muted-foreground">
                           {day.requests.toLocaleString()} req · {formatBytes(day.bytes)}
                         </span>
                       </div>
-                      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
                         <div
-                          className="h-full rounded-full bg-indigo-500"
+                          className="h-full rounded-full bg-brand"
                           style={{ width: `${(day.requests / maxRequests) * 100}%` }}
                         />
                       </div>
@@ -133,11 +133,11 @@ export function StatsCard({ domain }: { domain: string }) {
             </div>
 
             <div>
-              <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Top paths
               </h3>
               {stats.topPaths.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No path data for this period.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No path data for this period.</p>
               ) : (
                 <ol className="mt-3 grid gap-2">
                   {stats.topPaths.map((entry, index) => (
@@ -145,15 +145,15 @@ export function StatsCard({ domain }: { domain: string }) {
                       key={`${entry.path}-${index}`}
                       className="flex items-start justify-between gap-3 text-sm"
                     >
-                      <span className="min-w-0 text-slate-400">
-                        <span className="mr-2 font-mono text-xs text-slate-600">
+                      <span className="min-w-0 text-muted-foreground">
+                        <span className="mr-2 font-mono text-xs text-muted-foreground/60">
                           {String(index + 1).padStart(2, "0")}
                         </span>
-                        <span className="break-all font-mono text-xs text-slate-300">
+                        <span className="break-all font-mono text-xs text-foreground/80">
                           {entry.path}
                         </span>
                       </span>
-                      <span className="shrink-0 tabular-nums text-slate-400">
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
                         {entry.requests.toLocaleString()}
                       </span>
                     </li>

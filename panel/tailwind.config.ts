@@ -46,16 +46,21 @@ const config: Config = {
           DEFAULT: "hsl(var(--sidebar) / <alpha-value>)",
           foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
           border: "hsl(var(--sidebar-border) / <alpha-value>)",
-          accent: "hsl(var(--sidebar-accent) / <alpha-value>)",
+          accent: {
+            DEFAULT: "hsl(var(--sidebar-accent) / <alpha-value>)",
+            foreground: "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
+          },
+          primary: {
+            DEFAULT: "hsl(var(--sidebar-primary) / <alpha-value>)",
+            foreground: "hsl(var(--sidebar-primary-foreground) / <alpha-value>)",
+          },
+          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
         },
-        topbar: "hsl(var(--topbar) / <alpha-value>)",
         brand: "hsl(var(--brand) / <alpha-value>)",
-        deck: {
-          bg: "#0B0F17",
-          panel: "#111827",
-          border: "#1F2937",
-          accent: "#6366F1",
-        },
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -63,8 +68,8 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        subtle: "0 1px 2px 0 hsl(220 45% 2% / 0.6), 0 1px 3px 0 hsl(220 45% 2% / 0.4)",
-        raised: "0 4px 16px -4px hsl(220 45% 2% / 0.7)",
+        subtle: "0 1px 2px 0 hsl(0 0% 0% / 0.45), 0 1px 3px 0 hsl(0 0% 0% / 0.3)",
+        raised: "0 8px 24px -8px hsl(0 0% 0% / 0.65)",
       },
       keyframes: {
         "accordion-down": {

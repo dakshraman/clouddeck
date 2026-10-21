@@ -241,7 +241,7 @@ export default function NewSitePage() {
                 disabled={submitting}
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Lowercase letters, numbers and hyphens per label, separated by dots — e.g.
                 example.com. No protocol, port or trailing dot.
               </p>
@@ -271,20 +271,20 @@ export default function NewSitePage() {
                       className={cn(
                         "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
                         runtime === choice
-                          ? "border-indigo-500/60 bg-indigo-500/10"
+                          ? "border-brand/60 bg-brand/10"
                           : "border-border bg-muted/20 hover:bg-accent",
                         unavailable && "cursor-not-allowed opacity-50",
                       )}
                     >
-                      <span className="mt-0.5 text-slate-400">
+                      <span className="mt-0.5 text-muted-foreground">
                         {APP_KINDS.includes(choice) ? <Server size={15} /> : <Globe size={15} />}
                       </span>
                       <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-slate-200">
+                        <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
                           {KIND_COPY[choice].title}
                           {unavailable ? <Badge variant="amber">not installed</Badge> : null}
                         </span>
-                        <span className="mt-0.5 block text-xs text-slate-500">
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
                           {KIND_COPY[choice].description}
                         </span>
                       </span>
@@ -318,7 +318,7 @@ export default function NewSitePage() {
                     <button
                       type="button"
                       onClick={() => void loadVersions()}
-                      className="cursor-pointer text-indigo-300 underline-offset-2 hover:underline"
+                      className="cursor-pointer text-brand underline-offset-2 hover:underline"
                     >
                       Retry
                     </button>
@@ -385,7 +385,7 @@ export default function NewSitePage() {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   The site is created first, then the app is started under{" "}
                   <span className="font-mono">{runtimes?.supervisor.backend ?? "systemd"}</span> and
                   proxied through nginx. Use $PORT in the command to receive the port above.

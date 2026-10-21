@@ -47,15 +47,15 @@ export function LoginForm() {
     <div className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sidebar-primary-foreground shadow-lg shadow-brand/20">
             <Layers size={16} aria-hidden="true" />
           </span>
-          <span className="text-lg font-semibold tracking-tight text-slate-100">CloudDeck</span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">CloudDeck</span>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/20">
-          <h1 className="text-base font-semibold text-slate-100">Sign in</h1>
-          <p className="mt-1 text-sm text-slate-400">Use your panel account to continue.</p>
+        <div className="rounded-xl border border-border bg-muted/60 p-6 shadow-xl shadow-black/20">
+          <h1 className="text-base font-semibold text-foreground">Sign in</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Use your panel account to continue.</p>
 
           <form onSubmit={onSubmit} className="mt-6 grid gap-4">
             <div className="grid gap-1.5">
@@ -91,7 +91,7 @@ export function LoginForm() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           Accounts are created during the panel&apos;s first-run setup.
         </p>
       </div>

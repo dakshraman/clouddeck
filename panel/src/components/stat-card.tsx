@@ -5,7 +5,7 @@ import { cn } from "@/components/ui/cn";
 export type StatTone = "indigo" | "green" | "amber" | "red";
 
 const toneClass: Record<StatTone, string> = {
-  indigo: "bg-primary",
+  indigo: "bg-brand",
   green: "bg-emerald-500",
   amber: "bg-amber-500",
   red: "bg-red-500",
