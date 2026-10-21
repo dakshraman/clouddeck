@@ -2,6 +2,7 @@ package security
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,21 @@ func TestTrimTree(t *testing.T) {
 		if got := trimTree(in); got != want {
 			t.Fatalf("trimTree(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestAuditHintsMatchState(t *testing.T) {
+	checks := audit(Status{
+		Modsec:   Modsec{ModuleInstalled: true, CRSInstalled: true},
+		Fail2ban: Fail2ban{Installed: true, Active: true, Jails: []Jail{{Name: "sshd"}}},
+	})
+	if checks[0].Status != CheckPass || checks[0].Hint == "" {
+		t.Fatalf("modsec check = %+v, want pass with a managed hint", checks[0])
+	}
+	if checks[1].Status != CheckPass {
+		t.Fatalf("fail2ban check = %+v, want pass", checks[1])
+	}
+	if strings.Contains(checks[1].Hint, "Install fail2ban") {
+		t.Fatalf("active fail2ban still suggests installing it: %q", checks[1].Hint)
 	}
 }

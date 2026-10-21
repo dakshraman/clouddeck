@@ -329,9 +329,11 @@ func audit(status Status) []Check {
 	if status.Modsec.ModuleInstalled {
 		checks[0].Status = CheckPass
 		checks[0].Detail = "ModSecurity module is loaded."
+		checks[0].Hint = "Enable or disable the engine per site from the site's WAF tab."
 		if !status.Modsec.CRSInstalled {
 			checks[0].Status = CheckWarn
 			checks[0].Detail = "ModSecurity is loaded, but the OWASP Core Rule Set is missing."
+			checks[0].Hint = "Install the OWASP CRS (modsecurity-crs) for real rule coverage."
 		}
 	} else {
 		checks[0].Status = CheckWarn
@@ -341,6 +343,7 @@ func audit(status Status) []Check {
 	if status.Fail2ban.Active {
 		checks[1].Status = CheckPass
 		checks[1].Detail = strconv.Itoa(len(status.Fail2ban.Jails)) + " jail(s) active."
+		checks[1].Hint = "Jails and banned addresses are managed on this page."
 	} else if status.Fail2ban.Installed {
 		checks[1].Status = CheckFail
 		checks[1].Detail = "fail2ban is installed but not running."
