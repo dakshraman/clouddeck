@@ -300,13 +300,29 @@ func (s *Service) reload(ctx context.Context, log tasks.LogFunc) error {
 		return nil
 	}
 	log("warn", "old nginx workers did not retire; restarting nginx")
-	if err := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "restart", "nginx"); err != nil {
-		return fmt.Errorf("restart nginx: %w", err)
+	// Prefer the operator's restart command: on coexisting installs (aaPanel,
+	// custom builds) the distro's nginx systemd unit often cannot control the
+	// running master. The reload above already applied the new config, so a
+	// failed restart is a warning rather than a failed site operation.
+	name, args := restartCommand(s.cfg.NginxRestartCmd)
+	if err := safeexec.Run(ctx, s.cfg.DryRun, log, name, args...); err != nil {
+		log("warn", fmt.Sprintf("restart nginx failed (%v); reload is still in effect", err))
+		return nil
 	}
 	if !s.waitForWorkers(ctx, before, 3*time.Second) {
 		log("warn", "nginx still has pre-reload workers after restart")
 	}
 	return nil
+}
+
+// restartCommand turns the configured restart command into an argv. It
+// defaults to the systemd unit used by a package-managed nginx.
+func restartCommand(configured string) (string, []string) {
+	fields := strings.Fields(configured)
+	if len(fields) == 0 {
+		return "systemctl", []string{"restart", "nginx"}
+	}
+	return fields[0], fields[1:]
 }
 
 // nginxWorkerPIDs returns the PIDs of the current nginx worker processes,

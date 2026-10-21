@@ -267,3 +267,26 @@ func TestRenderNginxConfigSSLWithSiteOperations(t *testing.T) {
 		t.Errorf("config missing subdomain server block:\n%s", config)
 	}
 }
+
+func TestRestartCommand(t *testing.T) {
+	cases := []struct {
+		configured string
+		name       string
+		args       []string
+	}{
+		{"", "systemctl", []string{"restart", "nginx"}},
+		{"systemctl restart nginx", "systemctl", []string{"restart", "nginx"}},
+		{"/etc/init.d/nginx restart", "/etc/init.d/nginx", []string{"restart"}},
+		{"  nginx -s reload  ", "nginx", []string{"-s", "reload"}},
+	}
+	for _, tc := range cases {
+		name, args := restartCommand(tc.configured)
+		if name != tc.name {
+			t.Errorf("restartCommand(%q) name = %q, want %q", tc.configured, name, tc.name)
+			continue
+		}
+		if strings.Join(args, " ") != strings.Join(tc.args, " ") {
+			t.Errorf("restartCommand(%q) args = %v, want %v", tc.configured, args, tc.args)
+		}
+	}
+}
