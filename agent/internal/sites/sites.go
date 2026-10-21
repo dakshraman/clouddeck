@@ -270,15 +270,26 @@ func (s *Service) deprovision(ctx context.Context, log tasks.LogFunc, site store
 }
 
 // reload asks systemd first and falls back to the nginx binary.
+// reload applies a validated nginx configuration. Worker tracking only runs
+// when the operator configured AGENT_NGINX_RESTART_CMD, i.e. the agent really
+// manages this host's nginx; tests and dry harnesses must never signal the
+// host's web server.
 func (s *Service) reload(ctx context.Context, log tasks.LogFunc) error {
 	log("info", "reloading nginx")
-	before := nginxWorkerPIDs(ctx)
+	managed := s.cfg.NginxRestartCmd != "" && s.cfg.NginxReloadSettle && !s.cfg.DryRun
+	var before []int
+	if managed {
+		before = nginxWorkerPIDs(ctx)
+	}
 	err := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "reload", "nginx")
 	if err != nil {
 		log("warn", fmt.Sprintf("systemctl reload nginx failed (%v), trying nginx -s reload", err))
 		if err := safeexec.Run(ctx, s.cfg.DryRun, log, "nginx", "-s", "reload"); err != nil {
 			return fmt.Errorf("reload nginx: %w", err)
 		}
+	}
+	if !managed {
+		return nil
 	}
 	// `nginx -s reload` only signals the master. Old workers keep serving the
 	// previous vhost until they drain, so wait for them before returning;
@@ -299,8 +310,9 @@ func (s *Service) reload(ctx context.Context, log tasks.LogFunc) error {
 }
 
 // nginxWorkerPIDs returns the PIDs of the current nginx worker processes,
-// restricted to children of the real nginx master (aaPanel's own webserver
-// also names its workers "nginx: worker process").
+// restricted to children of the real nginx master. aaPanel runs its panel
+// webserver with the same "nginx:" process titles, so a master whose command
+// line names "webserver" is ignored.
 func nginxWorkerPIDs(ctx context.Context) []int {
 	out, err := exec.CommandContext(ctx, "ps", "-eo", "pid,ppid,args").Output()
 	if err != nil {
@@ -320,7 +332,7 @@ func nginxWorkerPIDs(ctx context.Context) []int {
 			continue
 		}
 		rest := strings.Join(fields[2:], " ")
-		if strings.Contains(rest, "nginx: master process") {
+		if strings.Contains(rest, "nginx: master process") && !strings.Contains(rest, "webserver") {
 			masterPID = pid
 		}
 		if strings.Contains(rest, "nginx: worker process") {

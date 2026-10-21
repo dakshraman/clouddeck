@@ -109,6 +109,9 @@ AGENT_LISTEN=127.0.0.1:9090
 AGENT_STATE_DIR=/var/lib/clouddeck-agent
 AGENT_NGINX_SITES_DIR=/etc/nginx/conf.d
 AGENT_WEBROOT=/www/wwwroot
+# App hosting supervisor: systemd (default), pm2 or supervisor.
+# AGENT_APP_SUPERVISOR=systemd
+# AGENT_APP_SUPERVISOR_DIR=/etc/supervisor/conf.d
 EOF
   echo "==> wrote /etc/clouddeck/agent.env"
 else

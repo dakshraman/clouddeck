@@ -610,7 +610,8 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |
 | `AGENT_APP_SUPERVISOR` | `systemd` (also `pm2` or `supervisor`) |
-| `AGENT_APP_UNIT_DIR` | `/etc/systemd/system` (systemd unit dir; PM2/`supervisor` use it for their program files) |
+| `AGENT_APP_UNIT_DIR` | `/etc/systemd/system` (systemd unit directory) |
+| `AGENT_APP_SUPERVISOR_DIR` | `/etc/supervisor/conf.d` (supervisord `conf.d` directory; must match `[include] files` in `supervisord.conf`) |
 | `AGENT_APP_LOG_DIR` | `$AGENT_STATE_DIR/logs/apps` |
 
 The firewall and security services discover `ufw`, `firewall-cmd` and `fail2ban-client` on `PATH`; there are no overrides for them.

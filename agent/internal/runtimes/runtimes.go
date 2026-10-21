@@ -214,13 +214,24 @@ func detectRuby() []Runtime {
 }
 
 // probe runs `name args...` and extracts the first semantic version it prints.
+// The agent usually runs as a systemd service with a minimal PATH, so common
+// install locations are tried when LookPath fails.
 func probe(name string, args ...string) (string, string) {
 	if runtime.GOOS != "linux" {
 		return "", ""
 	}
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", ""
+		path = ""
+		for _, candidate := range fallbackPaths[name] {
+			if isExecutable(candidate) {
+				path = candidate
+				break
+			}
+		}
+		if path == "" {
+			return "", ""
+		}
 	}
 	out, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil && len(out) == 0 {
@@ -228,6 +239,16 @@ func probe(name string, args ...string) (string, string) {
 	}
 	match := versionRe.FindString(string(out))
 	return path, match
+}
+
+// fallbackPaths lists where each runtime usually lives when it is not on the
+// service's PATH (notably /usr/local/go/bin and /opt).
+var fallbackPaths = map[string][]string{
+	"node":    {"/usr/local/bin/node", "/usr/bin/node", "/snap/bin/node"},
+	"python3": {"/usr/bin/python3", "/usr/local/bin/python3"},
+	"go":      {"/usr/local/go/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go"},
+	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby"},
+	"php":     {"/usr/bin/php", "/usr/local/bin/php"},
 }
 
 func versionedDirs(root string, accept func(string) bool) []string {

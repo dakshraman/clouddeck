@@ -24,8 +24,8 @@ import (
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/phpmyadmin"
-	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/security"
+	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
 	"clouddeck/agent/internal/sites"
 	"clouddeck/agent/internal/sshkeys"
@@ -194,6 +194,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/runtimes", s.handleListRuntimes)
 	mux.HandleFunc("GET /v1/apps", s.handleListApps)
 	mux.HandleFunc("POST /v1/apps", s.handleCreateApp)
+	mux.HandleFunc("GET /v1/sites/{domain}/apps", s.handleListApps)
 	mux.HandleFunc("GET /v1/sites/{domain}/apps/{name}", s.handleGetApp)
 	mux.HandleFunc("PUT /v1/sites/{domain}/apps/{name}", s.handleUpdateApp)
 	mux.HandleFunc("DELETE /v1/sites/{domain}/apps/{name}", s.handleDeleteApp)

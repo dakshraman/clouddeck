@@ -41,7 +41,7 @@ Versions are milestones, not dates.
 - Honest caveats: deliverability depends on IP reputation, rDNS and MX setup — CloudDeck configures the software, the operator owns the reputation. No outbound relay service.
 - Not in v0.4 (backlog): webmail frontend, SpamAssassin integration, FTP accounts, one-click WordPress
 
-## v0.5 — toolbox + design system (features shipped: v0.5.0, webroot-ownership fix: v0.5.1 — UI pass v0.5.2 next)
+## v0.5 — toolbox + design system (features shipped: v0.5.0, webroot-ownership fix: v0.5.1, UI pass: v0.5.2)
 
 The cPanel toolbox wave, per the requested feature list:
 
@@ -62,7 +62,17 @@ upgrade, not a reskin. Motion is curated (animated icons, counters, dialog/tab
 transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
 (v0.5.2)** on top of the v0.5.0 feature release.
 
-## v0.6 — multi-server / SaaS
+## v0.6 — app runtimes, firewall + security (shipped: v0.6.0)
+
+- **Application runtimes** — detects Node.js, Python, Go, Ruby, PHP and custom; version pickers in New Site; static sites unchanged
+- **App workloads** — one supervised process per app, automatic local port allocation, per-app env vars, auto-restart, live logs, start/stop/restart; a single app owns `/`, several apps are proxied under `/<name>/`
+- **Supervision backends** — systemd (default), PM2 and supervisord, selected with `AGENT_APP_SUPERVISOR`
+- **Firewall** — ufw/firewalld rule management (allow/deny, tcp/udp, source CIDR), enable/disable, state + audit trail
+- **Security surface** — ModSecurity + OWASP CRS detection, fail2ban jails (enable/disable, unban), SSH hardening posture and a host audit checklist
+- Honest caveats: ModSecurity is *detected and surfaced*, not compiled into a third-party nginx; on hosts without the module the per-site nginx-rule WAF (v0.5) remains the enforcement path.
+- Deferred: per-app custom domains, zero-downtime deploys, one-click app installers
+
+## v0.7 — multi-server / SaaS
 
 - Central panel managing many servers: one agent per server, mutual TLS, job queue
 - White-label branding
@@ -90,9 +100,9 @@ from the public cPanel installer's layer-1 scripts.
 | PHP | multi-version, per-directory handler | multi-PHP switching in v0.3.x |
 | Cron | cron jobs UI | v0.5: dedicated Cron Jobs page, run-as root/www |
 | Shell | Terminal, SSH access | v0.5: web terminal + SSH key manager |
-| Apps | Softaculous one-click installers | curated installer (WordPress via wp-cli) — backlog |
+| Apps | Softaculous one-click installers | v0.6: Node/Python/Go/Ruby/custom app hosting with systemd/PM2/supervisor; one-click WordPress backlog |
 | Stats | bandwidth, resource usage, visitors | host metrics shipped (v0.3); per-site bandwidth later |
-| Security | IP blocker, hotlink protection, WAF-lite | v0.5: per-site WAF (ModSecurity-style) + IP blocker with CIDR |
+| Security | IP blocker, hotlink protection, WAF-lite | v0.5: per-site WAF + IP blocker with CIDR; v0.6: firewall manager, ModSecurity/CRS + fail2ban visibility, SSH posture |
 | Accounts | WHM / resellers, packages, quotas | v0.5 multi-server layer first; reseller model evaluated after |
 
 ## v1.0 — productization

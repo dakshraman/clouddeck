@@ -3,6 +3,7 @@ package apps
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -156,7 +157,7 @@ func (s *Service) Remove(ctx context.Context, log safeexec.Logger, app Spec) err
 		_ = safeexec.Run(ctx, s.cfg.DryRun, log, "pm2", "delete", unitName(app))
 	case SupervisorSupervisor:
 		_ = safeexec.Run(ctx, s.cfg.DryRun, log, "supervisorctl", "stop", unitName(app))
-		_ = os.Remove(filepath.Join(s.cfg.AppUnitDir, unitName(app)+".conf"))
+		_ = os.Remove(filepath.Join(s.cfg.SupConfDir, unitName(app)+".conf"))
 		_ = safeexec.Run(ctx, s.cfg.DryRun, log, "supervisorctl", "reread")
 		_ = safeexec.Run(ctx, s.cfg.DryRun, log, "supervisorctl", "update")
 	default:
@@ -171,45 +172,122 @@ func (s *Service) Remove(ctx context.Context, log safeexec.Logger, app Spec) err
 }
 
 func (s *Service) startPM2(ctx context.Context, log safeexec.Logger, app Spec) error {
-	if err := ensureDir(app.Dir); err != nil {
+	path, err := s.writePM2Ecosystem(app)
+	if err != nil {
 		return err
 	}
-	args := []string{"start", "/bin/sh", "--name", unitName(app), "--", "-lc", app.Command}
-	// PM2 runs the interpreter relative to the app directory.
-	if app.Dir != "" {
-		args = append([]string{"--cwd", app.Dir}, args...)
+	// Drop any previous definition first so a changed command or environment
+	// takes effect instead of PM2 refusing to start a known name.
+	_ = safeexec.Run(ctx, s.cfg.DryRun, log, "pm2", "delete", unitName(app))
+	if err := safeexec.Run(ctx, s.cfg.DryRun, log, "pm2", "start", path); err != nil {
+		return err
 	}
-	for _, key := range sortedKeys(app.Env) {
-		args = append([]string{"--env", key + "=" + app.Env[key]}, args...)
+	if s.cfg.DryRun {
+		return nil
 	}
-	return safeexec.Run(ctx, s.cfg.DryRun, log, "pm2", args...)
+	// PM2 returns as soon as the daemon accepted the process; give it a moment
+	// to reach online/errored so the create/start response carries real state.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		state := s.pm2Status(ctx, app).State
+		if state == StateRunning || state == StateError {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
+// pm2EcosystemPath is the PM2 descriptor written for one app.
+func (s *Service) pm2EcosystemPath(app Spec) string {
+	return filepath.Join(s.cfg.StateDir, "apps", app.Site, app.Name, "ecosystem.json")
+}
+
+// writePM2Ecosystem renders the PM2 ecosystem file. PM2 cannot take per-app
+// environment variables on the command line, so the descriptor carries the
+// working directory, PORT and log paths instead of relying on the daemon's
+// ambient state.
+func (s *Service) writePM2Ecosystem(app Spec) (string, error) {
+	if err := ensureDir(app.Dir); err != nil {
+		return "", err
+	}
+	logs := logDir(s.cfg.StateDir, app.Site, app.Name)
+	if err := os.MkdirAll(logs, 0o755); err != nil {
+		return "", fmt.Errorf("create app log dir: %w", err)
+	}
+	env := make(map[string]string, len(app.Env)+1)
+	for key, value := range app.Env {
+		env[key] = value
+	}
+	if _, ok := env["PORT"]; !ok {
+		env["PORT"] = strconv.Itoa(app.Port)
+	}
+	descriptor := map[string]any{
+		"apps": []map[string]any{{
+			"name":        unitName(app),
+			"script":      "/bin/sh",
+			"args":        []string{"-lc", app.Command},
+			"cwd":         app.Dir,
+			"autorestart": app.AutoRestart,
+			"env":         env,
+			"out_file":    filepath.Join(logs, "app.log"),
+			"error_file":  filepath.Join(logs, "app.log"),
+			"merge_logs":  true,
+			"time":        true,
+		}},
+	}
+	data, err := json.MarshalIndent(descriptor, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("render pm2 ecosystem: %w", err)
+	}
+	path := s.pm2EcosystemPath(app)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("create pm2 dir: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", fmt.Errorf("write pm2 ecosystem: %w", err)
+	}
+	return path, nil
 }
 
 func (s *Service) startSupervisor(ctx context.Context, log safeexec.Logger, app Spec) error {
-	if err := os.MkdirAll(s.cfg.AppUnitDir, 0o755); err != nil {
+	if err := os.MkdirAll(s.cfg.SupConfDir, 0o755); err != nil {
 		return fmt.Errorf("create supervisor dir: %w", err)
 	}
-	var env strings.Builder
+	logs := logDir(s.cfg.StateDir, app.Site, app.Name)
+	if err := os.MkdirAll(logs, 0o755); err != nil {
+		return fmt.Errorf("create app log dir: %w", err)
+	}
+	var pairs []string
 	for _, key := range sortedKeys(app.Env) {
-		env.WriteString(fmt.Sprintf("environment=%s=%q\n", key, app.Env[key]))
+		pairs = append(pairs, fmt.Sprintf("%s=%q", key, app.Env[key]))
+	}
+	envLine := ""
+	if len(pairs) > 0 {
+		envLine = "environment=" + strings.Join(pairs, ",") + "\n"
 	}
 	conf := fmt.Sprintf(`; managed-by: clouddeck
 [program:%s]
 command=/bin/sh -lc %q
 directory=%s
-autostart=%t
+autostart=true
 autorestart=%t
 startsecs=3
 stdout_logfile=%s/app.log
 stderr_logfile=%s/app.log
 %s`,
 		unitName(app), app.Command, app.Dir,
-		true, app.AutoRestart,
-		logDir(s.cfg.StateDir, app.Site, app.Name),
-		logDir(s.cfg.StateDir, app.Site, app.Name),
-		env.String(),
+		app.AutoRestart,
+		logs, logs,
+		envLine,
 	)
-	path := filepath.Join(s.cfg.AppUnitDir, unitName(app)+".conf")
+	path := filepath.Join(s.cfg.SupConfDir, unitName(app)+".conf")
 	if err := os.WriteFile(path, []byte(conf), 0o644); err != nil {
 		return err
 	}
@@ -275,32 +353,38 @@ func (s *Service) pm2Status(ctx context.Context, app Spec) Status {
 	if err != nil {
 		return Status{State: StateUnknown, Detail: "pm2 is unavailable"}
 	}
-	// Minimal JSON scan: find the entry whose name matches the unit name.
+	var list []struct {
+		Name string `json:"name"`
+		Pid  int    `json:"pid"`
+		Env  struct {
+			Status   string `json:"status"`
+			PmUptime int64  `json:"pm_uptime"`
+		} `json:"pm2_env"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return Status{State: StateUnknown, Detail: "pm2 returned invalid JSON"}
+	}
 	name := unitName(app)
-	idx := strings.Index(string(out), `"name":"`+name+`"`)
-	if idx < 0 {
-		return Status{State: StateStopped}
-	}
-	window := string(out)[idx:]
-	if end := strings.Index(window, "}"); end > 0 {
-		window = window[:end]
-	}
-	status := Status{State: StateStopped}
-	if strings.Contains(window, `"status":"online"`) {
-		status.State = StateRunning
-	} else if strings.Contains(window, `"status":"errored"`) {
-		status.State = StateError
-	}
-	if pidIdx := strings.Index(window, `"pid":`); pidIdx >= 0 {
-		rest := window[pidIdx+6:]
-		end := strings.IndexAny(rest, ",}")
-		if end > 0 {
-			if pid, err := strconv.Atoi(strings.TrimSpace(rest[:end])); err == nil {
-				status.PID = pid
-			}
+	for _, entry := range list {
+		if entry.Name != name {
+			continue
 		}
+		status := Status{State: StateStopped, PID: entry.Pid}
+		switch entry.Env.Status {
+		case "online":
+			status.State = StateRunning
+		case "errored":
+			status.State = StateError
+		}
+		status.Detail = entry.Env.Status
+		if entry.Env.PmUptime > 0 {
+			started := time.UnixMilli(entry.Env.PmUptime)
+			status.StartedAt = &started
+			status.UptimeSec = int64(time.Since(started).Seconds())
+		}
+		return status
 	}
-	return status
+	return Status{State: StateStopped}
 }
 
 func (s *Service) supervisorStatus(ctx context.Context, app Spec) Status {

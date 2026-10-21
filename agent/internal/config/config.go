@@ -26,9 +26,12 @@ type Config struct {
 	DryRun        bool
 
 	// v0.3 monitoring / service control
-	NginxRestartCmd  string
-	MySQLRestartCmd  string
-	PHPFpmRestartCmd string
+	NginxRestartCmd string
+	// NginxReloadSettle makes the agent wait for old nginx workers to retire
+	// after a reload so callers never see stale config. Off in test harnesses.
+	NginxReloadSettle bool
+	MySQLRestartCmd   string
+	PHPFpmRestartCmd  string
 
 	// v0.3 DNS (PowerDNS via pdnsutil)
 	PdnsUtilBin    string
@@ -83,7 +86,8 @@ type Config struct {
 
 	// v0.6 application hosting (Node/Python/Go/Ruby/custom)
 	AppSupervisor string // AGENT_APP_SUPERVISOR: systemd (default), pm2 or supervisor
-	AppUnitDir    string // AGENT_APP_UNIT_DIR: unit/program definitions
+	AppUnitDir    string // AGENT_APP_UNIT_DIR: systemd unit directory
+	SupConfDir    string // AGENT_APP_SUPERVISOR_DIR: supervisord conf.d directory
 	AppLogDir     string // AGENT_APP_LOG_DIR: app stdout/stderr logs
 }
 
@@ -103,9 +107,10 @@ func Load() (Config, error) {
 		MySQLHost:     env("AGENT_MYSQL_HOST", ""),
 		MySQLPort:     env("AGENT_MYSQL_PORT", ""),
 
-		NginxRestartCmd:  env("AGENT_NGINX_RESTART_CMD", ""),
-		MySQLRestartCmd:  env("AGENT_MYSQL_RESTART_CMD", ""),
-		PHPFpmRestartCmd: env("AGENT_PHP_FPM_RESTART_CMD", ""),
+		NginxRestartCmd:   env("AGENT_NGINX_RESTART_CMD", ""),
+		MySQLRestartCmd:   env("AGENT_MYSQL_RESTART_CMD", ""),
+		PHPFpmRestartCmd:  env("AGENT_PHP_FPM_RESTART_CMD", ""),
+		NginxReloadSettle: envBool("AGENT_NGINX_RELOAD_SETTLE", true),
 
 		PdnsUtilBin:    env("AGENT_PDNSUTIL_BIN", "pdnsutil"),
 		PdnsConfDir:    env("AGENT_PDNS_CONF_DIR", "/etc/powerdns"),
@@ -163,6 +168,7 @@ func Load() (Config, error) {
 	// v0.6 application hosting (Node/Python/Go/Ruby/custom)
 	cfg.AppSupervisor = env("AGENT_APP_SUPERVISOR", "systemd")
 	cfg.AppUnitDir = env("AGENT_APP_UNIT_DIR", "/etc/systemd/system")
+	cfg.SupConfDir = env("AGENT_APP_SUPERVISOR_DIR", "/etc/supervisor/conf.d")
 	cfg.AppLogDir = env("AGENT_APP_LOG_DIR", filepath.Join(cfg.StateDir, "logs", "apps"))
 
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
@@ -178,6 +184,17 @@ func Load() (Config, error) {
 func env(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
+	}
+	return fallback
+}
+
+// envBool parses the usual spellings of a boolean environment variable.
+func envBool(key string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
 	}
 	return fallback
 }

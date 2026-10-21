@@ -272,6 +272,9 @@ AGENT_STATE_DIR=$DATADIR/agent
 # AGENT_PDNS_CONF_DIR=/etc/powerdns
 # AGENT_RCLONE_BIN=rclone
 AGENT_BACKUP_DIR=$DATADIR/agent/backups
+# App hosting supervisor: systemd (default), pm2 or supervisor.
+# AGENT_APP_SUPERVISOR=systemd
+# AGENT_APP_SUPERVISOR_DIR=/etc/supervisor/conf.d
 # AGENT_TELEGRAM_BOT_TOKEN=...
 # AGENT_TELEGRAM_CHAT_ID=...
 EOF

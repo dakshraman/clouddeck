@@ -47,11 +47,11 @@ func New(st *store.Store, cfg config.Config, auditLog *audit.Log) *Service {
 
 // Status describes the host firewall.
 type Status struct {
-	Backend   string            `json:"backend"`
-	Available bool              `json:"available"`
-	Enabled   bool              `json:"enabled"`
-	Detail    string            `json:"detail,omitempty"`
-	Defaults  map[string]string `json:"defaults,omitempty"`
+	Backend   string               `json:"backend"`
+	Available bool                 `json:"available"`
+	Enabled   bool                 `json:"enabled"`
+	Detail    string               `json:"detail,omitempty"`
+	Defaults  map[string]string    `json:"defaults,omitempty"`
 	Rules     []store.FirewallRule `json:"rules"`
 }
 

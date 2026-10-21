@@ -85,18 +85,18 @@ func (s *Service) Get(ctx context.Context, site, name string) (App, error) {
 
 // CreateInput is the request body for a new app.
 type CreateInput struct {
-	Site       string            `json:"site"`
-	Name       string            `json:"name"`
-	Kind       string            `json:"kind"`
-	Version    string            `json:"version"`
-	Bin        string            `json:"bin"`
-	Command    string            `json:"command"`
-	Dir        string            `json:"dir"`
-	Port       int               `json:"port"`
-	Env        map[string]string `json:"env"`
-	HealthPath string            `json:"healthPath"`
-	RunAs      string            `json:"runAs"`
-	AutoRestart *bool            `json:"autoRestart"`
+	Site        string            `json:"site"`
+	Name        string            `json:"name"`
+	Kind        string            `json:"kind"`
+	Version     string            `json:"version"`
+	Bin         string            `json:"bin"`
+	Command     string            `json:"command"`
+	Dir         string            `json:"dir"`
+	Port        int               `json:"port"`
+	Env         map[string]string `json:"env"`
+	HealthPath  string            `json:"healthPath"`
+	RunAs       string            `json:"runAs"`
+	AutoRestart *bool             `json:"autoRestart"`
 }
 
 // Create validates and persists a new app, then starts it.

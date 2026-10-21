@@ -43,7 +43,10 @@ func supervisorNote(backend string) string {
 // ---- apps ----
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
-	site := r.URL.Query().Get("site")
+	site := r.PathValue("domain")
+	if site == "" {
+		site = r.URL.Query().Get("site")
+	}
 	if site != "" {
 		writeJSON(w, http.StatusOK, map[string]any{"apps": nonNilSlice(s.apps.ListForSite(r.Context(), site))})
 		return

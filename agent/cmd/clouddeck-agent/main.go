@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/apps"
+	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"

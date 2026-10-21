@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/config"
 )
 
@@ -130,11 +131,7 @@ func (s *Service) SetJailEnabled(ctx context.Context, jail string, enabled bool)
 	return nil
 }
 
-type badInput string
-
-func (e badInput) Error() string { return string(e) }
-
-func errBadInput(msg string) error { return badInput(msg) }
+func errBadInput(msg string) error { return apierr.BadRequest("invalid_input", msg) }
 
 func detectModsec(cfg config.Config) Modsec {
 	mod := Modsec{Engine: "none"}
@@ -210,7 +207,7 @@ func detectFail2ban(ctx context.Context) Fail2ban {
 
 func parseJailList(out string) []string {
 	for _, line := range strings.Split(out, "\n") {
-		trimmed := strings.TrimSpace(line)
+		trimmed := trimTree(line)
 		if strings.HasPrefix(trimmed, "Jail list:") {
 			raw := strings.TrimSpace(strings.TrimPrefix(trimmed, "Jail list:"))
 			if raw == "" {
@@ -230,10 +227,16 @@ func parseJailList(out string) []string {
 	return []string{}
 }
 
+// trimTree removes the ASCII tree prefixes fail2ban uses in its CLI output
+// ("|- ", "`- ", "   |- ", ...) so label parsing works on real hosts.
+func trimTree(line string) string {
+	return strings.TrimLeft(strings.TrimSpace(line), "|-`+* ")
+}
+
 func parseJailStatus(out string) (banned, total int, ips []string) {
 	ips = []string{}
 	for _, line := range strings.Split(out, "\n") {
-		trimmed := strings.TrimSpace(line)
+		trimmed := trimTree(line)
 		switch {
 		case strings.HasPrefix(trimmed, "Currently banned:"):
 			banned, _ = strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(trimmed, "Currently banned:")))
@@ -244,7 +247,9 @@ func parseJailStatus(out string) (banned, total int, ips []string) {
 			if raw == "" {
 				continue
 			}
-			for _, ip := range strings.Split(raw, ",") {
+			for _, ip := range strings.FieldsFunc(raw, func(r rune) bool {
+				return r == ',' || r == ' ' || r == '\t'
+			}) {
 				if value := strings.TrimSpace(ip); value != "" {
 					ips = append(ips, value)
 				}
@@ -339,6 +344,7 @@ func audit(status Status) []Check {
 	} else if status.Fail2ban.Installed {
 		checks[1].Status = CheckFail
 		checks[1].Detail = "fail2ban is installed but not running."
+		checks[1].Hint = "Start it with: systemctl enable --now fail2ban"
 	} else {
 		checks[1].Status = CheckWarn
 		checks[1].Detail = "fail2ban is not installed."
