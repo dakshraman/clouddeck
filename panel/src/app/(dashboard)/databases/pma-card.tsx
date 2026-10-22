@@ -70,9 +70,8 @@ export function PmaCard() {
   }
 
   function onOpen() {
-    const url = resolveUrl();
-    if (url === null) return;
-    window.open(url, "_blank", "noopener");
+    if (resolveUrl() === null) return;
+    window.open("/api/phpmyadmin/login", "_blank", "noopener");
   }
 
   async function onCopy() {

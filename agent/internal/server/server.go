@@ -177,6 +177,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 
 	// v0.5 — phpMyAdmin + remote MySQL
 	mux.HandleFunc("GET /v1/phpmyadmin/status", s.handlePHPMYADMINStatus)
+	mux.HandleFunc("POST /v1/phpmyadmin/login", s.handlePHPMYADMINLogin)
 	mux.HandleFunc("GET /v1/mysql/remote", s.handleMySQLListRemote)
 	mux.HandleFunc("POST /v1/mysql/remote", s.handleMySQLAddRemote)
 	mux.HandleFunc("DELETE /v1/mysql/remote/{user}", s.handleMySQLDeleteRemote)

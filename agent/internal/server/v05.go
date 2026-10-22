@@ -339,6 +339,15 @@ func (s *Server) handlePHPMYADMINStatus(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, s.pma.Status())
 }
 
+func (s *Server) handlePHPMYADMINLogin(w http.ResponseWriter, r *http.Request) {
+	login, err := s.pma.Login(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, login)
+}
+
 // ---- remote MySQL hosts ----
 
 func (s *Server) handleMySQLListRemote(w http.ResponseWriter, r *http.Request) {

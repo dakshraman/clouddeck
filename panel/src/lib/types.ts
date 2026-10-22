@@ -490,6 +490,20 @@ export interface PmaStatusResponse {
   reachable: boolean;
   authType?: string;
 }
+export interface PmaLoginCookie {
+  name: string;
+  value: string;
+  path?: string;
+  maxAge?: number;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: "strict" | "lax" | "none";
+}
+export interface PmaLoginResponse {
+  port: number;
+  urlPath: string;
+  cookies: PmaLoginCookie[];
+}
 export interface RemoteMysqlUser {
   user: string;
   host: string;

@@ -95,7 +95,7 @@ independent.
 | Disk usage per site | usage views | **shipped (v0.4)**: per-site usage + access-log statistics | — |
 | FTP accounts | pure-ftpd accounts, quotas | **shipped (v0.5)**: pure-ftpd account management (SHA-512 crypt), per-site paths, live reload via `pure-pw mkdb` | quotas backlog |
 | Backup & restore | wizard, remote destinations, scheduling | **shipped (v0.3+v0.4)**: site+db, local/Telegram/rclone, scheduled runs with retention | — |
-| MySQL/MariaDB | databases, users, remote access, phpMyAdmin | **shipped (v0.2+v0.5)**: db/user/grants; remote-host cloning with grant replay; phpMyAdmin detection/link | — |
+| MySQL/MariaDB | databases, users, remote access, phpMyAdmin | **shipped (v0.2+v0.5)**: db/user/grants; remote-host cloning with grant replay; phpMyAdmin detection + one-click login | — |
 | PHP versions | per-directory handler, ini editor | **shipped (v0.4)**: per-site switching via socket map | ini editor backlog |
 | SSL/TLS | AutoSSL, cert manager | **per-site Let's Encrypt (v0.2)** | AutoSSL-style renewal surface |
 | Cron jobs | full cron UI | **shipped (v0.4+v0.5)**: per-site jobs → `/etc/cron.d` fragments; all-sites Cron Jobs page with run-as root/www | per-user cron backlog |

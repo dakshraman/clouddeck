@@ -340,6 +340,7 @@ Audit actions: `ssh.key.add`, `ssh.key.delete`, `ssh.keygen.create`, `ssh.keygen
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
 | `GET /v1/phpmyadmin/status` | — | `200 {installed,dir?,port?,version?,urlPath?,reachable,authType?}` — detection only; `reachable` is a localhost HTTP probe of the discovered URL | — |
+| `POST /v1/phpmyadmin/login` | — | `200 {port,urlPath,cookies:[{name,value,path?,maxAge?,httpOnly?,secure?,sameSite?}]}` — cookie-auth login with the agent's MySQL root credentials; the cookies are handed to the browser. Non-cookie auth returns no cookies and only the URL. | `500 internal` |
 
 #### Remote MySQL hosts
 
@@ -528,6 +529,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET/POST | `/api/ssh/keys/generated` | list / `{name,type,comment?}` |
 | GET/DELETE | `/api/ssh/keys/generated/{name}` | read (incl. private) / delete |
 | GET | `/api/phpmyadmin/status` | passthrough `/v1/phpmyadmin/status` |
+| GET | `/api/phpmyadmin/login` | authenticate via the agent, set phpMyAdmin cookies, redirect to the discovered phpMyAdmin URL |
 | GET | `/api/mysql/remote` | list remote hosts |
 | POST | `/api/mysql/remote` | `{user,host}` |
 | DELETE | `/api/mysql/remote/{user}` | `?host=` |
