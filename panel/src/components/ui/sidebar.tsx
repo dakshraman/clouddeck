@@ -14,7 +14,7 @@ import {
   type Ref,
 } from "react";
 import { Slot } from "@radix-ui/react-slot";
-import * as Dialog from "@radix-ui/react-dialog";
+import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
 import { cva } from "class-variance-authority";
 import { PanelLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -147,12 +147,13 @@ export function Sidebar({
     return (
       <Dialog.Root open={openMobile} onOpenChange={setOpenMobile}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
           <Dialog.Content
             id="app-sidebar-mobile"
+            data-side="left"
             className={cn(
               "fixed inset-y-0 left-0 z-50 flex h-full w-[var(--sidebar-width-mobile)] max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground shadow-xl outline-none",
-              "data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:duration-200 data-[state=closed]:duration-150",
+              "data-[state=closed]:duration-150",
             )}
             style={{ "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE } as CSSProperties}
           >

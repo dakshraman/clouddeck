@@ -21,6 +21,7 @@ import { apiFetch } from "@/components/api";
 import { formatBytes, relativeTime, shortDateTime } from "@/components/format";
 import { PageHeader } from "@/components/page-header";
 import { usePreferences } from "@/components/preferences";
+import { ThemePicker } from "@/components/theme-picker";
 import { Alert, type AlertVariant } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -570,6 +571,16 @@ export default function SettingsPage() {
             title="Appearance"
             description="How the panel looks and moves on this browser."
           >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Theme</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Pick a palette. Changes apply instantly across the panel.
+                </p>
+              </div>
+              <ThemePicker />
+            </div>
+            <div className="my-5 h-px bg-border" />
             <div className="flex items-start justify-between gap-6">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">Reduce motion</p>
@@ -599,7 +610,8 @@ export default function SettingsPage() {
               </button>
             </div>
             <div className="mt-4 rounded-lg border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-              Stored in this browser only. It does not change the panel for other administrators.
+              Theme and motion preferences are stored in this browser only. They do not change the
+              panel for other administrators.
             </div>
           </SectionCard>
 
