@@ -26,7 +26,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
-    PORT=3000 \
+    PORT=2083 \
     HOSTNAME=0.0.0.0
 
 # Runtime state (users.json, sessions) — mount a volume here.

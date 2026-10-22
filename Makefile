@@ -27,7 +27,7 @@ agent: ## Build the Go agent to agent/bin/clouddeck-agent
 agent-dry: ## Run the agent in dry-run mode (no root, no system changes)
 	cd agent && AGENT_DRY_RUN=true go run ./cmd/clouddeck-agent
 
-panel-dev: ## Start the Next.js dev server (http://localhost:3000)
+panel-dev: ## Start the Next.js dev server (http://localhost:2083)
 	cd panel && npm run dev
 
 typecheck: ## Typecheck the panel (tsc --noEmit)

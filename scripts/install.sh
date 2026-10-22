@@ -14,7 +14,7 @@
 #   --datadir DIR        state dir (default: /var/lib/clouddeck)
 #   --etcdir DIR         config dir (default: /etc/clouddeck)
 #   --agent-port N       agent port (default: 9090, binds 127.0.0.1)
-#   --panel-port N       panel port (default: 3000, binds 0.0.0.0)
+#   --panel-port N       panel port (default: 2083, binds 0.0.0.0)
 #   --gh-token TOKEN     GitHub token for downloading from a private repo
 #   --no-agent           skip the agent
 #   --no-panel           skip the panel
@@ -33,7 +33,7 @@ PREFIX="/opt/clouddeck"
 DATADIR="/var/lib/clouddeck"
 ETCDIR="/etc/clouddeck"
 AGENT_PORT="9090"
-PANEL_PORT="3000"
+PANEL_PORT="2083"
 GH_TOKEN="${CLOUDDECK_GH_TOKEN:-}"
 DO_AGENT=1
 DO_PANEL=1
@@ -72,7 +72,7 @@ Flags:
   --datadir DIR        state dir (default: /var/lib/clouddeck)
   --etcdir DIR         config dir (default: /etc/clouddeck)
   --agent-port N       agent port (default: 9090, binds 127.0.0.1)
-  --panel-port N       panel port (default: 3000, binds 0.0.0.0)
+  --panel-port N       panel port (default: 2083, binds 0.0.0.0)
   --gh-token TOKEN     GitHub token (private repos)
   --no-agent           skip the agent
   --no-panel           skip the panel

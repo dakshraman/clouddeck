@@ -3,7 +3,7 @@
 # Run from anywhere; all paths resolve relative to this script's location.
 #
 # Usage:
-#   .\scripts\dev.ps1 panel       Start the panel dev server (http://localhost:3000)
+#   .\scripts\dev.ps1 panel       Start the panel dev server (http://localhost:2083)
 #   .\scripts\dev.ps1 agent-dry   Run the Go agent in dry-run mode
 #   .\scripts\dev.ps1 typecheck   Typecheck the panel (tsc --noEmit)
 #
@@ -40,7 +40,7 @@ switch ($Task) {
         Write-Host ""
         Write-Host "Usage: .\scripts\dev.ps1 <command>"
         Write-Host ""
-        Write-Host "  panel       Start the panel dev server (http://localhost:3000)"
+        Write-Host "  panel       Start the panel dev server (http://localhost:2083)"
         Write-Host "  agent-dry   Run the Go agent in dry-run mode (Go 1.23+ required)"
         Write-Host "  typecheck   Typecheck the panel (tsc --noEmit)"
     }

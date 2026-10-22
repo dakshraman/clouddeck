@@ -30,12 +30,12 @@ Installs the agent (static binary) and panel (self-contained bundle, no distro p
 docker compose up -d --build
 ```
 
-Then open http://localhost:3000 — the first visit creates your admin account in the setup wizard.
+Then open http://localhost:2083 — the first visit creates your admin account in the setup wizard.
 
 This starts:
 
 - `clouddeck-server` — an Ubuntu container running nginx + the agent (http://localhost:9090/v1/health)
-- `clouddeck-panel` — the panel UI (http://localhost:3000)
+- `clouddeck-panel` — the panel UI (http://localhost:2083)
 
 Sites created in the panel are served by the container's nginx on http://localhost:8080. The first build takes a few minutes; wait until `docker compose ps` reports `clouddeck-server` as `healthy` before logging in.
 
@@ -50,7 +50,7 @@ Requirements: Node 20+ (panel), Go 1.23+ (agent), Docker optional.
 ```bash
 cd panel
 npm install
-npm run dev          # http://localhost:3000, expects an agent on 127.0.0.1:9090
+npm run dev          # http://localhost:2083, expects an agent on 127.0.0.1:9090
 ```
 
 **Agent without root/nginx (dry-run — safe on any OS):**

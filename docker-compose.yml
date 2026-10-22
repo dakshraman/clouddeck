@@ -37,7 +37,7 @@ services:
     build: ./panel
     container_name: clouddeck-panel
     ports:
-      - "3000:3000"
+      - "2083:2083"
     environment:
       AGENT_URL: http://server:9090
       PANEL_SESSION_SECRET: dev-secret-change-me

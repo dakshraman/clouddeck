@@ -1,7 +1,7 @@
 # CloudDeck panel smoke test — run against a running panel.
-# Usage: powershell -ExecutionPolicy Bypass -File panel-smoke-test.ps1 [-Base http://localhost:3000]
+# Usage: powershell -ExecutionPolicy Bypass -File panel-smoke-test.ps1 [-Base http://localhost:2083]
 param(
-  [string]$Base = "http://localhost:3000"
+  [string]$Base = "http://localhost:2083"
 )
 $ErrorActionPreference = "Stop"
 

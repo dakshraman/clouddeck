@@ -129,7 +129,7 @@ Edit `docker-compose.yml` before the first start:
 
 ```yaml
     ports:
-      - "127.0.0.1:3000:3000"     # panel, reached via the TLS proxy in step 4
+      - "127.0.0.1:2083:2083"     # panel, reached via the TLS proxy in step 4
 ```
 
   For the `server` service, drop the `9090:9090` publish (the agent is only
@@ -143,7 +143,7 @@ sudo docker compose up -d --build
 sudo docker compose ps          # wait for clouddeck-server: healthy
 ```
 
-The panel listens on `127.0.0.1:3000` (open it after step 4), and containerized
+The panel listens on `127.0.0.1:2083` (open it after step 4), and containerized
 sites are reachable on the host's port 8080. Notes:
 
 - Do **not** also run the step 2 host agent in this topology — port 9090 would conflict.
@@ -188,7 +188,7 @@ Environment file (secrets, mode 600):
 ```bash
 sudo tee /etc/clouddeck/panel.env >/dev/null <<'EOF'
 NODE_ENV=production
-PORT=3000
+PORT=2083
 HOSTNAME=127.0.0.1
 AGENT_URL=http://127.0.0.1:9090
 PANEL_DATA_DIR=/opt/clouddeck-panel/data
@@ -226,7 +226,7 @@ Enable and verify:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now clouddeck-panel
-curl -fsS -o /dev/null http://127.0.0.1:3000/ && echo "panel is up"
+curl -fsS -o /dev/null http://127.0.0.1:2083/ && echo "panel is up"
 ```
 
 ## 4. TLS for the panel
@@ -243,7 +243,7 @@ sudo apt-get install -y caddy
 
 ```
 panel.yourdomain.com {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:2083
 }
 ```
 
@@ -262,7 +262,7 @@ server {
     server_name panel.yourdomain.com;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:2083;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -294,7 +294,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:2083;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -328,7 +328,7 @@ security boundary for v0.1, because the agent API is unauthenticated. Do not
 `ufw allow 9090`, do not publish it in Docker, do not change `AGENT_LISTEN` to
 `0.0.0.0` on a host with a public interface. If you run Docker, remember that
 published container ports bypass ufw (Docker installs its own iptables rules),
-which is why the compose guidance binds the panel to `127.0.0.1:3000`.
+which is why the compose guidance binds the panel to `127.0.0.1:2083`.
 
 ## 6. Updates
 
@@ -383,6 +383,6 @@ server (restic, rclone, scp — scheduled via cron or a systemd timer).
   Rotating it invalidates existing sessions.
 - **Keep the agent on `127.0.0.1`.** No authentication exists in v0.1 (mutual
   TLS + tokens arrive with multi-server support in v0.5).
-- Serve the panel over HTTPS only; never expose port 3000 directly.
+- Serve the panel over HTTPS only; never expose its HTTP port directly.
 - Keep the OS, nginx and the CloudDeck checkout updated; review
   `sudo journalctl -u clouddeck-agent` and the panel's task logs after upgrades.
