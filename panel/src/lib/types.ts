@@ -96,6 +96,21 @@ export interface SystemInfo {
   dryRun?: boolean;
 }
 
+export interface ProcessInfo {
+  pid: number;
+  user: string;
+  command: string;
+  cpuPercent: number;
+  memoryPercent: number;
+  rssBytes: number;
+}
+
+export interface ProcessListResponse {
+  processes: ProcessInfo[];
+  totalProcesses: number;
+  sampledAt: string;
+}
+
 export interface SessionUser {
   username: string;
 }

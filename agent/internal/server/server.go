@@ -24,6 +24,7 @@ import (
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/phpmyadmin"
+	"clouddeck/agent/internal/processinfo"
 	"clouddeck/agent/internal/security"
 	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
@@ -69,6 +70,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 	mux.HandleFunc("GET /v1/system", s.handleSystem)
+	mux.HandleFunc("GET /v1/processes", s.handleProcesses)
 	mux.HandleFunc("GET /v1/php/versions", s.handlePHPVersions)
 	mux.HandleFunc("GET /v1/sites", s.handleListSites)
 	mux.HandleFunc("POST /v1/sites", s.handleCreateSite)
@@ -247,6 +249,16 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	info.AgentVersion = Version
 	info.AgentTime = time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusOK, info)
+}
+
+func (s *Server) handleProcesses(w http.ResponseWriter, r *http.Request) {
+	limit := processinfo.DefaultLimit
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = n
+		}
+	}
+	writeJSON(w, http.StatusOK, processinfo.Collect(r.URL.Query().Get("sort"), limit))
 }
 
 func (s *Server) handlePHPVersions(w http.ResponseWriter, r *http.Request) {

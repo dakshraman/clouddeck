@@ -3,6 +3,7 @@ import type {
   CreateSiteRequest,
   IssueSslRequest,
   PhpVersionsResponse,
+  ProcessListResponse,
   Site,
   SiteListResponse,
   SystemInfo,
@@ -84,6 +85,10 @@ export async function agentFetch<T>(path: string, init?: AgentFetchInit): Promis
 
 export function getSystem(): Promise<SystemInfo> {
   return agentFetch<SystemInfo>("/v1/system");
+}
+
+export function getProcesses(sort: "cpu" | "mem" = "cpu"): Promise<ProcessListResponse> {
+  return agentFetch<ProcessListResponse>(`/v1/processes?sort=${sort}`);
 }
 
 export function getPhpVersions(): Promise<PhpVersionsResponse> {

@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentService, ServiceListResponse, SystemInfo } from "@/lib/types";
+import type {
+  AgentService,
+  ProcessListResponse,
+  ServiceListResponse,
+  SystemInfo,
+} from "@/lib/types";
 import { apiFetch } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
+import { ProcessesCard, type ProcessSort } from "@/components/monitoring/processes-card";
 import { ServiceCard } from "@/components/monitoring/service-card";
 import { formatBytes, percentOf, usageTone } from "@/components/format";
 import { Cpu, HardDrive, MemoryStick, Server } from "lucide-react";
@@ -35,9 +41,14 @@ export function MonitoringClient() {
   const [state, setState] = useState<LoadState>("loading");
   const [systemError, setSystemError] = useState<string | null>(null);
   const [servicesError, setServicesError] = useState<string | null>(null);
+  const [processes, setProcesses] = useState<ProcessListResponse | null>(null);
+  const [processError, setProcessError] = useState<string | null>(null);
+  const [processLoading, setProcessLoading] = useState(true);
+  const [processSort, setProcessSort] = useState<ProcessSort>("cpu");
   const [restarting, setRestarting] = useState<string | null>(null);
   const [restartErrors, setRestartErrors] = useState<Record<string, string>>({});
   const pollInFlight = useRef(false);
+  const processRequest = useRef(0);
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -79,9 +90,43 @@ export function MonitoringClient() {
     }
   }, []);
 
+  const loadProcesses = useCallback(
+    async (sort: ProcessSort, options?: { silent?: boolean }) => {
+      const requestId = ++processRequest.current;
+      if (!options?.silent) {
+        setProcessLoading(true);
+        setProcessError(null);
+      }
+
+      try {
+        const result = await apiFetch<ProcessListResponse>(`/api/processes?sort=${sort}`);
+        if (requestId !== processRequest.current) return;
+        setProcesses(result);
+        setProcessError(null);
+      } catch (error) {
+        if (requestId !== processRequest.current) return;
+        setProcessError(
+          error instanceof Error ? error.message : "Failed to load processes",
+        );
+        if (!options?.silent) {
+          setProcesses(null);
+        }
+      } finally {
+        if (requestId === processRequest.current) {
+          setProcessLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadProcesses(processSort);
+  }, [loadProcesses, processSort]);
 
   useEffect(() => {
     // Pause polling while a restart runs so a stale probe cannot overwrite the
@@ -90,12 +135,15 @@ export function MonitoringClient() {
     const timer = setInterval(() => {
       if (pollInFlight.current) return;
       pollInFlight.current = true;
-      void load({ silent: true }).finally(() => {
+      void Promise.allSettled([
+        load({ silent: true }),
+        loadProcesses(processSort, { silent: true }),
+      ]).finally(() => {
         pollInFlight.current = false;
       });
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [load, restarting]);
+  }, [load, loadProcesses, processSort, restarting]);
 
   async function onRestart(service: AgentService) {
     if (!window.confirm(`Restart ${service.label}? The service may be briefly unavailable.`)) {
@@ -131,7 +179,7 @@ export function MonitoringClient() {
     <>
       <PageHeader
         title="Monitoring"
-        description="Host metrics and web-stack services, refreshed every 5 seconds."
+        description="Host metrics, top processes, and web-stack services, refreshed every 5 seconds."
       />
 
       {systemError ? (
@@ -202,6 +250,17 @@ export function MonitoringClient() {
             </Card>
           </>
         ) : null}
+      </div>
+
+      <div className="mt-8">
+        <ProcessesCard
+          data={processes}
+          error={processError}
+          loading={processLoading}
+          sort={processSort}
+          onSortChange={setProcessSort}
+          onRetry={() => void loadProcesses(processSort)}
+        />
       </div>
 
       <div className="mb-4 mt-8">
