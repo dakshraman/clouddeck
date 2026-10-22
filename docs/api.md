@@ -167,10 +167,12 @@ Synchronous and audited (no tasks). The services are the host's web stack: `ngin
 |---|---|---|---|
 | `GET /v1/services` | — | `200 {"services":[{"name","label","state","pid?","version?","details?"}]}` — `state`: `running`\|`stopped`\|`unknown`; every probe is best-effort | — |
 | `POST /v1/services/{name}/restart` | — | `200 {service}` — the freshly probed status after the restart command completed | `404 unknown_service`, `409 dry_run`, `412 restart_not_configured`, `502 service_restart_failed` |
+| `GET /v1/processes` | `sort=cpu\|mem` (default `cpu`), `limit` 1–100 (default 15) | `200 {"processes":[{"pid","user","command","cpuPercent","memoryPercent","rssBytes"}],"totalProcesses","sampledAt"}` — read-only top-process snapshot | — |
 
 - `label` is human readable (e.g. `Nginx (web server)`).
 - Restart commands come from `AGENT_NGINX_RESTART_CMD`, `AGENT_MYSQL_RESTART_CMD`, `AGENT_PHP_FPM_RESTART_CMD`. Each value is split on whitespace into an **argument array** — it is never passed through a shell. Empty command → `412 restart_not_configured`; non-zero exit → `502 service_restart_failed` with a stderr tail (60 s timeout).
 - Restarts are serialized (one at a time) and written to the audit log.
+- `/v1/processes` samples `/proc` twice 300ms apart, so CPU reflects current load rather than a process lifetime average. `cpuPercent` is a per-core percentage (multi-threaded processes can exceed 100%), and `totalProcesses` counts all processes seen in both samples. The list is read-only.
 
 ### 1.4 DNS endpoints
 
