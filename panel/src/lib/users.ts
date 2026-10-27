@@ -1,5 +1,5 @@
 import * as bcrypt from "bcryptjs";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { config } from "@/lib/config";
 
@@ -28,7 +28,10 @@ function storePath(): string {
 function persist(target: UsersStore): void {
   const file = storePath();
   mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(target, null, 2)}\n`, "utf8");
+  // Password hashes must never be readable by other local users. mode: applies
+  // at creation only, so chmod also repairs stores written by older versions.
+  writeFileSync(file, `${JSON.stringify(target, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  chmodSync(file, 0o600);
 }
 
 /**

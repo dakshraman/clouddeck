@@ -99,13 +99,29 @@ case "$MACHINE" in
 esac
 
 # --- download helpers --------------------------------------------------------
-# Every download is bounded: dead connects fail after 15s, stalled transfers
-# (under 8 KiB/s for 90s) are aborted, and transient failures are retried, so
-# a hung connection can never wedge the installer.
+# Downloads are resumable: a dropped or stalled transfer keeps the bytes it
+# already wrote, and the next attempt continues with a Range request instead of
+# starting over. The stall threshold is deliberately forgiving (1 KiB/s for 5
+# minutes) because release CDNs can be slow without being dead.
+download_url() { # download_url URL OUTFILE [extra curl args...]
+  _url="$1" _out="$2"; shift 2
+  _tries=0
+  while [ "$_tries" -lt 6 ]; do
+    _tries=$((_tries + 1))
+    _rc=0
+    curl -fsSL --connect-timeout 15 --speed-limit 1024 --speed-time 300 \
+      --max-time 7200 --continue-at - -o "$_out" "$@" "$_url" || _rc=$?
+    [ "$_rc" = "0" ] && return 0
+    # 33: the server refused the resume range (or the file is already whole).
+    # Drop the partial file so the next attempt starts clean.
+    [ "$_rc" = "33" ] && rm -f "$_out"
+    [ "$_tries" -lt 6 ] && sleep $((_tries * 2))
+  done
+  return 1
+}
+
 download() { # download URL OUTFILE  (plain public download, e.g. nodejs.org)
-  curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
-    --speed-limit 8192 --speed-time 90 --max-time 3600 -o "$2" "$1" \
-    || die "download failed: $1"
+  download_url "$1" "$2" || die "download failed: $1"
 }
 
 resolve_latest() { # sets VERSION to the latest tag
@@ -145,15 +161,11 @@ download_asset() { # download_asset FILENAME OUTFILE
     # the release asset API does.
     _id="$(asset_id "$_name")"
     [ -n "$_id" ] || die "release asset $_name not found in $VERSION"
-    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
-      --speed-limit 8192 --speed-time 90 --max-time 3600 \
+    download_url "https://api.github.com/repos/$REPO/releases/assets/$_id" "$2" \
       -H "Authorization: token $GH_TOKEN" -H "Accept: application/octet-stream" \
-      -o "$2" "https://api.github.com/repos/$REPO/releases/assets/$_id" \
       || die "download failed: $_name"
   else
-    curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 \
-      --speed-limit 8192 --speed-time 90 --max-time 3600 \
-      -o "$2" "https://github.com/$REPO/releases/download/$VERSION/$_name" \
+    download_url "https://github.com/$REPO/releases/download/$VERSION/$_name" "$2" \
       || die "download failed: $_name (private repo? pass --gh-token)"
   fi
 }
@@ -221,6 +233,8 @@ if [ "$DO_PANEL" = "1" ] && [ ! -x "$PREFIX/node/bin/node" ]; then
   mkdir -p "$PREFIX/node"
   tar -xzf "$TMP/$NODE_TARBALL" -C "$PREFIX/node" --strip-components=1 \
     || die "failed to extract Node.js"
+  # tarballs carry the upstream build UID; /opt must stay root-owned
+  chown -R 0:0 "$PREFIX/node"
 fi
 
 # --- panel -------------------------------------------------------------------
@@ -229,6 +243,10 @@ if [ "$DO_PANEL" = "1" ]; then
   download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
   mkdir -p "$PREFIX/panel"
   tar -xzf "$TMP/clouddeck-panel.tar.gz" -C "$PREFIX/panel" || die "failed to extract panel"
+  # the archive records the CI build UID; the panel must be root-owned and only
+  # readable by the unprivileged service user
+  chown -R 0:0 "$PREFIX/panel"
+  chmod -R a+rX "$PREFIX/panel"
   say "   installed $PREFIX/panel"
 
   # unprivileged user for the panel
@@ -360,18 +378,31 @@ EOF
 fi
 
 # fallback: start/stop scripts that work without systemd
+PANEL_USER="${PANEL_USER:-}"
+if [ -n "$PANEL_USER" ]; then
+  # drop privileges for the panel even without systemd
+  PANEL_LAUNCH="su -s /bin/sh $PANEL_USER -c 'exec $PREFIX/node/bin/node server.js'"
+else
+  PANEL_LAUNCH="$PREFIX/node/bin/node server.js"
+fi
 mkdir -p "$PREFIX/run"
 cat > "$PREFIX/run/start.sh" <<EOF
 #!/bin/sh
-# Start CloudDeck without systemd.
+# Start CloudDeck without systemd. Each service gets its own session (setsid)
+# so it survives the shell that ran the installer; the pid file is written by
+# the new session leader, which is also the process group to stop.
 set -eu
+PANEL_USER="$PANEL_USER"
+SETSID=""
+command -v setsid >/dev/null 2>&1 && SETSID=setsid
+
 if [ -f "$ETCDIR/agent.env" ]; then
   set -a; . "$ETCDIR/agent.env"; set +a
-  ( cd "$PREFIX" && nohup "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 < /dev/null & echo \$! > "$PREFIX/run/agent.pid" )
+  ( cd "$PREFIX" && \$SETSID sh -c 'echo \$\$ > "\$0"; exec "\$@"' "$PREFIX/run/agent.pid" "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 < /dev/null & )
 fi
 if [ -f "$ETCDIR/panel.env" ]; then
   set -a; . "$ETCDIR/panel.env"; set +a
-  ( cd "$PREFIX/panel" && nohup "$PREFIX/node/bin/node" server.js >> "$PREFIX/run/panel.log" 2>&1 < /dev/null & echo \$! > "$PREFIX/run/panel.pid" )
+  ( cd "$PREFIX/panel" && \$SETSID sh -c 'echo \$\$ > "\$0"; exec "\$@"' "$PREFIX/run/panel.pid" $PANEL_LAUNCH >> "$PREFIX/run/panel.log" 2>&1 < /dev/null & )
 fi
 echo "started"
 EOF
@@ -415,7 +446,7 @@ if [ "$DO_AGENT" = "1" ]; then
   if curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health" >/dev/null 2>&1; then
     say "   agent OK: $(curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health")"
   else
-    warn "agent did not answer on 127.0.0.1:$AGENT_PORT - check logs"
+    die "agent did not answer on 127.0.0.1:$AGENT_PORT - check: journalctl -u clouddeck-agent (or $PREFIX/run/agent.log)"
   fi
 fi
 
@@ -429,17 +460,23 @@ if [ "$DO_PANEL" = "1" ]; then
   if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then
     say "   panel OK (localhost:$PANEL_PORT)"
   else
-    warn "panel did not answer on port $PANEL_PORT - check logs"
+    die "panel did not answer on port $PANEL_PORT - check: journalctl -u clouddeck-panel (or $PREFIX/run/panel.log)"
   fi
 fi
 
-IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[ -n "$IP" ] || IP="<server-ip>"
+# WSL exposes services to Windows on localhost, not on the distro's eth0 IP.
+if [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft /proc/version 2>/dev/null; then
+  PANEL_URL="http://localhost:$PANEL_PORT"
+else
+  IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  [ -n "$IP" ] || IP="<server-ip>"
+  PANEL_URL="http://$IP:$PANEL_PORT"
+fi
 
 say ""
 say "================ CloudDeck installed ================"
 if [ "$DO_PANEL" = "1" ]; then
-  say "  Panel:     http://$IP:$PANEL_PORT"
+  say "  Panel:     $PANEL_URL"
   say "  Setup:     open the panel URL to create your admin account"
 fi
 if [ "$DO_AGENT" = "1" ]; then
