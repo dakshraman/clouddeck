@@ -14,6 +14,7 @@ import (
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
+	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/dns"
@@ -61,16 +62,18 @@ type Server struct {
 	apps     *apps.Service
 	firewall *firewall.Service
 	security *security.Service
+	audit    *audit.Log
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, auditLog *audit.Log) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 	mux.HandleFunc("GET /v1/system", s.handleSystem)
 	mux.HandleFunc("GET /v1/processes", s.handleProcesses)
+	mux.HandleFunc("POST /v1/processes/{pid}/kill", s.handleKillProcess)
 	mux.HandleFunc("GET /v1/php/versions", s.handlePHPVersions)
 	mux.HandleFunc("GET /v1/sites", s.handleListSites)
 	mux.HandleFunc("POST /v1/sites", s.handleCreateSite)
@@ -259,6 +262,39 @@ func (s *Server) handleProcesses(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, processinfo.Collect(r.URL.Query().Get("sort"), limit))
+}
+
+func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
+	pid, err := strconv.Atoi(r.PathValue("pid"))
+	if err != nil || pid <= 0 {
+		writeError(w, apierr.BadRequest("invalid_pid", "pid must be a positive integer"))
+		return
+	}
+	killErr := processinfo.Kill(pid)
+	s.recordKill(pid, killErr)
+	if killErr != nil {
+		writeError(w, killErr)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"pid": pid, "killed": true})
+}
+
+func (s *Server) recordKill(pid int, err error) {
+	if s.audit == nil {
+		return
+	}
+	rec := audit.Record{
+		Action: "process.kill",
+		Params: map[string]any{"pid": pid},
+		Result: audit.ResultAccepted,
+	}
+	if err != nil {
+		rec.Result = audit.ResultRejected
+		rec.Error = err.Error()
+	}
+	// The signal was already delivered; an audit write failure must not turn
+	// a completed kill into an error response.
+	_ = s.audit.Append(rec)
 }
 
 func (s *Server) handlePHPVersions(w http.ResponseWriter, r *http.Request) {

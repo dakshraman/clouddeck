@@ -2,6 +2,7 @@ import { config } from "@/lib/config";
 import type {
   CreateSiteRequest,
   IssueSslRequest,
+  KillProcessResponse,
   PhpVersionsResponse,
   ProcessListResponse,
   Site,
@@ -89,6 +90,10 @@ export function getSystem(): Promise<SystemInfo> {
 
 export function getProcesses(sort: "cpu" | "mem" = "cpu"): Promise<ProcessListResponse> {
   return agentFetch<ProcessListResponse>(`/v1/processes?sort=${sort}`);
+}
+
+export function killProcess(pid: number): Promise<KillProcessResponse> {
+  return agentFetch<KillProcessResponse>(`/v1/processes/${pid}/kill`, { method: "POST" });
 }
 
 export function getPhpVersions(): Promise<PhpVersionsResponse> {

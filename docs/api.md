@@ -167,12 +167,14 @@ Synchronous and audited (no tasks). The services are the host's web stack: `ngin
 |---|---|---|---|
 | `GET /v1/services` | — | `200 {"services":[{"name","label","state","pid?","version?","details?"}]}` — `state`: `running`\|`stopped`\|`unknown`; every probe is best-effort | — |
 | `POST /v1/services/{name}/restart` | — | `200 {service}` — the freshly probed status after the restart command completed | `404 unknown_service`, `409 dry_run`, `412 restart_not_configured`, `502 service_restart_failed` |
-| `GET /v1/processes` | `sort=cpu\|mem` (default `cpu`), `limit` 1–100 (default 15) | `200 {"processes":[{"pid","user","command","cpuPercent","memoryPercent","rssBytes"}],"totalProcesses","sampledAt"}` — read-only top-process snapshot | — |
+| `GET /v1/processes` | `sort=cpu\|mem` (default `cpu`), `limit` 1–100 (default 15) | `200 {"processes":[{"pid","user","command","cpuPercent","memoryPercent","rssBytes","killable"}],"totalProcesses","sampledAt"}` — top-process snapshot | — |
+| `POST /v1/processes/{pid}/kill` | — | `200 {"pid","killed":true}` — SIGTERM, then SIGKILL after 2 s | `400 invalid_pid`, `403 process_protected`/`process_forbidden`, `404 process_not_found` |
 
 - `label` is human readable (e.g. `Nginx (web server)`).
 - Restart commands come from `AGENT_NGINX_RESTART_CMD`, `AGENT_MYSQL_RESTART_CMD`, `AGENT_PHP_FPM_RESTART_CMD`. Each value is split on whitespace into an **argument array** — it is never passed through a shell. Empty command → `412 restart_not_configured`; non-zero exit → `502 service_restart_failed` with a stderr tail (60 s timeout).
 - Restarts are serialized (one at a time) and written to the audit log.
-- `/v1/processes` samples `/proc` twice 300ms apart, so CPU reflects current load rather than a process lifetime average. `cpuPercent` is a per-core percentage (multi-threaded processes can exceed 100%), and `totalProcesses` counts all processes seen in both samples. The list is read-only.
+- `/v1/processes` samples `/proc` twice 300ms apart, so CPU reflects current load rather than a process lifetime average. `cpuPercent` is a per-core percentage (multi-threaded processes can exceed 100%), and `totalProcesses` counts all processes seen in both samples. `killable` is false for PID 1, the agent itself, kernel threads/zombies and processes owned by another user; the panel additionally clears it for its own process.
+- `POST /v1/processes/{pid}/kill` is synchronous and audited (`process.kill`). It sends SIGTERM, waits up to 2 s, then sends SIGKILL. Killing is refused for the same protected set as `killable`.
 
 ### 1.4 DNS endpoints
 
@@ -473,6 +475,8 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/mysql/grants` | `{user,host?,database,privileges}` |
 | GET | `/api/services` | passthrough `/v1/services` |
 | POST | `/api/services/{name}/restart` | restart a service (proxied) |
+| GET | `/api/processes` | `?sort=` → process list; `killable` cleared for the panel's own PID |
+| POST | `/api/processes` | `{pid}` → kill a process (proxied) |
 | GET | `/api/dns/status` | passthrough `/v1/dns/status` |
 | GET | `/api/dns/zones` | list zones |
 | POST | `/api/dns/zones` | `{name}` → create zone |

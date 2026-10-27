@@ -1,4 +1,4 @@
-import type { ProcessListResponse } from "@/lib/types";
+import type { ProcessInfo, ProcessListResponse } from "@/lib/types";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,9 @@ interface ProcessesCardProps {
   sort: ProcessSort;
   onSortChange: (sort: ProcessSort) => void;
   onRetry: () => void;
+  killingPid: number | null;
+  killError: string | null;
+  onKill: (process: ProcessInfo) => void;
 }
 
 function toneClass(percent: number): string {
@@ -30,6 +33,9 @@ export function ProcessesCard({
   sort,
   onSortChange,
   onRetry,
+  killingPid,
+  killError,
+  onKill,
 }: ProcessesCardProps) {
   const countLabel = data
     ? data.totalProcesses > data.processes.length
@@ -84,6 +90,12 @@ export function ProcessesCard({
         </div>
       ) : null}
 
+      {killError ? (
+        <div className="px-5 pb-4">
+          <Alert variant="error">{killError}</Alert>
+        </div>
+      ) : null}
+
       {loading && !data ? (
         <div className="border-t border-border px-5 py-4">
           <div className="space-y-3">
@@ -98,7 +110,7 @@ export function ProcessesCard({
 
       {data ? (
         <div className="overflow-x-auto border-t border-border">
-          <table aria-label="Top processes" className="w-full min-w-[720px] text-sm">
+          <table aria-label="Top processes" className="w-full min-w-[840px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th scope="col" className="w-20 px-5 py-3 font-medium">
@@ -116,18 +128,21 @@ export function ProcessesCard({
                     per core
                   </span>
                 </th>
-                <th scope="col" className="w-36 px-5 py-3 text-right font-medium">
+                <th scope="col" className="w-36 px-3 py-3 text-right font-medium">
                   <span className="block">Memory</span>
                   <span className="block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
                     of host
                   </span>
+                </th>
+                <th scope="col" className="w-24 px-5 py-3 text-right font-medium">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {data.processes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-muted-foreground">
                     No processes reported.
                   </td>
                 </tr>
@@ -159,7 +174,7 @@ export function ProcessesCard({
                     >
                       {process.cpuPercent.toFixed(1)}%
                     </td>
-                    <td className="px-5 py-2.5 text-right">
+                    <td className="px-3 py-2.5 text-right">
                       <div className="flex items-baseline justify-end gap-2">
                         <span
                           className={cn(
@@ -173,6 +188,20 @@ export function ProcessesCard({
                           {formatBytes(process.rssBytes)}
                         </span>
                       </div>
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
+                      {process.killable ? (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          loading={killingPid === process.pid}
+                          disabled={killingPid !== null && killingPid !== process.pid}
+                          onClick={() => onKill(process)}
+                          aria-label={`Kill ${process.command} (PID ${process.pid})`}
+                        >
+                          Kill
+                        </Button>
+                      ) : null}
                     </td>
                   </tr>
                 ))

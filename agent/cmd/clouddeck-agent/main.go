@@ -108,7 +108,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc, appSvc, fwSvc, secSvc),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc, appSvc, fwSvc, secSvc, auditLog),
 	}
 	go func() {
 		<-ctx.Done()

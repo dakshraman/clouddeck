@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="CloudDeck">
+  <rect width="48" height="48" rx="12" fill="#071014"/>
+  <path d="M24 8 43 18 24 28 5 18 24 8Z" fill="#1cc8e8"/>
+  <path d="M5 25 24 35 43 25" fill="none" stroke="#1cc8e8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
+  <path d="M5 32 24 42 43 32" fill="none" stroke="#1cc8e8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+</svg>

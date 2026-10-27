@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AgentService,
+  KillProcessResponse,
+  ProcessInfo,
   ProcessListResponse,
   ServiceListResponse,
   SystemInfo,
 } from "@/lib/types";
-import { apiFetch } from "@/components/api";
+import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,8 @@ export function MonitoringClient() {
   const [processSort, setProcessSort] = useState<ProcessSort>("cpu");
   const [restarting, setRestarting] = useState<string | null>(null);
   const [restartErrors, setRestartErrors] = useState<Record<string, string>>({});
+  const [killing, setKilling] = useState<number | null>(null);
+  const [killError, setKillError] = useState<string | null>(null);
   const pollInFlight = useRef(false);
   const processRequest = useRef(0);
 
@@ -172,6 +176,29 @@ export function MonitoringClient() {
     }
   }
 
+  async function onKill(process: ProcessInfo) {
+    const command =
+      process.command.length > 60 ? `${process.command.slice(0, 60)}…` : process.command;
+    if (
+      !window.confirm(
+        `Kill PID ${process.pid} (${command})? It gets SIGTERM, then SIGKILL after 2 seconds.`,
+      )
+    ) {
+      return;
+    }
+
+    setKilling(process.pid);
+    setKillError(null);
+    try {
+      await apiPost<KillProcessResponse>("/api/processes", { pid: process.pid });
+      await loadProcesses(processSort, { silent: true });
+    } catch (error) {
+      setKillError(error instanceof Error ? error.message : "Failed to kill the process");
+    } finally {
+      setKilling(null);
+    }
+  }
+
   const memoryPercent = system ? percentOf(system.memory.usedBytes, system.memory.totalBytes) : 0;
   const diskPercent = system ? percentOf(system.disk.usedBytes, system.disk.totalBytes) : 0;
 
@@ -260,6 +287,9 @@ export function MonitoringClient() {
           sort={processSort}
           onSortChange={setProcessSort}
           onRetry={() => void loadProcesses(processSort)}
+          killingPid={killing}
+          killError={killError}
+          onKill={onKill}
         />
       </div>
 

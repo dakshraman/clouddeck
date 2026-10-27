@@ -29,6 +29,7 @@ type Process struct {
 	CPUPercent    float64 `json:"cpuPercent"`
 	MemoryPercent float64 `json:"memoryPercent"`
 	RSSBytes      uint64  `json:"rssBytes"`
+	Killable      bool    `json:"killable"`
 }
 
 // Snapshot is the /v1/processes response body.
@@ -40,6 +41,7 @@ type Snapshot struct {
 
 type procStat struct {
 	name  string
+	state byte
 	ticks uint64
 }
 
@@ -84,13 +86,15 @@ func Collect(sortBy string, limit int) Snapshot {
 			deltaProc = current.ticks - previous.ticks
 		}
 		uid, rss := readStatus(pid)
+		command, hasCmdline := readCommand(pid, current.name)
 		processes = append(processes, Process{
 			PID:           pid,
 			User:          userName(users, uid),
-			Command:       readCommand(pid, current.name),
+			Command:       command,
 			CPUPercent:    cpuPercent(deltaProc, deltaTotal, cores),
 			MemoryPercent: memoryPercent(rss, memTotal),
 			RSSBytes:      rss,
+			Killable:      canKill(pid, uid, hasCmdline),
 		})
 	}
 
@@ -158,6 +162,7 @@ func parseStat(pid int, line string) (procStat, error) {
 	}
 	return procStat{
 		name:  line[open+1 : close],
+		state: fields[0][0],
 		ticks: utime + stime,
 	}, nil
 }
@@ -219,12 +224,22 @@ func parseStatus(data []byte) (string, uint64) {
 	return uid, rssBytes
 }
 
-func readCommand(pid int, name string) string {
+func readCommand(pid int, name string) (string, bool) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
 	if err != nil {
-		return "[" + name + "]"
+		return "[" + name + "]", false
 	}
-	return cleanCommand(data, name)
+	return cleanCommand(data, name), len(strings.TrimRight(string(data), "\x00")) > 0
+}
+
+// canKill reports whether a SIGTERM from the agent would be accepted. Kernel
+// threads and zombies have no command line, so they are never offered.
+func canKill(pid int, uid string, hasCmdline bool) bool {
+	if pid <= 1 || pid == os.Getpid() || uid == "" || !hasCmdline {
+		return false
+	}
+	euid := os.Geteuid()
+	return euid == 0 || uid == strconv.Itoa(euid)
 }
 
 func cleanCommand(raw []byte, name string) string {

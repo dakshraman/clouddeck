@@ -103,12 +103,18 @@ export interface ProcessInfo {
   cpuPercent: number;
   memoryPercent: number;
   rssBytes: number;
+  killable: boolean;
 }
 
 export interface ProcessListResponse {
   processes: ProcessInfo[];
   totalProcesses: number;
   sampledAt: string;
+}
+
+export interface KillProcessResponse {
+  pid: number;
+  killed: boolean;
 }
 
 export interface SessionUser {

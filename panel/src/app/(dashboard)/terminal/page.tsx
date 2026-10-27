@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/components/ui/cn";
 import { PageHeader } from "@/components/page-header";
-import { Play, Square, Terminal as TerminalIcon } from "lucide-react";
+import { Maximize2, Minimize2, Play, Square, Terminal as TerminalIcon } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
 type Phase = "idle" | "starting" | "running" | "ended";
@@ -55,8 +56,11 @@ export default function TerminalPage() {
   const [startError, setStartError] = useState<string | null>(null);
   const [streamNotice, setStreamNotice] = useState<string | null>(null);
   const [location, setLocation] = useState<{ host: string; port: string } | null>(null);
+  const [fullPage, setFullPage] = useState(false);
+  const [fullPageAvailable, setFullPageAvailable] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const streamRef = useRef<EventSource | null>(null);
@@ -74,6 +78,27 @@ export default function TerminalPage() {
       host: window.location.hostname || "this host",
       port: window.location.port || (window.location.protocol === "https:" ? "443" : "80"),
     });
+    setFullPageAvailable(document.fullscreenEnabled);
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setFullPage(document.fullscreenElement === shellRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullPage = useCallback(async () => {
+    const element = shellRef.current;
+    if (!element) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await element.requestFullscreen();
+      }
+    } catch {
+      // The browser refused full page mode (for example inside an iframe).
+    }
   }, []);
 
   const loadStatus = useCallback(async (options?: { silent?: boolean }) => {
@@ -428,8 +453,14 @@ export default function TerminalPage() {
           </Card>
 
           {terminalEnabled ? (
-            <Card className="mt-6 overflow-hidden">
-              <CardHeader>
+            <div ref={shellRef} className={cn(fullPage && "flex h-screen flex-col bg-background")}>
+              <Card
+                className={cn(
+                  "mt-6 overflow-hidden",
+                  fullPage && "mt-0 flex min-h-0 flex-1 flex-col rounded-none border-0 shadow-none",
+                )}
+              >
+              <CardHeader className="shrink-0">
                 <div>
                   <CardTitle>Shell</CardTitle>
                   <CardDescription>
@@ -440,14 +471,31 @@ export default function TerminalPage() {
                         : "Start a session to open a shell inside the panel."}
                   </CardDescription>
                 </div>
-                {phase === "ended" ? (
-                  <Button size="sm" onClick={startNewSession}>
-                    <Play size={13} aria-hidden="true" />
-                    Start new session
-                  </Button>
-                ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {phase === "ended" ? (
+                    <Button size="sm" onClick={startNewSession}>
+                      <Play size={13} aria-hidden="true" />
+                      Start new session
+                    </Button>
+                  ) : null}
+                  {fullPageAvailable ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void toggleFullPage()}
+                      aria-pressed={fullPage}
+                    >
+                      {fullPage ? (
+                        <Minimize2 size={13} aria-hidden="true" />
+                      ) : (
+                        <Maximize2 size={13} aria-hidden="true" />
+                      )}
+                      {fullPage ? "Exit full page" : "Full page"}
+                    </Button>
+                  ) : null}
+                </div>
               </CardHeader>
-              <div className="px-5 pb-5 pt-4">
+              <div className={cn("px-5 pb-5 pt-4", fullPage && "flex min-h-0 flex-1 flex-col")}>
                 {startError ? (
                   <Alert variant="error" className="mb-3">
                     {startError}
@@ -464,8 +512,16 @@ export default function TerminalPage() {
                   </Alert>
                 ) : null}
 
-                <div className="relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]">
-                  <div ref={containerRef} className="h-[60vh] min-h-[320px] w-full" />
+                <div
+                  className={cn(
+                    "relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]",
+                    fullPage && "min-h-0 flex-1",
+                  )}
+                >
+                  <div
+                    ref={containerRef}
+                    className={cn("w-full", fullPage ? "h-full" : "h-[60vh] min-h-[320px]")}
+                  />
                   {overlayVisible ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
                       <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60 text-brand">
@@ -490,7 +546,8 @@ export default function TerminalPage() {
                   ) : null}
                 </div>
               </div>
-            </Card>
+              </Card>
+            </div>
           ) : null}
         </>
       ) : null}

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://clouddeck.dakshraman.in/sitemap.xml
