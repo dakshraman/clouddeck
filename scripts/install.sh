@@ -205,18 +205,31 @@ resolve_latest
 say "   version: $VERSION"
 
 TMP="$(mktemp -d /tmp/clouddeck-install.XXXXXX)" || die "mktemp failed"
-trap 'rm -rf "$TMP"' EXIT INT TERM
+trap 'rm -rf "$TMP"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 mkdir -p "$PREFIX" "$DATADIR" "$ETCDIR"
 
+# A repeat run with the same version refreshes config/services but does not
+# re-download the binaries. The marker is written only after a verified install.
+INSTALLED_VERSION=""
+if [ -f "$PREFIX/.clouddeck-version" ]; then
+  INSTALLED_VERSION="$(cat "$PREFIX/.clouddeck-version" 2>/dev/null || true)"
+fi
+
 # --- agent -------------------------------------------------------------------
 if [ "$DO_AGENT" = "1" ]; then
-  say "-- downloading agent"
-  AGENT_FILE="clouddeck-agent-linux-$ARCH_GO"
-  download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE"
-  install -m 0755 "$TMP/$AGENT_FILE" "$PREFIX/clouddeck-agent.new"
-  mv -f "$PREFIX/clouddeck-agent.new" "$PREFIX/clouddeck-agent"
-  say "   installed $PREFIX/clouddeck-agent"
+  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ -x "$PREFIX/clouddeck-agent" ]; then
+    say "-- agent $VERSION already installed"
+  else
+    say "-- downloading agent"
+    AGENT_FILE="clouddeck-agent-linux-$ARCH_GO"
+    download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE"
+    install -m 0755 "$TMP/$AGENT_FILE" "$PREFIX/clouddeck-agent.new"
+    mv -f "$PREFIX/clouddeck-agent.new" "$PREFIX/clouddeck-agent"
+    say "   installed $PREFIX/clouddeck-agent"
+  fi
 fi
 
 # --- node runtime ------------------------------------------------------------
@@ -233,21 +246,27 @@ if [ "$DO_PANEL" = "1" ] && [ ! -x "$PREFIX/node/bin/node" ]; then
   mkdir -p "$PREFIX/node"
   tar -xzf "$TMP/$NODE_TARBALL" -C "$PREFIX/node" --strip-components=1 \
     || die "failed to extract Node.js"
+fi
+if [ "$DO_PANEL" = "1" ] && [ -d "$PREFIX/node" ]; then
   # tarballs carry the upstream build UID; /opt must stay root-owned
   chown -R 0:0 "$PREFIX/node"
 fi
 
 # --- panel -------------------------------------------------------------------
 if [ "$DO_PANEL" = "1" ]; then
-  say "-- downloading panel"
-  download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
-  mkdir -p "$PREFIX/panel"
-  tar -xzf "$TMP/clouddeck-panel.tar.gz" -C "$PREFIX/panel" || die "failed to extract panel"
-  # the archive records the CI build UID; the panel must be root-owned and only
-  # readable by the unprivileged service user
-  chown -R 0:0 "$PREFIX/panel"
-  chmod -R a+rX "$PREFIX/panel"
-  say "   installed $PREFIX/panel"
+  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ -f "$PREFIX/panel/server.js" ]; then
+    say "-- panel $VERSION already installed"
+  else
+    say "-- downloading panel"
+    download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
+    mkdir -p "$PREFIX/panel"
+    tar -xzf "$TMP/clouddeck-panel.tar.gz" -C "$PREFIX/panel" || die "failed to extract panel"
+    # the archive records the CI build UID; the panel must be root-owned and only
+    # readable by the unprivileged service user
+    chown -R 0:0 "$PREFIX/panel"
+    chmod -R a+rX "$PREFIX/panel"
+    say "   installed $PREFIX/panel"
+  fi
 
   # unprivileged user for the panel
   PANEL_USER=""
@@ -396,6 +415,9 @@ PANEL_USER="$PANEL_USER"
 SETSID=""
 command -v setsid >/dev/null 2>&1 && SETSID=setsid
 
+# re-running the installer should restart, not duplicate, the services
+"$PREFIX/run/stop.sh" >/dev/null 2>&1 || true
+
 if [ -f "$ETCDIR/agent.env" ]; then
   set -a; . "$ETCDIR/agent.env"; set +a
   ( cd "$PREFIX" && \$SETSID sh -c 'echo \$\$ > "\$0"; exec "\$@"' "$PREFIX/run/agent.pid" "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 < /dev/null & )
@@ -462,6 +484,11 @@ if [ "$DO_PANEL" = "1" ]; then
   else
     die "panel did not answer on port $PANEL_PORT - check: journalctl -u clouddeck-panel (or $PREFIX/run/panel.log)"
   fi
+fi
+
+# remember the verified version so a repeat run can skip the downloads
+if [ "$DO_AGENT" = "1" ] || [ "$DO_PANEL" = "1" ]; then
+  printf '%s\n' "$VERSION" > "$PREFIX/.clouddeck-version"
 fi
 
 # WSL exposes services to Windows on localhost, not on the distro's eth0 IP.
