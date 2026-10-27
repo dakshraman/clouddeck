@@ -35,10 +35,17 @@ jobs:
           npm run build
           cp -r .next/static .next/standalone/.next/static
           if [ -d public ]; then cp -r public .next/standalone/public; fi
+          # used by the clouddeck CLI to reset panel passwords
+          mkdir -p .next/standalone/node_modules
+          cp -r node_modules/bcryptjs .next/standalone/node_modules/
+          # never ship a runtime data dir; PANEL_DATA_DIR points at /var/lib
+          rm -rf .next/standalone/data
           tar -czf ../dist/clouddeck-panel.tar.gz -C .next/standalone .
+          cp ../scripts/clouddeck ../dist/clouddeck-cli
+          chmod +x ../dist/clouddeck-cli
 
       - name: Checksums
-        run: cd dist && sha256sum clouddeck-agent-linux-amd64 clouddeck-agent-linux-arm64 clouddeck-panel.tar.gz > SHA256SUMS
+        run: cd dist && sha256sum clouddeck-agent-linux-amd64 clouddeck-agent-linux-arm64 clouddeck-panel.tar.gz clouddeck-cli > SHA256SUMS
 
       - name: Publish release assets
         env:

@@ -11,7 +11,11 @@ Target: a fresh Ubuntu 24.04 VPS with root or sudo. Two components are deployed:
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
-Downloads release artifacts with curl only — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime — so no distro packages are required. Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). The admin account is created in the browser on first visit (first-run setup wizard). Re-running upgrades the binaries and keeps config; `--uninstall` removes binaries (add `--purge` for data too). Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
+Downloads release artifacts with curl — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime. On Debian/Ubuntu it also provisions the host web stack with `apt-get` in the same command: nginx, PHP-FPM + CLI and the common extensions (`php-mysql`, `php-curl`, `php-gd`, `php-mbstring`, `php-xml`, `php-zip`, `php-intl`, `php-bcmath`, `php-opcache`), MariaDB server/client, certbot (webroot mode), git and unzip. It creates `/www/wwwroot`, enables and starts nginx, MariaDB, the installed `php*-fpm` unit(s) and `certbot.timer`, and exposes the pinned Node 22 runtime as `/usr/local/bin/{node,npm,npx}` when those names are not already taken, so hosted Node apps and `npm` work. On hosts without `apt-get` the panel and agent still install, but package provisioning is skipped with a clear warning — install the stack from step 1 manually.
+
+Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). The admin account is created in the browser on first visit (first-run setup wizard). Re-running upgrades the binaries and keeps config; a same-version rerun refreshes config/services without re-downloading, and `--force` re-downloads the binaries. `--uninstall` removes binaries (add `--purge` for data too); distro packages are left in place. Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
+
+The installer adds a `clouddeck` management CLI on `PATH`: `status`, `start|stop|restart [panel|agent]`, `logs [panel|agent] [-f]`, `user list`, `user passwd` (alias `passwd` / `reset-password`), `user add`, `update [version]`, `reinstall`, and `uninstall [--purge]`. Password, user, service-control, update, reinstall and uninstall commands need `sudo`. See the README's "Management (terminal)" section for the everyday command list.
 
 The steps below describe manual/advanced deployments and the Docker topology.
 
@@ -28,14 +32,31 @@ The steps below describe manual/advanced deployments and the Docker topology.
 
 ## 1. Prerequisites
 
+The one-line installer does this on Debian/Ubuntu. The list below is for
+manual/advanced installs — a non-Debian host, or a topology A setup built
+without the installer.
+
 ```bash
 sudo apt-get update
-sudo apt-get install -y nginx certbot curl git
+sudo apt-get install -y nginx certbot curl git unzip
+sudo apt-get install -y php-fpm php-cli php-mysql php-curl php-gd php-mbstring \
+  php-xml php-zip php-intl php-bcmath php-opcache
+sudo apt-get install -y mariadb-server mariadb-client
+sudo mkdir -p /www/wwwroot
+sudo systemctl enable --now nginx mariadb certbot.timer
 ```
 
 - `nginx` — serves your sites (topology A)
-- `certbot` — Let's Encrypt certificates
-- `git` — only for cloning the repo (steps 3 and 6)
+- `php-fpm` + CLI and the extensions above — PHP sites; the agent uses the
+  installed `php*-fpm` unit
+- `mariadb-server` / `mariadb-client` — databases (local and remote MySQL)
+- `certbot` — Let's Encrypt certificates (the agent runs `certonly --webroot`,
+  so the nginx plugin is not required)
+- `curl`, `git`, `unzip` — fetching and unpacking release artifacts; `git` only
+  for cloning the repo (steps 3 and 6)
+- Node 22 — needed for a manual panel build (step 3, option B); the one-line
+  installer already exposes its pinned runtime as `node`/`npm`/`npx` in
+  `/usr/local/bin`
 - Go 1.23+ — optional, only when building the agent from source; the installer
   downloads a release binary when no checkout/toolchain is present
 
@@ -49,7 +70,11 @@ systemctl status nginx --no-pager
 
 CloudDeck detects runtimes from the host `PATH` and from the usual install
 locations (`/usr/local/go/bin`, `/usr/local/bin`, `/usr/bin`), so installing a
-runtime is all it takes to offer it in the panel.
+runtime is all it takes to offer it in the panel. Hosts installed with the
+one-line installer already have Node 22 and npm on `PATH`: it symlinks its
+pinned runtime into `/usr/local/bin` as `node`, `npm` and `npx` (only when those
+names are not already present), so hosted Node apps and `npm` need no extra
+setup.
 
 Apps are supervised by **systemd** by default. To use **PM2** or
 **supervisord** instead, install the supervisor and set the backend in
@@ -378,7 +403,9 @@ server (restic, rclone, scp — scheduled via cron or a systemd timer).
 - **Create the admin account on first visit.** The panel shows a setup wizard
   until the first account exists. With `PANEL_SEED_ADMIN`/`PANEL_SEED_PASSWORD`
   set, that account is pre-created on first start instead (ignored once
-  `users.json` exists).
+  `users.json` exists). Locked out later? `sudo clouddeck user passwd
+  [username]` resets the password from a terminal — it signs out existing
+  sessions and restarts the panel.
 - **Set `PANEL_SESSION_SECRET`** to a long random value (`openssl rand -hex 32`).
   Rotating it invalidates existing sessions.
 - **Keep the agent on `127.0.0.1`.** No authentication exists in v0.1 (mutual

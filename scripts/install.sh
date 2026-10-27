@@ -4,9 +4,10 @@
 #   curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 #
 # Installs the CloudDeck agent (static binary) and panel (Node standalone
-# bundle + pinned Node runtime) with no distro packages required: everything
-# is downloaded with curl and unpacked with tar. Uses systemd when available,
-# otherwise writes start/stop scripts.
+# bundle + pinned Node runtime) plus, on Debian/Ubuntu, the host web stack the
+# panel manages: nginx, PHP-FPM, MariaDB, certbot and Node.js/npm on PATH.
+# Everything else is downloaded with curl and unpacked with tar. Uses systemd
+# when available, otherwise writes start/stop scripts.
 #
 # Flags:
 #   --version vX.Y.Z     release to install (default: latest)
@@ -19,6 +20,7 @@
 #   --no-agent           skip the agent
 #   --no-panel           skip the panel
 #   --no-systemd         force script mode even if systemd is present
+#   --force              re-download binaries even if the version matches
 #   --uninstall          stop and remove binaries + units (keeps data/config)
 #   --purge              with --uninstall: also remove data dir
 #
@@ -38,8 +40,11 @@ GH_TOKEN="${CLOUDDECK_GH_TOKEN:-}"
 DO_AGENT=1
 DO_PANEL=1
 FORCE_NO_SYSTEMD=0
+FORCE=0
 UNINSTALL=0
 PURGE=0
+STACK_PROVISIONED=0
+DB_UNIT="mariadb"
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -58,6 +63,7 @@ while [ $# -gt 0 ]; do
     --no-agent)    DO_AGENT=0; shift ;;
     --no-panel)    DO_PANEL=0; shift ;;
     --no-systemd)  FORCE_NO_SYSTEMD=1; shift ;;
+    --force)       FORCE=1; shift ;;
     --uninstall)   UNINSTALL=1; shift ;;
     --purge)       PURGE=1; shift ;;
     -h|--help)
@@ -77,6 +83,7 @@ Flags:
   --no-agent           skip the agent
   --no-panel           skip the panel
   --no-systemd         force script mode even if systemd is present
+  --force              re-download binaries even if the version matches
   --uninstall          stop and remove binaries + units (keeps data)
   --purge              with --uninstall: remove data + config too
 USAGE
@@ -87,8 +94,14 @@ USAGE
 done
 
 [ "$(id -u)" = "0" ] || die "must run as root:  curl ... | sudo bash"
-command -v curl >/dev/null 2>&1 || die "curl is required to install"
-command -v tar  >/dev/null 2>&1 || die "tar is required to install"
+
+# Generated units/scripts do not quote these paths, so keep them shell-safe.
+for _dir in "$PREFIX" "$DATADIR" "$ETCDIR"; do
+  case "$_dir" in
+    *[[:space:]]*) die "paths must not contain whitespace: $_dir" ;;
+    "") die "paths must not be empty" ;;
+  esac
+done
 
 # --- architecture ------------------------------------------------------------
 MACHINE="$(uname -m)"
@@ -174,6 +187,96 @@ systemd_present() {
   [ "$FORCE_NO_SYSTEMD" = "0" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1
 }
 
+# --- hosting stack -----------------------------------------------------------
+# The panel manages nginx, PHP-FPM, MariaDB and certbot on the host, so install
+# them here instead of leaving the web UI with dead pages. This runs on every
+# install, including same-version reruns; apt-get is idempotent. Non-Debian
+# hosts still get the panel/agent, but must install the stack themselves.
+provision_packages() {
+  if ! command -v apt-get >/dev/null 2>&1; then
+    warn "apt-get not found: install nginx, PHP-FPM, MariaDB and certbot manually"
+    return 0
+  fi
+
+  _pkgs="nginx php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml
+    php-zip php-intl php-bcmath php-opcache git unzip"
+
+  # MariaDB and MySQL server packages conflict: keep whichever is already here.
+  if command -v mysqld >/dev/null 2>&1 \
+      || dpkg -s mysql-server >/dev/null 2>&1 \
+      || dpkg -s mariadb-server >/dev/null 2>&1; then
+    say "-- existing MySQL/MariaDB server detected; leaving it in place"
+    if dpkg -s mysql-server >/dev/null 2>&1 && ! dpkg -s mariadb-server >/dev/null 2>&1; then
+      DB_UNIT="mysql"
+    fi
+    command -v mysql >/dev/null 2>&1 \
+      || warn "mysql client not found: install mysql-client or mariadb-client"
+  else
+    _pkgs="$_pkgs mariadb-server mariadb-client"
+  fi
+
+  # certbot is used with --webroot, so the nginx plugin is not required.
+  if ! command -v certbot >/dev/null 2>&1 && ! dpkg -s certbot >/dev/null 2>&1; then
+    _pkgs="$_pkgs certbot"
+  fi
+
+  # php-opcache is a virtual package on Ubuntu; the module comes from
+  # php<ver>-opcache, so dpkg -s always misses it after a successful install.
+  _wanted=""
+  for _pkg in $_pkgs; do
+    if [ "$_pkg" = "php-opcache" ] && php -m 2>/dev/null | grep -qx 'Zend OPcache'; then
+      continue
+    fi
+    _wanted="$_wanted $_pkg"
+  done
+  _pkgs="$_wanted"
+
+  _missing=""
+  for _pkg in $_pkgs; do
+    dpkg -s "$_pkg" >/dev/null 2>&1 || _missing="$_missing $_pkg"
+  done
+
+  if [ -z "$_missing" ]; then
+    say "-- hosting packages already installed"
+  else
+    say "-- installing hosting packages (nginx, PHP-FPM, database, certbot)"
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+      apt-get update -qq -o DPkg::Lock::Timeout=300 \
+      || warn "apt-get update failed; using the current package lists"
+    # shellcheck disable=SC2086
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+      apt-get install -y -o DPkg::Lock::Timeout=300 \
+        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+        $_missing || die "failed to install hosting packages:$_missing"
+    say "   installed:$_missing"
+  fi
+
+  mkdir -p /www/wwwroot
+  STACK_PROVISIONED=1
+}
+
+start_hosting_services() {
+  if systemd_present; then
+    for _svc in nginx "$DB_UNIT"; do
+      systemctl enable --now "$_svc" >/dev/null 2>&1 \
+        || warn "could not start $_svc (another web server or database may own the port)"
+    done
+    for _unit in $(systemctl list-unit-files --type=service --no-legend 'php*-fpm.service' 2>/dev/null | awk '{print $1}'); do
+      systemctl enable --now "$_unit" >/dev/null 2>&1 || warn "could not start $_unit"
+    done
+    systemctl enable --now certbot.timer >/dev/null 2>&1 || true
+  else
+    for _svc in nginx "$DB_UNIT"; do
+      service "$_svc" start >/dev/null 2>&1 \
+        || warn "could not start $_svc (another web server or database may own the port)"
+    done
+    for _init in /etc/init.d/php*-fpm; do
+      [ -x "$_init" ] || continue
+      "$_init" start >/dev/null 2>&1 || warn "could not start ${_init##*/}"
+    done
+  fi
+}
+
 random_hex() { # random_hex BYTES
   od -An -N "$1" -tx1 /dev/urandom | tr -d ' \n'
 }
@@ -181,7 +284,30 @@ random_hex() { # random_hex BYTES
 # --- uninstall ---------------------------------------------------------------
 if [ "$UNINSTALL" = "1" ]; then
   say "== CloudDeck uninstall =="
-  if systemd_present; then
+  case "$PREFIX" in
+    ""|"/"|"/usr"|"/var"|"/etc"|"/opt"|"/home"|"/root")
+      die "refusing to remove $PREFIX: not a CloudDeck prefix" ;;
+  esac
+  if [ ! -f "$PREFIX/.clouddeck-install" ] && [ ! -x "$PREFIX/clouddeck-agent" ]; then
+    die "no CloudDeck install found at $PREFIX; refusing to remove it"
+  fi
+  # validate every path before deleting anything
+  if [ "$PURGE" = "1" ]; then
+    for _dir in "$DATADIR" "$ETCDIR"; do
+      case "$_dir" in
+        ""|"/"|"/usr"|"/var"|"/etc"|"/opt"|"/home"|"/root")
+          die "refusing to purge $_dir" ;;
+      esac
+    done
+    if [ ! -f "$ETCDIR/panel.env" ] && [ ! -f "$ETCDIR/agent.env" ]; then
+      die "refusing to purge $ETCDIR: no CloudDeck config found there"
+    fi
+    if [ ! -d "$DATADIR/panel" ] && [ ! -d "$DATADIR/agent" ]; then
+      die "refusing to purge $DATADIR: no CloudDeck data found there"
+    fi
+  fi
+  # --no-systemd must not leave enabled units behind
+  if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     systemctl disable --now clouddeck-panel >/dev/null 2>&1 || true
     systemctl disable --now clouddeck-agent >/dev/null 2>&1 || true
     rm -f /etc/systemd/system/clouddeck-agent.service /etc/systemd/system/clouddeck-panel.service
@@ -189,6 +315,14 @@ if [ "$UNINSTALL" = "1" ]; then
   fi
   if [ -x "$PREFIX/run/stop.sh" ]; then "$PREFIX/run/stop.sh" >/dev/null 2>&1 || true; fi
   pkill -f "$PREFIX/clouddeck-agent" 2>/dev/null || true
+  # remove only the links this installer created, never a user's own node/npm
+  for _bin in clouddeck node npm npx; do
+    if [ -L "/usr/local/bin/$_bin" ]; then
+      case "$(readlink "/usr/local/bin/$_bin")" in
+        "$PREFIX"/*) rm -f "/usr/local/bin/$_bin" ;;
+      esac
+    fi
+  done
   rm -rf "$PREFIX"
   if [ "$PURGE" = "1" ]; then
     rm -rf "$DATADIR" "$ETCDIR"
@@ -198,6 +332,9 @@ if [ "$UNINSTALL" = "1" ]; then
   fi
   exit 0
 fi
+
+command -v curl >/dev/null 2>&1 || die "curl is required to install"
+command -v tar  >/dev/null 2>&1 || die "tar is required to install"
 
 say "== CloudDeck installer =="
 say "   arch: $MACHINE    systemd: $(systemd_present && say yes || say no)"
@@ -211,6 +348,11 @@ trap 'exit 143' TERM
 
 mkdir -p "$PREFIX" "$DATADIR" "$ETCDIR"
 
+provision_packages
+if [ "$STACK_PROVISIONED" = "1" ]; then
+  start_hosting_services
+fi
+
 # A repeat run with the same version refreshes config/services but does not
 # re-download the binaries. The marker is written only after a verified install.
 INSTALLED_VERSION=""
@@ -220,7 +362,7 @@ fi
 
 # --- agent -------------------------------------------------------------------
 if [ "$DO_AGENT" = "1" ]; then
-  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ -x "$PREFIX/clouddeck-agent" ]; then
+  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -x "$PREFIX/clouddeck-agent" ]; then
     say "-- agent $VERSION already installed"
   else
     say "-- downloading agent"
@@ -233,7 +375,9 @@ if [ "$DO_AGENT" = "1" ]; then
 fi
 
 # --- node runtime ------------------------------------------------------------
-if [ "$DO_PANEL" = "1" ] && [ ! -x "$PREFIX/node/bin/node" ]; then
+NODE_MARKER="$PREFIX/.clouddeck-node-version"
+NODE_CURRENT="$(cat "$NODE_MARKER" 2>/dev/null || true)"
+if [ "$DO_PANEL" = "1" ] && { [ ! -x "$PREFIX/node/bin/node" ] || [ "$NODE_CURRENT" != "$NODE_VERSION" ] || [ "$FORCE" = "1" ]; }; then
   say "-- downloading Node.js $NODE_VERSION (pinned runtime, no distro packages)"
   NODE_TARBALL="node-v$NODE_VERSION-linux-$ARCH_NODE.tar.gz"
   download "https://nodejs.org/dist/v$NODE_VERSION/$NODE_TARBALL" "$TMP/$NODE_TARBALL"
@@ -243,18 +387,48 @@ if [ "$DO_PANEL" = "1" ] && [ ! -x "$PREFIX/node/bin/node" ]; then
       || die "Node.js checksum verification failed"
     say "   checksum ok"
   fi
-  mkdir -p "$PREFIX/node"
-  tar -xzf "$TMP/$NODE_TARBALL" -C "$PREFIX/node" --strip-components=1 \
+  mkdir -p "$TMP/node"
+  tar -xzf "$TMP/$NODE_TARBALL" -C "$TMP/node" --strip-components=1 \
     || die "failed to extract Node.js"
+  rm -rf "$PREFIX/node"
+  mv "$TMP/node" "$PREFIX/node"
+  printf '%s\n' "$NODE_VERSION" > "$NODE_MARKER"
 fi
 if [ "$DO_PANEL" = "1" ] && [ -d "$PREFIX/node" ]; then
   # tarballs carry the upstream build UID; /opt must stay root-owned
   chown -R 0:0 "$PREFIX/node"
+
+  # expose the pinned runtime so hosted Node apps and npm work out of the box
+  _linked=""
+  for _bin in node npm npx; do
+    _link="/usr/local/bin/$_bin"
+    # replace a dangling link left by an older prefix
+    if [ -L "$_link" ] && [ ! -e "$_link" ]; then rm -f "$_link"; fi
+    if [ -x "$PREFIX/node/bin/$_bin" ] && [ ! -e "$_link" ] && [ ! -L "$_link" ]; then
+      ln -s "$PREFIX/node/bin/$_bin" "$_link"
+      _linked="$_linked $_bin"
+    fi
+  done
+  if [ -n "$_linked" ]; then say "-- node/npm on PATH:$_linked"; fi
+
+  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -x "$PREFIX/bin/clouddeck" ]; then
+    say "-- management CLI already installed"
+  else
+    say "-- installing management CLI"
+    download_asset "clouddeck-cli" "$TMP/clouddeck-cli"
+    mkdir -p "$PREFIX/bin"
+    { printf '#!%s\n' "$PREFIX/node/bin/node"; tail -n +2 "$TMP/clouddeck-cli"; } > "$TMP/clouddeck-cli.inst"
+    install -m 0755 "$TMP/clouddeck-cli.inst" "$PREFIX/bin/clouddeck"
+  fi
+  # repair the PATH link even when the CLI itself was already up to date
+  if [ -x "$PREFIX/bin/clouddeck" ]; then
+    ln -sf "$PREFIX/bin/clouddeck" /usr/local/bin/clouddeck
+  fi
 fi
 
 # --- panel -------------------------------------------------------------------
 if [ "$DO_PANEL" = "1" ]; then
-  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ -f "$PREFIX/panel/server.js" ]; then
+  if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -f "$PREFIX/panel/server.js" ]; then
     say "-- panel $VERSION already installed"
   else
     say "-- downloading panel"
@@ -340,7 +514,44 @@ EOF
   say "-- wrote $ETCDIR/panel.env"
 fi
 
+# The env files are the source of truth on a rerun: a port passed on the
+# command line only applies when the file is first created. Use the effective
+# ports for the marker and the health checks so they cannot disagree.
+EFFECTIVE_AGENT_PORT="$AGENT_PORT"
+EFFECTIVE_PANEL_PORT="$PANEL_PORT"
+if [ -f "$ETCDIR/agent.env" ]; then
+  _p="$(sed -n 's/^AGENT_LISTEN=.*:\([0-9][0-9]*\)$/\1/p' "$ETCDIR/agent.env" | tail -n 1)"
+  [ -n "$_p" ] && EFFECTIVE_AGENT_PORT="$_p"
+fi
+if [ -f "$ETCDIR/panel.env" ]; then
+  _p="$(sed -n 's/^PORT=\([0-9][0-9]*\)$/\1/p' "$ETCDIR/panel.env" | tail -n 1)"
+  [ -n "$_p" ] && EFFECTIVE_PANEL_PORT="$_p"
+fi
+
+# Layout for the management CLI (no secrets).
+cat > "$PREFIX/.clouddeck-install" <<EOF
+PREFIX=$PREFIX
+DATADIR=$DATADIR
+ETCDIR=$ETCDIR
+AGENT_PORT=$EFFECTIVE_AGENT_PORT
+PANEL_PORT=$EFFECTIVE_PANEL_PORT
+REPO=$REPO
+NO_SYSTEMD=$FORCE_NO_SYSTEMD
+DO_AGENT=$DO_AGENT
+DO_PANEL=$DO_PANEL
+EOF
+chmod 0644 "$PREFIX/.clouddeck-install"
+
 # --- service management ------------------------------------------------------
+# Switching modes must not leave the other supervisor running: systemd would
+# fail to bind while the old script-mode process kept answering health checks.
+if ! systemd_present && command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+  systemctl disable --now clouddeck-panel >/dev/null 2>&1 || true
+  systemctl disable --now clouddeck-agent >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/clouddeck-agent.service /etc/systemd/system/clouddeck-panel.service
+  systemctl daemon-reload >/dev/null 2>&1 || true
+fi
+
 WROTE_SYSTEMD=0
 if systemd_present && { [ "$DO_AGENT" = "1" ] || [ "$DO_PANEL" = "1" ]; }; then
   if [ "$DO_AGENT" = "1" ]; then
@@ -381,6 +592,9 @@ WantedBy=multi-user.target
 EOF
   fi
   systemctl daemon-reload
+  # If this host previously ran in script mode, stop those processes first;
+  # otherwise they keep the ports and systemd's fresh copies fail to bind.
+  if [ -x "$PREFIX/run/stop.sh" ]; then "$PREFIX/run/stop.sh" >/dev/null 2>&1 || true; fi
   # enable for boot, then restart: `enable --now` is a no-op for services that
   # are already running, which would leave the old processes serving after an
   # upgrade (new binaries on disk, old version still answering).
@@ -462,13 +676,13 @@ if [ "$DO_AGENT" = "1" ]; then
   say "-- waiting for the agent"
   i=0
   while [ $i -lt 20 ]; do
-    if curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health" >/dev/null 2>&1; then break; fi
+    if curl -fsS "http://127.0.0.1:$EFFECTIVE_AGENT_PORT/v1/health" >/dev/null 2>&1; then break; fi
     i=$((i + 1)); sleep 1
   done
-  if curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health" >/dev/null 2>&1; then
-    say "   agent OK: $(curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health")"
+  if curl -fsS "http://127.0.0.1:$EFFECTIVE_AGENT_PORT/v1/health" >/dev/null 2>&1; then
+    say "   agent OK: $(curl -fsS "http://127.0.0.1:$EFFECTIVE_AGENT_PORT/v1/health")"
   else
-    die "agent did not answer on 127.0.0.1:$AGENT_PORT - check: journalctl -u clouddeck-agent (or $PREFIX/run/agent.log)"
+    die "agent did not answer on 127.0.0.1:$EFFECTIVE_AGENT_PORT - check: journalctl -u clouddeck-agent (or $PREFIX/run/agent.log)"
   fi
 fi
 
@@ -476,13 +690,13 @@ if [ "$DO_PANEL" = "1" ]; then
   say "-- waiting for the panel"
   i=0
   while [ $i -lt 30 ]; do
-    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then break; fi
+    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$EFFECTIVE_PANEL_PORT/" 2>/dev/null; then break; fi
     i=$((i + 1)); sleep 1
   done
-  if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then
-    say "   panel OK (localhost:$PANEL_PORT)"
+  if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$EFFECTIVE_PANEL_PORT/"; then
+    say "   panel OK (localhost:$EFFECTIVE_PANEL_PORT)"
   else
-    die "panel did not answer on port $PANEL_PORT - check: journalctl -u clouddeck-panel (or $PREFIX/run/panel.log)"
+    die "panel did not answer on port $EFFECTIVE_PANEL_PORT - check: journalctl -u clouddeck-panel (or $PREFIX/run/panel.log)"
   fi
 fi
 
@@ -493,11 +707,11 @@ fi
 
 # WSL exposes services to Windows on localhost, not on the distro's eth0 IP.
 if [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft /proc/version 2>/dev/null; then
-  PANEL_URL="http://localhost:$PANEL_PORT"
+  PANEL_URL="http://localhost:$EFFECTIVE_PANEL_PORT"
 else
   IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
   [ -n "$IP" ] || IP="<server-ip>"
-  PANEL_URL="http://$IP:$PANEL_PORT"
+  PANEL_URL="http://$IP:$EFFECTIVE_PANEL_PORT"
 fi
 
 say ""
@@ -507,14 +721,24 @@ if [ "$DO_PANEL" = "1" ]; then
   say "  Setup:     open the panel URL to create your admin account"
 fi
 if [ "$DO_AGENT" = "1" ]; then
-  say "  Agent API: http://127.0.0.1:$AGENT_PORT/v1/health (localhost only)"
+  say "  Agent API: http://127.0.0.1:$EFFECTIVE_AGENT_PORT/v1/health (localhost only)"
 fi
 say "  Config:    $ETCDIR/agent.env, $ETCDIR/panel.env"
 say "  Data:      $DATADIR"
-if systemd_present; then
+if [ "$STACK_PROVISIONED" = "1" ]; then
+  say "  Stack:     nginx, PHP-FPM, MariaDB, certbot, Node.js/npm"
+fi
+if [ "$DO_PANEL" = "1" ]; then
+  say "  Manage:    clouddeck {status,restart,logs,update,uninstall}"
+  say "  Password:  sudo clouddeck user passwd   (after setup)"
+elif systemd_present; then
   say "  Manage:    systemctl {status,restart} clouddeck-agent clouddeck-panel"
 else
   say "  Manage:    $PREFIX/run/start.sh | $PREFIX/run/stop.sh"
 fi
 say "====================================================="
-say "Tip: for sites, install nginx + PHP-FPM (or point the agent at an existing stack via agent.env)."
+if [ "$STACK_PROVISIONED" = "1" ]; then
+  say "Hosting stack ready: nginx on port 80, PHP-FPM and MariaDB are enabled."
+else
+  say "Tip: for sites, install nginx + PHP-FPM (or point the agent at an existing stack via agent.env)."
+fi

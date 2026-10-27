@@ -19,10 +19,24 @@ CloudDeck lets you manage websites, SSL certificates, and server services from a
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
-Installs the agent (static binary) and panel (self-contained bundle, no distro packages needed: everything is fetched with `curl` and unpacked with `tar`). Works on x86_64 and aarch64, with systemd or plain init fallback. Ends by printing the panel URL; the admin account is created in the browser on first visit (first-run setup wizard).
+Installs the agent (static binary) and panel (self-contained bundle). On Debian/Ubuntu the same command provisions the host web stack with `apt-get`: nginx, PHP-FPM + common extensions (and CLI), MariaDB server/client, certbot (webroot mode), git and unzip; it creates `/www/wwwroot`, enables and starts those services, and exposes the installer's pinned Node 22 as `node`/`npm`/`npx` on `PATH` when those names are free. On other distros the panel and agent still install, but the stack must be installed manually — the installer warns about this. Works on x86_64 and aarch64, with systemd or plain init fallback. Ends by printing the panel URL; the admin account is created in the browser on first visit (first-run setup wizard).
 
-- Flags: `--version vX.Y.Z`, `--prefix`, `--panel-port`, `--agent-port`, `--no-panel`, `--no-agent`, `--uninstall`, `--purge` → `curl ... | sudo bash -s -- --help`
+- Flags: `--version vX.Y.Z`, `--prefix`, `--panel-port`, `--agent-port`, `--no-panel`, `--no-agent`, `--force`, `--uninstall`, `--purge` → `curl ... | sudo bash -s -- --help`
 - Private repo: add `-H "Authorization: token <gh-token>"` to the curl and pass `--gh-token <gh-token>` to the installer.
+
+### Management (terminal)
+
+The installer also puts a `clouddeck` CLI on your `PATH`. Commands that change system state (services, users/passwords, updates, uninstall) need `sudo`.
+
+```bash
+clouddeck status                    # panel/agent state and versions
+sudo clouddeck restart              # both services (or: restart panel / restart agent)
+clouddeck logs panel -f             # follow logs (agent: logs agent)
+sudo clouddeck user passwd          # reset a panel password; signs out sessions
+sudo clouddeck update               # upgrade to the latest release
+sudo clouddeck reinstall            # force re-download of the current version
+sudo clouddeck uninstall --purge    # remove CloudDeck and all data
+```
 
 ## Quickstart (Docker)
 
@@ -110,12 +124,13 @@ Makefile            developer entry points
 
 ## Status
 
-Current release (`v0.6.1`): **application runtimes + supervision, firewall, security surface, and a real Settings page**.
+Current release (`v0.6.5`): **one-command host stack provisioning and a `clouddeck` management CLI, on top of application runtimes, firewall, security surface, and a real Settings page**.
 
 - **v0.5.x foundation** — one-command installer, first-run setup wizard, sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring/restarts, PowerDNS, backups, mail (quotas, forwarders, autoresponders, DKIM), site operations (subdomains, redirects, cron, PHP switching, IP blocker, stats, logs), scheduled backups, FTP accounts, web terminal, SSH keys, file actions, per-site WAF, remote MySQL and phpMyAdmin.
 - **v0.5.2 UI pass** — every page rebuilt on shadcn/ui with Animate UI transitions, cPanel-style site tabs, and a dark-first layout.
 - **v0.6.0** — host **Node.js, Python, Go, Ruby and custom** apps as first-class workloads: runtime detection (with version pickers), one supervised process per app, automatic local port allocation, and an nginx reverse proxy in the site's vhost (a single app owns `/`, several apps get `/<name>/` prefixes). Supervision runs on **systemd** by default, with **PM2** and **supervisord** selectable via `AGENT_APP_SUPERVISOR`; start/stop/restart, live logs and auto-restart are managed from the new **Applications** page and each site's Applications tab. Also new: **host firewall** management (ufw/firewalld rules, enable/disable, audit trail) and a **Security** page covering ModSecurity/OWASP CRS detection, fail2ban jails (enable/disable, unban) and SSH hardening checks.
 - **v0.6.1** — proper **Settings** page: account profile and contact email, password change with current-password verification, reduced-motion preference, live server/agent details, session policy, sign out, and a GitHub release checker with the one-command update path.
+- **v0.6.5** — one-command host stack provisioning (nginx, PHP-FPM, MariaDB, certbot, Node/npm) and a `clouddeck` management CLI for status, restarts, updates/reinstalls, uninstall and terminal password recovery.
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
