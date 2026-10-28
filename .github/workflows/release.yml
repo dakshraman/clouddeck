@@ -2,7 +2,9 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,6 +14,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Channel policy:
+      # - push of a v* tag          -> publish that version as a stable release
+      # - push to main, new version -> tag it and let the tag run publish (skip here)
+      # - push to main, same version -> refresh the rolling "dev" pre-release
+      - name: Decide release channel
+        id: channel
+        run: |
+          VERSION=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' agent/internal/server/server.go)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/v$VERSION"; then
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          else
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "bumped=v$VERSION" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-go@v5
         with:
@@ -51,5 +72,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" dist/* scripts/install.sh --clobber
+          TAG="${{ steps.channel.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            echo "version bumped to ${{ steps.channel.outputs.bumped }}; the tag push publishes the stable release"
+            exit 0
+          fi
+          if [ "$TAG" = "dev" ]; then
+            gh release view dev >/dev/null 2>&1 || \
+              gh release create dev --title "Dev build" --prerelease --target "$GITHUB_SHA" \
+                --notes "Rolling pre-release built from main. Installs that use releases/latest ignore this one."
+            git tag -f dev "$GITHUB_SHA" && git push -f origin dev
+          else
+            gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" dist/* scripts/install.sh --clobber

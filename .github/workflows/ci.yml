@@ -39,6 +39,12 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Panel version matches agent
+        run: |
+          agent_v=$(grep -oP '(?<=const Version = ")[^"]+' ../agent/internal/server/server.go)
+          [ "$(node -p "require('./package.json').version")" = "$agent_v" ]
       - name: Typecheck
         run: npm run typecheck
+      - name: Build
+        run: npm run build
