@@ -4,7 +4,7 @@
 
 [Website](https://clouddeck.dakshraman.in) · [Docs](docs/) · [API reference](docs/api.md) · [Deployment guide](docs/deployment.md) · [Roadmap](docs/roadmap.md)
 
-![Version](https://img.shields.io/badge/version-0.6.5-1cc8e8?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.6.7-1cc8e8?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square)
 ![Panel](https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square)
 ![Agent](https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square)
@@ -421,12 +421,14 @@ CI runs the agent build/vet/test and the panel typecheck. See `.github/workflows
 
 ## Status
 
-Current version: **v0.6.5** — one-command host stack provisioning and a `clouddeck` management CLI, on top of application runtimes, firewall, security surface, and a full Settings page.
+Current version: **v0.6.7** — process kill and server reboot from the panel, terminal full-page mode, and CI/CD that builds and publishes releases on every commit.
 
 - **v0.5.x** — sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring, PowerDNS, backups, mail, site operations, scheduled backups, FTP, web terminal, SSH keys, per-site WAF, remote MySQL, phpMyAdmin.
 - **v0.6.0** — Node/Python/Go/Ruby/custom app hosting, supervisor backends, host firewall, Security page.
 - **v0.6.1** — Settings: profile, password change, reduced motion, server/agent details, session policy, release checker.
 - **v0.6.5** — one-command stack provisioning and the `clouddeck` CLI.
+- **v0.6.6** — process kill button (SIGTERM → SIGKILL, audited), terminal full-page mode, CI/CD auto-publishing releases.
+- **v0.6.7** — server reboot button from the panel (audited, dry-run protected).
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
