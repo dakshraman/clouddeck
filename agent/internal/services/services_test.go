@@ -128,12 +128,19 @@ func TestRestartDryRun(t *testing.T) {
 	}
 }
 
+// Unconfigured restarts default to systemctl; without a systemctl binary on
+// PATH (empty PATH) the restart fails closed with 502 instead of 412.
 func TestRestartNotConfigured(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PATH manipulation requires a POSIX shell")
+	}
+	dir := t.TempDir()
+	t.Setenv("PATH", dir)
 	for _, name := range []string{NameNginx, NameMySQL, NamePHPFpm} {
 		t.Run(name, func(t *testing.T) {
 			mgr, _ := newTestManager(t, config.Config{})
 			_, err := mgr.Restart(context.Background(), name)
-			assertAPIErr(t, err, 412, "restart_not_configured")
+			assertAPIErr(t, err, 502, "service_restart_failed")
 		})
 	}
 }

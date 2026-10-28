@@ -132,9 +132,10 @@ func (m *Manager) List(ctx context.Context) []Status {
 	return statuses
 }
 
-// Restart runs the configured restart command for name and returns the
-// freshly probed status. Errors: 404 unknown_service, 409 dry_run,
-// 412 restart_not_configured, 502 service_restart_failed.
+// Restart runs the restart command for name and returns the freshly probed
+// status. Commands come from AGENT_*_RESTART_CMD; unconfigured services
+// default to `systemctl restart <unit>`. Errors: 404 unknown_service,
+// 409 dry_run, 502 service_restart_failed.
 func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -147,9 +148,9 @@ func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.Conflict("dry_run", "service restarts are disabled in dry-run mode")
 	}
 	command := strings.TrimSpace(spec.command(m.cfg))
-	if command == "" {
-		return Status{}, apierr.New(412, "restart_not_configured",
-			fmt.Sprintf("no restart command is configured for service %q", name))
+	usedDefault := command == ""
+	if usedDefault {
+		command = defaultRestartCommand(name)
 	}
 
 	if err := m.audit.Append(audit.Record{
@@ -160,9 +161,39 @@ func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
 	if err := runRestart(ctx, name, command); err != nil {
+		// `systemctl restart mysql` fails with "not found" on hosts that only
+		// ship the mariadb unit name; retry once with the alias.
+		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+			if err := runRestart(ctx, name, "systemctl restart mariadb"); err == nil {
+				return probe(ctx, spec), nil
+			}
+		}
 		return Status{}, err
 	}
 	return probe(ctx, spec), nil
+}
+
+// defaultRestartCommand is used when the operator did not configure
+// AGENT_*_RESTART_CMD: restart through the service's systemd unit. For
+// PHP-FPM the distro unit is versioned (php8.3-fpm), so discover it from
+// systemd before falling back to the plain name.
+func defaultRestartCommand(name string) string {
+	switch name {
+	case NameNginx:
+		return "systemctl restart nginx"
+	case NameMySQL:
+		return "systemctl restart mysql"
+	case NamePHPFpm:
+		if out, err := exec.Command("systemctl", "list-unit-files", "--type=service",
+			"--no-legend", "php*-fpm*.service").Output(); err == nil {
+			first := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
+			if fields := strings.Fields(first); len(fields) > 0 {
+				return "systemctl restart " + strings.TrimSuffix(fields[0], ".service")
+			}
+		}
+		return "systemctl restart php-fpm"
+	}
+	return ""
 }
 
 // runRestart executes command's argv with restartTimeout. A missing binary,
