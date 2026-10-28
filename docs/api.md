@@ -389,7 +389,10 @@ New in v0.6: application runtimes, supervised app processes behind nginx, the ho
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
-| `GET /v1/runtimes` | — | `200 {runtimes:[{kind,label,description,defaultPort?,versions:[{kind,label,version,bin?,default?}],available}],supervisor:{backend,note}}` — `kind` is `static`, `php`, `node`, `python`, `go`, `ruby` or `custom`; detection looks at well-known install paths plus `PATH` | — |
+| `GET /v1/runtimes` | — | `200 {runtimes:[{kind,label,description,defaultPort?,versions:[{kind,label,version,bin?,default?}],available}],installable:{node:[majors],php:[versions]},supervisor:{backend,note}}` — `kind` is `static`, `php`, `node`, `python`, `go`, `ruby` or `custom`; detection looks at well-known install paths plus `PATH`; `installable` lists the curated versions one-click install offers | — |
+| `POST /v1/runtimes/install` | `{kind,version}` — `kind` is `node` (major like `22`) or `php` (like `8.2`); runs as a background task, task type `runtime.install` | `202 {task}` — poll `GET /v1/tasks/{id}` | `400 invalid_kind`/`invalid_version`, `409 dry_run`/`already_installed`, `502 install_failed` |
+
+`installable` covers node `20`/`22`/`24` (official nodejs.org tarball, sha256-verified, installed under `/opt/nodejs/v<version>`) and php `8.1`–`8.4` (apt + ondrej PPA when the base repositories don't carry it). Installs land in directories the detector already scans, so they appear in `GET /v1/runtimes` and the site form pickers without further setup.
 
 `supervisor.backend` is the configured process manager (`systemd`, `pm2` or `supervisor`).
 
@@ -549,6 +552,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/sites/{domain}/files/compress` | `{paths,format,target}` |
 | POST | `/api/sites/{domain}/files/extract` | `{archive,dest}` |
 | GET | `/api/runtimes` | passthrough `/v1/runtimes` |
+| POST | `/api/runtimes/install` | passthrough `/v1/runtimes/install` (202 `{task}`) |
 | GET | `/api/apps` | `?site=` → `{apps:[...]}` (proxied) |
 | POST | `/api/apps` | `{site,name,kind,command,…}` → `201 app` |
 | GET/PUT/DELETE | `/api/sites/{domain}/apps/{name}` | read / update / delete |
@@ -622,6 +626,8 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_SSH_CONFIG` | `/etc/ssh/sshd_config` (read for the Port) |
 | `AGENT_SSH_KEYGEN_BIN` | `ssh-keygen` |
 | `AGENT_CHPASSWD_BIN` | `chpasswd` (unix login password helper; stdin-only) |
+| `AGENT_NODE_INSTALL_CMD` | empty (built-in nodejs.org tarball flow; custom command gets the major appended as its last argument) |
+| `AGENT_PHP_INSTALL_CMD` | empty (built-in apt/ondrej flow; custom command gets the version appended as its last argument) |
 | `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |

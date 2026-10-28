@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { RuntimesCard } from "@/components/sites/runtimes-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
@@ -249,6 +250,8 @@ export default function SitesPage() {
           </div>
         </Card>
       ) : null}
+
+      <RuntimesCard />
     </>
   );
 }

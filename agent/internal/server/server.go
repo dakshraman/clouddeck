@@ -200,6 +200,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 
 	// v0.6 — application runtimes, app workloads and firewall
 	mux.HandleFunc("GET /v1/runtimes", s.handleListRuntimes)
+	mux.HandleFunc("POST /v1/runtimes/install", s.handleRuntimeInstall)
 	mux.HandleFunc("GET /v1/apps", s.handleListApps)
 	mux.HandleFunc("POST /v1/apps", s.handleCreateApp)
 	mux.HandleFunc("GET /v1/sites/{domain}/apps", s.handleListApps)

@@ -25,6 +25,12 @@ type Logger = func(level, message string)
 // Run executes name with args, streaming stdout and stderr into log. In
 // dry-run mode nothing is executed and the command is only logged.
 func Run(ctx context.Context, dryRun bool, log Logger, name string, args ...string) error {
+	return RunTimeout(ctx, dryRun, log, timeout, name, args...)
+}
+
+// RunTimeout is Run with an explicit per-command timeout (package installs
+// and downloads can legitimately run longer than the default).
+func RunTimeout(ctx context.Context, dryRun bool, log Logger, commandTimeout time.Duration, name string, args ...string) error {
 	command := formatCommand(name, args)
 	if dryRun {
 		log("info", "dry-run: would run: "+command)
@@ -36,7 +42,7 @@ func Run(ctx context.Context, dryRun bool, log Logger, name string, args ...stri
 	}
 	log("info", "exec: "+command)
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, path, args...)
@@ -52,7 +58,7 @@ func Run(ctx context.Context, dryRun bool, log Logger, name string, args ...stri
 		return nil
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("command %s timed out after %s", command, timeout)
+		return fmt.Errorf("command %s timed out after %s", command, commandTimeout)
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {
 		return fmt.Errorf("command %s canceled", command)

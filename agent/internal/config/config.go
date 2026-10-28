@@ -82,6 +82,11 @@ type Config struct {
 	SSHKeygenBin string // AGENT_SSH_KEYGEN_BIN
 	ChpasswdBin  string // AGENT_CHPASSWD_BIN (login password helper, default chpasswd)
 
+	// Runtime install overrides (empty = built-in flow); the exact version
+	// is appended as the last argument.
+	NodeInstallCmd string // AGENT_NODE_INSTALL_CMD
+	PHPInstallCmd  string // AGENT_PHP_INSTALL_CMD
+
 	// v0.5 phpMyAdmin + WAF
 	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
 	NginxBin      string // AGENT_NGINX_BIN (used for -V module detection)
@@ -164,6 +169,8 @@ func Load() (Config, error) {
 	cfg.SSHConfig = env("AGENT_SSH_CONFIG", "/etc/ssh/sshd_config")
 	cfg.SSHKeygenBin = env("AGENT_SSH_KEYGEN_BIN", "ssh-keygen")
 	cfg.ChpasswdBin = env("AGENT_CHPASSWD_BIN", "chpasswd")
+	cfg.NodeInstallCmd = env("AGENT_NODE_INSTALL_CMD", "")
+	cfg.PHPInstallCmd = env("AGENT_PHP_INSTALL_CMD", "")
 
 	// v0.5 phpMyAdmin + WAF
 	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")

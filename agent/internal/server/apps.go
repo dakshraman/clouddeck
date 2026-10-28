@@ -3,13 +3,17 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	stdlog "log"
 	"net/http"
 	"strconv"
 
+	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
 	"clouddeck/agent/internal/runtimes"
 	"clouddeck/agent/internal/store"
+	"clouddeck/agent/internal/tasks"
 )
 
 // stdLogger adapts the agent's stdlib logger to the safeexec logger shape.
@@ -21,12 +25,45 @@ func stdLogger() func(level, message string) {
 
 func (s *Server) handleListRuntimes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"runtimes": runtimes.Detect(),
+		"runtimes":    runtimes.Detect(),
+		"installable": runtimes.Installable(),
 		"supervisor": map[string]any{
 			"backend": s.cfg.AppSupervisor,
 			"note":    supervisorNote(s.cfg.AppSupervisor),
 		},
 	})
+}
+
+// handleRuntimeInstall starts a background task installing one runtime
+// version. Errors: 400 invalid_kind/invalid_version, 409 dry_run.
+func (s *Server) handleRuntimeInstall(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Kind    string `json:"kind"`
+		Version string `json:"version"`
+	}
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+	installer := runtimes.NewInstaller(s.cfg, s.audit)
+	if err := installer.Validate(req.Kind, req.Version); err != nil {
+		writeError(w, err)
+		return
+	}
+	if installer.Installed(req.Kind, req.Version) {
+		writeError(w, apierr.Conflict("already_installed",
+			fmt.Sprintf("%s %s is already installed", req.Kind, req.Version)))
+		return
+	}
+	kind, version := req.Kind, req.Version
+	task, err := s.eng.Create("runtime.install", "", func(ctx context.Context, log tasks.LogFunc) error {
+		return installer.Install(ctx, log, kind, version)
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"task": task})
 }
 
 func supervisorNote(backend string) string {
