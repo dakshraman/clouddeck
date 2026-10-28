@@ -281,11 +281,25 @@ func (s *Service) reload(ctx context.Context, log tasks.LogFunc) error {
 	if managed {
 		before = nginxWorkerPIDs(ctx)
 	}
-	err := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "reload", "nginx")
-	if err != nil {
-		log("warn", fmt.Sprintf("systemctl reload nginx failed (%v), trying nginx -s reload", err))
+	reloadErr := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "reload", "nginx")
+	if reloadErr != nil {
+		log("warn", fmt.Sprintf("systemctl reload nginx failed (%v), trying nginx -s reload", reloadErr))
 		if err := safeexec.Run(ctx, s.cfg.DryRun, log, "nginx", "-s", "reload"); err != nil {
-			return fmt.Errorf("reload nginx: %w", err)
+			// Both reload paths need a live master. If nginx is not running
+			// (freshly provisioned host or stopped unit) start it so the
+			// validated config becomes active instead of failing the site
+			// operation; unknown failures keep failing loudly.
+			if !nginxNotRunning(reloadErr) && !nginxNotRunning(err) {
+				return fmt.Errorf("reload nginx: %w", err)
+			}
+			log("warn", "nginx is not running; starting it to apply the configuration")
+			if startErr := safeexec.Run(ctx, s.cfg.DryRun, log, "systemctl", "start", "nginx"); startErr != nil {
+				name, args := restartCommand(s.cfg.NginxRestartCmd)
+				if err := safeexec.Run(ctx, s.cfg.DryRun, log, name, args...); err != nil {
+					return fmt.Errorf("reload nginx: %w (start nginx also failed: %v)", err, startErr)
+				}
+			}
+			return nil
 		}
 	}
 	if !managed {
@@ -323,6 +337,15 @@ func restartCommand(configured string) (string, []string) {
 		return "systemctl", []string{"restart", "nginx"}
 	}
 	return fields[0], fields[1:]
+}
+
+// nginxNotRunning reports whether err is systemd's "unit is not active"
+// response or nginx's empty-PID-file signal error - the two ways a reload
+// says there is no running master to signal.
+func nginxNotRunning(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "is not active") ||
+		strings.Contains(msg, "invalid PID number")
 }
 
 // nginxWorkerPIDs returns the PIDs of the current nginx worker processes,
