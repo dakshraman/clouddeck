@@ -460,92 +460,98 @@ export default function TerminalPage() {
                   fullPage && "mt-0 flex min-h-0 flex-1 flex-col rounded-none border-0 shadow-none",
                 )}
               >
-              <CardHeader className="shrink-0">
-                <div>
-                  <CardTitle>Shell</CardTitle>
-                  <CardDescription>
-                    {phase === "running"
-                      ? "Interactive session - type commands below."
-                      : phase === "ended"
-                        ? "The shell exited. Start a new session to keep going."
-                        : "Start a session to open a shell inside the panel."}
-                  </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  {phase === "ended" ? (
-                    <Button size="sm" onClick={startNewSession}>
-                      <Play size={13} aria-hidden="true" />
-                      Start new session
-                    </Button>
-                  ) : null}
-                  {fullPageAvailable ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void toggleFullPage()}
-                      aria-pressed={fullPage}
-                    >
-                      {fullPage ? (
-                        <Minimize2 size={13} aria-hidden="true" />
-                      ) : (
-                        <Maximize2 size={13} aria-hidden="true" />
-                      )}
-                      {fullPage ? "Exit full page" : "Full page"}
-                    </Button>
-                  ) : null}
-                </div>
-              </CardHeader>
-              <div className={cn("px-5 pb-5 pt-4", fullPage && "flex min-h-0 flex-1 flex-col")}>
-                {startError ? (
-                  <Alert variant="error" className="mb-3">
-                    {startError}
-                  </Alert>
-                ) : null}
-                {streamNotice ? (
-                  <Alert variant="warning" className="mb-3">
-                    {streamNotice}
-                  </Alert>
-                ) : null}
-                {phase === "ended" ? (
-                  <Alert variant="info" className="mb-3">
-                    The shell session ended. Its output is kept above for reference.
-                  </Alert>
-                ) : null}
-
-                <div
-                  className={cn(
-                    "relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]",
-                    fullPage && "min-h-0 flex-1",
-                  )}
-                >
-                  <div
-                    ref={containerRef}
-                    className={cn("w-full", fullPage ? "h-full" : "h-[60vh] min-h-[320px]")}
-                  />
-                  {overlayVisible ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60 text-brand">
-                        <TerminalIcon size={22} aria-hidden="true" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Open a shell on this server</p>
-                        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                          The session runs as {status.user || "—"} with {status.shell || "—"}. Closing this
-                          page ends it.
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => void startSession()}
-                        loading={phase === "starting"}
-                        size="md"
-                      >
-                        {phase === "starting" ? null : <Play size={14} aria-hidden="true" />}
-                        {phase === "starting" ? "Starting…" : "Start session"}
+                <CardHeader className="shrink-0">
+                  <div>
+                    <CardTitle>Shell</CardTitle>
+                    <CardDescription>
+                      {phase === "running"
+                        ? "Interactive session - type commands below."
+                        : phase === "ended"
+                          ? "The shell exited. Start a new session to keep going."
+                          : "Start a session to open a shell inside the panel."}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {phase === "running" ? (
+                      <Button variant="secondary" size="sm" onClick={() => stopSession(true)}>
+                        <Square size={13} aria-hidden="true" />
+                        End session
                       </Button>
-                    </div>
+                    ) : null}
+                    {phase === "ended" ? (
+                      <Button size="sm" onClick={startNewSession}>
+                        <Play size={13} aria-hidden="true" />
+                        Start new session
+                      </Button>
+                    ) : null}
+                    {fullPageAvailable ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void toggleFullPage()}
+                        aria-pressed={fullPage}
+                      >
+                        {fullPage ? (
+                          <Minimize2 size={13} aria-hidden="true" />
+                        ) : (
+                          <Maximize2 size={13} aria-hidden="true" />
+                        )}
+                        {fullPage ? "Exit full page" : "Full page"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardHeader>
+                <div className={cn("px-5 pb-5 pt-4", fullPage && "flex min-h-0 flex-1 flex-col")}>
+                  {startError ? (
+                    <Alert variant="error" className="mb-3">
+                      {startError}
+                    </Alert>
                   ) : null}
+                  {streamNotice ? (
+                    <Alert variant="warning" className="mb-3">
+                      {streamNotice}
+                    </Alert>
+                  ) : null}
+                  {phase === "ended" ? (
+                    <Alert variant="info" className="mb-3">
+                      The shell session ended. Its output is kept above for reference.
+                    </Alert>
+                  ) : null}
+  
+                  <div
+                    className={cn(
+                      "relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]",
+                      fullPage && "min-h-0 flex-1",
+                    )}
+                  >
+                    <div
+                      ref={containerRef}
+                      className={cn("w-full", fullPage ? "h-full" : "h-[60vh] min-h-[320px]")}
+                    />
+                    {overlayVisible ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60 text-brand">
+                          <TerminalIcon size={22} aria-hidden="true" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Open a shell on this server</p>
+                          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                            The session runs as {status.user || "—"} with {status.shell || "—"}. Closing this
+                            page ends it.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => void startSession()}
+                          loading={phase === "starting"}
+                          size="md"
+                        >
+                          {phase === "starting" ? null : <Play size={14} aria-hidden="true" />}
+                          {phase === "starting" ? "Starting…" : "Start session"}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
               </Card>
             </div>
           ) : null}
