@@ -17,21 +17,26 @@ jobs:
 
       # Channel policy:
       # - push of a v* tag          -> publish that version as a stable release
-      # - push to main, new version -> tag it and let the tag run publish (skip here)
+      # - push to main, new version -> tag it and publish the stable release in
+      #   this run (a GITHUB_TOKEN tag push does not trigger workflows)
       # - push to main, same version -> refresh the rolling "dev" pre-release
       - name: Decide release channel
         id: channel
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' agent/internal/server/server.go)
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-          elif git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/v$VERSION"; then
+          elif gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "tag=dev" >> "$GITHUB_OUTPUT"
           else
-            git tag "v$VERSION"
+            # A tag pushed with github.token does not trigger workflows, so
+            # this run publishes the stable release itself.
+            git push origin ":refs/tags/v$VERSION" 2>/dev/null || true
+            git tag -f "v$VERSION"
             git push origin "v$VERSION"
-            echo "tag=" >> "$GITHUB_OUTPUT"
-            echo "bumped=v$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-go@v5
@@ -73,10 +78,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.channel.outputs.tag }}"
-          if [ -z "$TAG" ]; then
-            echo "version bumped to ${{ steps.channel.outputs.bumped }}; the tag push publishes the stable release"
-            exit 0
-          fi
           if [ "$TAG" = "dev" ]; then
             gh release view dev >/dev/null 2>&1 || \
               gh release create dev --title "Dev build" --prerelease --target "$GITHUB_SHA" \
