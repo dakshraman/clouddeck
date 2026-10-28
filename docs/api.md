@@ -337,6 +337,7 @@ Manages `AGENT_SSH_KEYS_FILE` (authorized_keys) and generated keypairs under `AG
 | `POST /v1/ssh/keys/generated` | `{name,type,comment?}` — `type` `"ed25519"` or `"rsa"` | `201 {key:{…,privateKey}}` (private material returned once, download from the panel) | `400 invalid_name`/`invalid_key_type`, `409 key_exists`, `409 dry_run` |
 | `GET /v1/ssh/keys/generated/{name}` | — | `200 {key:{…,privateKey}}` | `404 key_not_found` |
 | `DELETE /v1/ssh/keys/generated/{name}` | — | `200 {keys:[...]}` | `404 key_not_found`, `409 dry_run` |
+| `POST /v1/ssh/password` | `{user,password}` — changes the unix login password via `AGENT_CHPASSWD_BIN`; password is fed to the helper's stdin only, never audited | `200 {updated:true}` | `400 invalid_username`/`invalid_password`, `409 dry_run`, `502 password_change_failed` |
 
 Audit actions: `ssh.key.add`, `ssh.key.delete`, `ssh.keygen.create`, `ssh.keygen.delete`.
 
@@ -536,6 +537,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | DELETE | `/api/ssh/keys` | `?fingerprint=` |
 | GET/POST | `/api/ssh/keys/generated` | list / `{name,type,comment?}` |
 | GET/DELETE | `/api/ssh/keys/generated/{name}` | read (incl. private) / delete |
+| POST | `/api/ssh/password` | `{user,password}` → `/v1/ssh/password` |
 | GET | `/api/phpmyadmin/status` | passthrough `/v1/phpmyadmin/status` |
 | GET | `/api/phpmyadmin/login` | authenticate via the agent, set phpMyAdmin cookies, redirect to the discovered phpMyAdmin URL |
 | GET | `/api/mysql/remote` | list remote hosts |
@@ -619,6 +621,7 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_SSH_KEY_DIR` | `/root/.ssh/clouddeck-keys` |
 | `AGENT_SSH_CONFIG` | `/etc/ssh/sshd_config` (read for the Port) |
 | `AGENT_SSH_KEYGEN_BIN` | `ssh-keygen` |
+| `AGENT_CHPASSWD_BIN` | `chpasswd` (unix login password helper; stdin-only) |
 | `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |

@@ -80,6 +80,7 @@ type Config struct {
 	SSHKeyDir    string // AGENT_SSH_KEY_DIR (generated keypairs)
 	SSHConfig    string // AGENT_SSH_CONFIG (sshd_config, for the Port)
 	SSHKeygenBin string // AGENT_SSH_KEYGEN_BIN
+	ChpasswdBin  string // AGENT_CHPASSWD_BIN (login password helper, default chpasswd)
 
 	// v0.5 phpMyAdmin + WAF
 	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
@@ -162,6 +163,7 @@ func Load() (Config, error) {
 	cfg.SSHKeyDir = env("AGENT_SSH_KEY_DIR", "/root/.ssh/clouddeck-keys")
 	cfg.SSHConfig = env("AGENT_SSH_CONFIG", "/etc/ssh/sshd_config")
 	cfg.SSHKeygenBin = env("AGENT_SSH_KEYGEN_BIN", "ssh-keygen")
+	cfg.ChpasswdBin = env("AGENT_CHPASSWD_BIN", "chpasswd")
 
 	// v0.5 phpMyAdmin + WAF
 	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")

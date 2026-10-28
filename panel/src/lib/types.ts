@@ -495,6 +495,9 @@ export interface SshStatusResponse {
   port: number;
   hostname: string;
 }
+export interface SshPasswordResponse {
+  updated: boolean;
+}
 export interface SshGeneratedKey {
   name: string;
   type: string;

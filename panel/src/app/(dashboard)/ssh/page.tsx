@@ -6,6 +6,7 @@ import type {
   SshGeneratedKeysResponse,
   SshKey,
   SshKeysResponse,
+  SshPasswordResponse,
   SshStatusResponse,
 } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
@@ -76,6 +77,35 @@ export default function SshPage() {
   const [genError, setGenError] = useState<string | null>(null);
   const [freshKey, setFreshKey] = useState<SshGeneratedKey | null>(null);
   const [generatedNotice, setGeneratedNotice] = useState<string | null>(null);
+
+  // Change password form.
+  const [pwUser, setPwUser] = useState("");
+  const [pwPassword, setPwPassword] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwNotice, setPwNotice] = useState<string | null>(null);
+
+  async function onChangePassword() {
+    const user = pwUser.trim() || status?.user || "root";
+    if (pwPassword !== pwConfirm) {
+      setPwError("The two passwords do not match.");
+      return;
+    }
+    setPwBusy(true);
+    setPwError(null);
+    setPwNotice(null);
+    try {
+      await apiPost<SshPasswordResponse>("/api/ssh/password", { user, password: pwPassword });
+      setPwNotice(`Password for ${user} changed.`);
+      setPwPassword("");
+      setPwConfirm("");
+    } catch (err) {
+      setPwError(errorText(err, "Failed to change the password"));
+    } finally {
+      setPwBusy(false);
+    }
+  }
 
   // Generated keys table.
   const [busyGenerated, setBusyGenerated] = useState<string | null>(null);
@@ -377,6 +407,74 @@ export default function SshPage() {
               </div>
             </CardBody>
           </Card>
+
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>Change password</CardTitle>
+                  <CardDescription>
+                    Sets the unix login password used for SSH sign-in. The current password is not
+                    required.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <form
+                  className="grid gap-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void onChangePassword();
+                  }}
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="ssh-pw-user">Username</Label>
+                      <Input
+                        id="ssh-pw-user"
+                        value={pwUser}
+                        onChange={(event) => setPwUser(event.target.value)}
+                        placeholder={status.user || "root"}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="ssh-pw-new">New password</Label>
+                      <Input
+                        id="ssh-pw-new"
+                        type="password"
+                        value={pwPassword}
+                        onChange={(event) => setPwPassword(event.target.value)}
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="ssh-pw-confirm">Confirm password</Label>
+                      <Input
+                        id="ssh-pw-confirm"
+                        type="password"
+                        value={pwConfirm}
+                        onChange={(event) => setPwConfirm(event.target.value)}
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                      />
+                    </div>
+                  </div>
+                  {pwError ? <Alert variant="error">{pwError}</Alert> : null}
+                  {pwNotice ? <Alert variant="success">{pwNotice}</Alert> : null}
+                  <div>
+                    <Button type="submit" disabled={pwBusy}>
+                      {pwBusy ? <Spinner className="h-4 w-4" /> : null}
+                      Change password
+                    </Button>
+                  </div>
+                </form>
+              </CardBody>
+            </Card>
+          </div>
 
           <div className="mt-6">
             <Card className={keys && keys.length > 0 ? "overflow-hidden" : undefined}>

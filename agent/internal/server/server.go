@@ -180,6 +180,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/ssh/keys/generated", s.handleSSHGenerateKey)
 	mux.HandleFunc("GET /v1/ssh/keys/generated/{name}", s.handleSSHReadGenerated)
 	mux.HandleFunc("DELETE /v1/ssh/keys/generated/{name}", s.handleSSHDeleteGenerated)
+	mux.HandleFunc("POST /v1/ssh/password", s.handleSSHSetPassword)
 
 	// v0.5 — phpMyAdmin + remote MySQL
 	mux.HandleFunc("GET /v1/phpmyadmin/status", s.handlePHPMYADMINStatus)

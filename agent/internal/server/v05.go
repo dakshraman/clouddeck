@@ -241,6 +241,22 @@ func (s *Server) handleSSHStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.ssh.Status())
 }
 
+func (s *Server) handleSSHSetPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		User     string `json:"user"`
+		Password string `json:"password"`
+	}
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := s.ssh.SetPassword(req.User, req.Password); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"updated": true})
+}
+
 func (s *Server) handleSSHListKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := s.ssh.List()
 	if err != nil {
