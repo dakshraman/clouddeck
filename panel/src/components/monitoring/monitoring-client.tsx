@@ -55,6 +55,7 @@ export function MonitoringClient() {
   const [rebooting, setRebooting] = useState(false);
   const [rebootMessage, setRebootMessage] = useState<string | null>(null);
   const [rebootError, setRebootError] = useState<string | null>(null);
+  const [waitingBack, setWaitingBack] = useState(false);
   const pollInFlight = useRef(false);
   const processRequest = useRef(0);
 
@@ -203,6 +204,29 @@ export function MonitoringClient() {
     }
   }
 
+  // While a reboot is in flight the panel is down with the machine; poll
+  // until it answers again (up to 15 minutes), then refresh the dashboard.
+  useEffect(() => {
+    if (!waitingBack) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      void apiFetch<SystemInfo>("/api/system")
+        .then(() => {
+          setWaitingBack(false);
+          setRebootMessage("Server is back up.");
+          void load({ silent: true });
+        })
+        .catch(() => {
+          if (tries >= 90) {
+            setWaitingBack(false);
+            setRebootError("The server hasn't come back after 15 minutes. Check it directly.");
+          }
+        });
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [waitingBack, load]);
+
   async function onRebootServer() {
     if (
       !window.confirm(
@@ -216,7 +240,8 @@ export function MonitoringClient() {
     setRebootMessage(null);
     try {
       await apiFetch<RebootResponse>("/api/system/reboot", { method: "POST" });
-      setRebootMessage("Reboot initiated. The panel returns once the server is back up.");
+      setRebootMessage("Reboot initiated. Waiting for the server to come back…");
+      setWaitingBack(true);
     } catch (error) {
       setRebootError(error instanceof Error ? error.message : "Reboot failed");
     } finally {
@@ -234,7 +259,7 @@ export function MonitoringClient() {
         description="Host metrics, top processes, and web-stack services, refreshed every 5 seconds."
         actions={
           system && !system.dryRun ? (
-            <Button variant="outline" size="sm" disabled={rebooting} onClick={() => void onRebootServer()}>
+            <Button variant="outline" size="sm" disabled={rebooting || waitingBack} onClick={() => void onRebootServer()}>
               <Power size={13} aria-hidden="true" />
               Reboot server
             </Button>
