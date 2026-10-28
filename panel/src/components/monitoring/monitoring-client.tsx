@@ -6,6 +6,7 @@ import type {
   KillProcessResponse,
   ProcessInfo,
   ProcessListResponse,
+  RebootResponse,
   ServiceListResponse,
   SystemInfo,
 } from "@/lib/types";
@@ -21,7 +22,7 @@ import { StatCard } from "@/components/stat-card";
 import { ProcessesCard, type ProcessSort } from "@/components/monitoring/processes-card";
 import { ServiceCard } from "@/components/monitoring/service-card";
 import { formatBytes, percentOf, usageTone } from "@/components/format";
-import { Cpu, HardDrive, MemoryStick, Server } from "lucide-react";
+import { Cpu, HardDrive, MemoryStick, Power, Server } from "lucide-react";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -51,6 +52,9 @@ export function MonitoringClient() {
   const [restartErrors, setRestartErrors] = useState<Record<string, string>>({});
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
+  const [rebooting, setRebooting] = useState(false);
+  const [rebootMessage, setRebootMessage] = useState<string | null>(null);
+  const [rebootError, setRebootError] = useState<string | null>(null);
   const pollInFlight = useRef(false);
   const processRequest = useRef(0);
 
@@ -199,6 +203,27 @@ export function MonitoringClient() {
     }
   }
 
+  async function onRebootServer() {
+    if (
+      !window.confirm(
+        "Reboot the server? Everything on it — including this panel — goes down until the machine is back.",
+      )
+    ) {
+      return;
+    }
+    setRebooting(true);
+    setRebootError(null);
+    setRebootMessage(null);
+    try {
+      await apiFetch<RebootResponse>("/api/system/reboot", { method: "POST" });
+      setRebootMessage("Reboot initiated. The panel returns once the server is back up.");
+    } catch (error) {
+      setRebootError(error instanceof Error ? error.message : "Reboot failed");
+    } finally {
+      setRebooting(false);
+    }
+  }
+
   const memoryPercent = system ? percentOf(system.memory.usedBytes, system.memory.totalBytes) : 0;
   const diskPercent = system ? percentOf(system.disk.usedBytes, system.disk.totalBytes) : 0;
 
@@ -207,7 +232,18 @@ export function MonitoringClient() {
       <PageHeader
         title="Monitoring"
         description="Host metrics, top processes, and web-stack services, refreshed every 5 seconds."
+        actions={
+          system && !system.dryRun ? (
+            <Button variant="outline" size="sm" disabled={rebooting} onClick={() => void onRebootServer()}>
+              <Power size={13} aria-hidden="true" />
+              Reboot server
+            </Button>
+          ) : null
+        }
       />
+
+      {rebootMessage ? <Alert className="mb-6">{rebootMessage}</Alert> : null}
+      {rebootError ? <Alert variant="error" className="mb-6">{rebootError}</Alert> : null}
 
       {systemError ? (
         <Alert variant="error" className="mb-6">

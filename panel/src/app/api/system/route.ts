@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSystem } from "@/lib/agent";
+import { getSystem, rebootServer } from "@/lib/agent";
 import { handleRoute, json, requireAuth } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -9,5 +9,12 @@ export async function GET(): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
     return json(await getSystem());
+  });
+}
+
+export async function POST(): Promise<NextResponse> {
+  return handleRoute(async () => {
+    await requireAuth();
+    return json(await rebootServer());
   });
 }

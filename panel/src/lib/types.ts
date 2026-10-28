@@ -117,6 +117,10 @@ export interface KillProcessResponse {
   killed: boolean;
 }
 
+export interface RebootResponse {
+  rebooted: boolean;
+}
+
 export interface SessionUser {
   username: string;
 }

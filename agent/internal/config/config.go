@@ -32,6 +32,8 @@ type Config struct {
 	NginxReloadSettle bool
 	MySQLRestartCmd   string
 	PHPFpmRestartCmd  string
+	// RebootCmd reboots the whole host (AGENT_REBOOT_CMD).
+	RebootCmd string
 
 	// v0.3 DNS (PowerDNS via pdnsutil)
 	PdnsUtilBin    string
@@ -110,6 +112,7 @@ func Load() (Config, error) {
 		NginxRestartCmd:   env("AGENT_NGINX_RESTART_CMD", ""),
 		MySQLRestartCmd:   env("AGENT_MYSQL_RESTART_CMD", ""),
 		PHPFpmRestartCmd:  env("AGENT_PHP_FPM_RESTART_CMD", ""),
+		RebootCmd:         env("AGENT_REBOOT_CMD", "systemctl reboot"),
 		NginxReloadSettle: envBool("AGENT_NGINX_RELOAD_SETTLE", true),
 
 		PdnsUtilBin:    env("AGENT_PDNSUTIL_BIN", "pdnsutil"),

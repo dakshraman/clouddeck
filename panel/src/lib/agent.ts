@@ -5,6 +5,7 @@ import type {
   KillProcessResponse,
   PhpVersionsResponse,
   ProcessListResponse,
+  RebootResponse,
   Site,
   SiteListResponse,
   SystemInfo,
@@ -94,6 +95,10 @@ export function getProcesses(sort: "cpu" | "mem" = "cpu"): Promise<ProcessListRe
 
 export function killProcess(pid: number): Promise<KillProcessResponse> {
   return agentFetch<KillProcessResponse>(`/v1/processes/${pid}/kill`, { method: "POST" });
+}
+
+export function rebootServer(): Promise<RebootResponse> {
+  return agentFetch<RebootResponse>("/v1/system/reboot", { method: "POST" });
 }
 
 export function getPhpVersions(): Promise<PhpVersionsResponse> {

@@ -72,6 +72,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 	mux.HandleFunc("GET /v1/system", s.handleSystem)
+	mux.HandleFunc("POST /v1/system/reboot", s.handleSystemReboot)
 	mux.HandleFunc("GET /v1/processes", s.handleProcesses)
 	mux.HandleFunc("POST /v1/processes/{pid}/kill", s.handleKillProcess)
 	mux.HandleFunc("GET /v1/php/versions", s.handlePHPVersions)
@@ -252,6 +253,18 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	info.AgentVersion = Version
 	info.AgentTime = time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusOK, info)
+}
+
+func (s *Server) handleSystemReboot(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.DryRun {
+		writeError(w, apierr.Conflict("dry_run", "server reboots are disabled in dry-run mode"))
+		return
+	}
+	if err := systeminfo.Reboot(s.cfg.RebootCmd, s.audit); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rebooted": true})
 }
 
 func (s *Server) handleProcesses(w http.ResponseWriter, r *http.Request) {
