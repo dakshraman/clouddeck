@@ -45,6 +45,8 @@ UNINSTALL=0
 PURGE=0
 STACK_PROVISIONED=0
 DB_UNIT="mariadb"
+PANEL_SEED_ADMIN=""
+PANEL_SEED_PASSWORD=""
 
 say()  { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -94,6 +96,7 @@ USAGE
 done
 
 [ "$(id -u)" = "0" ] || die "must run as root:  curl ... | sudo bash"
+prompt_panel_admin
 
 # Generated units/scripts do not quote these paths, so keep them shell-safe.
 for _dir in "$PREFIX" "$DATADIR" "$ETCDIR"; do
@@ -185,6 +188,41 @@ download_asset() { # download_asset FILENAME OUTFILE
 
 systemd_present() {
   [ "$FORCE_NO_SYSTEMD" = "0" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1
+}
+
+prompt_panel_admin() {
+  [ "$DO_PANEL" = "1" ] || return 0
+  [ -f "$ETCDIR/panel.env" ] && return 0
+  [ -r /dev/tty ] || return 0
+
+  exec 3</dev/tty
+  while :; do
+    printf 'CloudDeck admin username: ' >&2
+    IFS= read -r PANEL_SEED_ADMIN <&3 || die "could not read admin username"
+    case "$PANEL_SEED_ADMIN" in
+      [A-Za-z0-9._-]|[A-Za-z0-9._-][A-Za-z0-9._-]*)
+        ;;
+      *) warn "username may contain only letters, numbers, dot, underscore, and hyphen" ; continue ;;
+    esac
+    break
+  done
+  while :; do
+    printf 'CloudDeck admin password (minimum 12 characters): ' >&2
+    stty -echo <&3
+    IFS= read -r PANEL_SEED_PASSWORD <&3
+    stty echo <&3
+    printf '\n' >&2
+    [ "${#PANEL_SEED_PASSWORD}" -ge 12 ] || { warn "password must be at least 12 characters"; continue; }
+    printf 'Confirm CloudDeck admin password: ' >&2
+    stty -echo <&3
+    IFS= read -r _panel_password_confirm <&3
+    stty echo <&3
+    printf '\n' >&2
+    [ "$PANEL_SEED_PASSWORD" = "$_panel_password_confirm" ] || { warn "passwords do not match"; continue; }
+    break
+  done
+  unset _panel_password_confirm
+  exec 3<&-
 }
 
 # --- hosting stack -----------------------------------------------------------
@@ -520,10 +558,8 @@ AGENT_URL=http://127.0.0.1:$AGENT_PORT
 AGENT_TOKEN=$AGENT_TOKEN
 PANEL_DATA_DIR=$DATADIR/panel
 PANEL_SESSION_SECRET=$SECRET
-# Optional unattended provisioning - uncomment both to create this admin
-# account on first start and skip the web setup wizard:
-# PANEL_SEED_ADMIN=admin
-# PANEL_SEED_PASSWORD=change-me
+PANEL_SEED_ADMIN=$PANEL_SEED_ADMIN
+PANEL_SEED_PASSWORD=$PANEL_SEED_PASSWORD
 # Set to true once the panel is served over HTTPS:
 PANEL_COOKIE_SECURE=false
 EOF

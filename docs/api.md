@@ -656,7 +656,7 @@ The firewall and security services discover `ufw`, `firewall-cmd` and `fail2ban-
 | `PANEL_SEED_ADMIN` | (unset — panel starts in first-run setup mode) |
 | `PANEL_SEED_PASSWORD` | (unset) |
 
-Setting both `PANEL_SEED_*` vars creates that admin account on first start and skips the web setup wizard (unattended provisioning, e.g. containers/CI).
+Setting both `PANEL_SEED_*` vars creates that admin account on first start and skips the web setup wizard (useful for unattended provisioning and CI).
 
 ## 4. Cross-workstream rules
 

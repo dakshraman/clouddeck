@@ -129,7 +129,6 @@ The panel is the only process the operator's browser talks to. It owns user acco
 | Agent | Go 1.23+ only when building from source; release binaries are static |
 | Web stack | nginx, PHP-FPM, MariaDB/MySQL, certbot — auto-installed on Debian/Ubuntu |
 | Optional | PowerDNS, Postfix/Dovecot, pure-ftpd, fail2ban, ufw/firewalld, rclone, phpMyAdmin |
-| Docker | Optional, for the self-contained demo/development stack |
 
 The agent targets Linux. The panel can run on any OS for development, and the agent has a dry-run mode that works without root.
 
@@ -187,27 +186,7 @@ curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/inst
 
 > On non-Debian distros the panel and agent still install, but package provisioning is skipped with a warning. Install nginx, PHP-FPM, MariaDB, certbot, and the optional services manually. See [docs/deployment.md](docs/deployment.md).
 
-### Option 2 — Docker
-
-```sh
-git clone https://github.com/dakshraman/clouddeck.git
-cd clouddeck
-docker compose up -d --build
-```
-
-Open <http://localhost:2083>. The stack includes:
-
-| Service | Port | Purpose |
-|---|---|---|
-| `clouddeck-panel` | `2083` | panel UI |
-| `clouddeck-server` | `9090` | agent API — development only |
-| `clouddeck-server` | `8080` | sites served by the container's nginx |
-
-Wait until `docker compose ps` reports `clouddeck-server` as `healthy` before logging in. The first build takes a few minutes. On Windows, use Docker Desktop with the WSL 2 backend and run the same command from PowerShell.
-
-> The Docker stack is development/demo oriented. For a production host that serves real websites, use Option 1 or the manual topology in [docs/deployment.md](docs/deployment.md). Keep the agent off public interfaces.
-
-### Option 3 — from source
+### Option 2 — from source
 
 Requirements: Node.js 20+ and Go 1.23+.
 
@@ -233,9 +212,6 @@ Dry-run renders nginx configs into `agent/data/dryrun/` instead of touching the 
 **Make targets:**
 
 ```sh
-make up           # full Docker stack
-make down         # stop it (volumes kept)
-make logs         # follow container logs
 make panel-dev    # Next.js dev server
 make agent-dry    # dry-run agent
 make typecheck    # panel TypeScript check
@@ -375,7 +351,7 @@ The installer writes `/etc/clouddeck/panel.env` with a generated session secret.
 | `AGENT_BACKUP_DIR` | `/var/lib/clouddeck/backups` | local archive directory |
 | `AGENT_TELEGRAM_BOT_TOKEN` / `AGENT_TELEGRAM_CHAT_ID` | empty | enable Telegram backup uploads |
 
-The full list — mail paths, FTP, terminal, SSH, firewall discovery, PowerDNS, rclone, and Docker-specific settings — is in [docs/api.md § Environment variables](docs/api.md#3-environment-variables).
+The full list — mail paths, FTP, terminal, SSH, firewall discovery, PowerDNS, and rclone settings — is in [docs/api.md § Environment variables](docs/api.md#3-environment-variables).
 
 ---
 

@@ -17,14 +17,11 @@ Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clo
 
 The installer adds a `clouddeck` management CLI on `PATH`: `status`, `start|stop|restart [panel|agent]`, `logs [panel|agent] [-f]`, `user list`, `user passwd` (alias `passwd` / `reset-password`), `user add`, `update [version]`, `reinstall`, and `uninstall [--purge]`. Password, user, service-control, update, reinstall and uninstall commands need `sudo`. See the README's "Management (terminal)" section for the everyday command list.
 
-The steps below describe manual/advanced deployments and the Docker topology.
+The steps below describe manual/advanced host deployments.
 
-**Choose a topology first:**
-
-| Topology | Use when | Layout |
-|---|---|---|
-| A — agent on the host | the VPS will host real websites (production-style) | nginx, agent and certbot run as system services; panel runs on 127.0.0.1 (step 3, option B) |
-| B — full Docker Compose stack | evaluating CloudDeck / self-contained demo | agent + nginx + panel in containers; nothing installed system-wide (skip step 2) |
+The supported deployment topology runs nginx, the agent, PHP-FPM, MariaDB,
+and certbot as host services. The panel runs as an unprivileged service and
+should be exposed through nginx with TLS.
 
 > **Security model:** the v0.1 agent API has **no authentication** — it trusts
 > anything that can reach it. It must stay bound to `127.0.0.1:9090`. Only the
@@ -135,47 +132,7 @@ sudo systemctl restart clouddeck-agent
 
 ## 3. Deploy the panel
 
-### Option A — Docker Compose (quickest way to a running panel; pairs with topology B)
-
-```bash
-# PLACEHOLDER: CHANGE_ME must become the real GitHub owner before this works.
-sudo git clone https://github.com/CHANGE_ME/clouddeck.git /opt/clouddeck
-cd /opt/clouddeck
-```
-
-Edit `docker-compose.yml` before the first start:
-
-- `PANEL_SESSION_SECRET` → a long random value: `openssl rand -hex 32`
-- The admin account is created in the browser on first visit (setup wizard).
-  Optionally set `PANEL_SEED_ADMIN` / `PANEL_SEED_PASSWORD` to pre-create it
-  (unattended; see the security notes below)
-- For a production host, bind published ports to localhost only — Docker
-  publishes ports with its own iptables rules that **bypass ufw**:
-
-```yaml
-    ports:
-      - "127.0.0.1:2083:2083"     # panel, reached via the TLS proxy in step 4
-```
-
-  For the `server` service, drop the `9090:9090` publish (the agent is only
-  needed by the panel over the compose network) and keep `8080:80` only if the
-  containerized nginx must serve sites on this host.
-
-Then start the stack:
-
-```bash
-sudo docker compose up -d --build
-sudo docker compose ps          # wait for clouddeck-server: healthy
-```
-
-The panel listens on `127.0.0.1:2083` (open it after step 4), and containerized
-sites are reachable on the host's port 8080. Notes:
-
-- Do **not** also run the step 2 host agent in this topology — port 9090 would conflict.
-- Sites live inside the `server` container. If the VPS must actually serve
-  websites on :80/:443, use topology A instead.
-
-### Option B — Node on the host (pairs with topology A)
+### Node on the host
 
 Node 22 via NodeSource (Ubuntu's stock Node is too old):
 
@@ -348,40 +305,24 @@ sudo ufw status verbose
 ```
 
 **Port 9090 must never be exposed.** The agent binds `127.0.0.1:9090`, which is
-unreachable from outside the machine — that loopback binding is the entire
-security boundary for v0.1, because the agent API is unauthenticated. Do not
-`ufw allow 9090`, do not publish it in Docker, do not change `AGENT_LISTEN` to
-`0.0.0.0` on a host with a public interface. If you run Docker, remember that
-published container ports bypass ufw (Docker installs its own iptables rules),
-which is why the compose guidance binds the panel to `127.0.0.1:2083`.
+unreachable from outside the machine. Do not `ufw allow 9090` or change
+`AGENT_LISTEN` to `0.0.0.0` on a host with a public interface.
 
 ## 6. Updates
 
 ```bash
-cd /opt/clouddeck     # or the panel checkout
-sudo git pull
-sudo docker compose up -d --build     # topology B; or: make up
+sudo clouddeck update
 ```
 
-- **Agent (topology A):** re-run the installer — it replaces the binary,
-  keeps `/etc/clouddeck/agent.env` and restarts the service.
-- **Panel (option B):**
-
-  ```bash
-  cd /opt/clouddeck-panel/repo && sudo git pull
-  cd panel && npm install --no-audit --no-fund && npm run build
-  mkdir -p .next/standalone/.next
-  cp -r .next/static .next/standalone/.next/static
-  cp -r public .next/standalone/public
-  sudo systemctl restart clouddeck-panel
-  ```
+- Re-running the installer also upgrades the agent and panel while preserving
+  `/etc/clouddeck/agent.env`, `/etc/clouddeck/panel.env`, and application data.
 
 ## 7. Backups
 
 | What | Where | Notes |
 |---|---|---|
-| Panel accounts | `/opt/clouddeck-panel/data` (Docker: volume `clouddeck-panel-data`) | `users.json` — losing it means re-seeding from scratch |
-| Agent state | `/var/lib/clouddeck-agent` | `state.json`, `tasks.json`, `audit.log` (reconstructable from nginx configs, but keeps history) |
+| Panel accounts | `/var/lib/clouddeck/panel` | `users.json` — losing it means re-seeding from scratch |
+| Agent state | `/var/lib/clouddeck/agent` | `state.json`, `tasks.json`, `audit.log` |
 | Site content | `/www/wwwroot` | the actual websites |
 | Certificates | `/etc/letsencrypt` | backing these up avoids re-issuing (Let's Encrypt rate limits) |
 | Configuration | `/etc/clouddeck` | agent and panel env files |
@@ -390,22 +331,19 @@ Quick archive example:
 
 ```bash
 sudo tar czf clouddeck-backup-$(date +%F).tar.gz \
-  /etc/clouddeck /etc/letsencrypt /var/lib/clouddeck-agent /www/wwwroot \
-  /opt/clouddeck-panel/data
+  /etc/clouddeck /etc/letsencrypt /var/lib/clouddeck /www/wwwroot
 ```
 
-Adjust the path list to your topology (Docker volumes are covered in the table
-above; paths that do not exist can simply be dropped). Copy the archive off the
-server (restic, rclone, scp — scheduled via cron or a systemd timer).
+Paths that do not exist can simply be dropped. Copy the archive off the server
+(restic, rclone, scp — scheduled via cron or a systemd timer).
 
 ## Security notes
 
-- **Create the admin account on first visit.** The panel shows a setup wizard
-  until the first account exists. With `PANEL_SEED_ADMIN`/`PANEL_SEED_PASSWORD`
-  set, that account is pre-created on first start instead (ignored once
-  `users.json` exists). Locked out later? `sudo clouddeck user passwd
-  [username]` resets the password from a terminal — it signs out existing
-  sessions and restarts the panel.
+- **Create the admin account during installation.** The installer prompts for a
+  username and password on a terminal and seeds the first account before the
+  panel starts. Locked out later? `sudo clouddeck user passwd [username]`
+  resets the password from a terminal — it signs out existing sessions and
+  restarts the panel.
 - **Set `PANEL_SESSION_SECRET`** to a long random value (`openssl rand -hex 32`).
   Rotating it invalidates existing sessions.
 - **Keep the agent on `127.0.0.1`.** No authentication exists in v0.1 (mutual

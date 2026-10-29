@@ -9,7 +9,6 @@ Versions are milestones, not dates.
 - Async tasks with live logs (UI polls while the task runs)
 - System dashboard: CPU / RAM / disk
 - Session auth for the panel
-- Docker-based development environment
 - File manager: browse, edit, upload, download, rename, delete inside site webroots — path-confined, symlink-rejecting, every mutation audited
 - MySQL management: databases, users, grants, generated passwords (client binary driven with argument arrays only; API never accepts raw SQL)
 - Configurable PHP-FPM socket template (`AGENT_PHP_FPM_SOCK`) for coexisting installs (e.g. an aaPanel-managed server)
