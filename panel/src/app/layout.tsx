@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       data-theme="luma"
-      className={`dark ${spaceGrotesk.variable} ${geistMono.variable}`}
+      className={`${spaceGrotesk.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">

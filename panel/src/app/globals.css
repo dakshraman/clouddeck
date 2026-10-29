@@ -51,6 +51,52 @@
     --brand: 189.5 100% 42.9%;
   }
 
+  html[data-theme="daylight"] {
+    color-scheme: light;
+
+    --background: 210 20% 98%;
+    --foreground: 222 32% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 32% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 12%;
+
+    --primary: 191 82% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 18% 93%;
+    --secondary-foreground: 222 32% 16%;
+
+    --muted: 210 18% 94%;
+    --muted-foreground: 215 16% 40%;
+
+    --accent: 191 38% 91%;
+    --accent-foreground: 191 82% 20%;
+
+    --destructive: 358 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 62% 31%;
+    --warning: 32 86% 40%;
+
+    --border: 214 20% 86%;
+    --input: 214 20% 80%;
+    --ring: 191 82% 32%;
+
+    --sidebar: 216 24% 95%;
+    --sidebar-foreground: 222 32% 12%;
+    --sidebar-border: 214 20% 86%;
+    --sidebar-accent: 191 38% 91%;
+    --sidebar-accent-foreground: 191 82% 20%;
+    --sidebar-primary: 191 82% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 191 82% 32%;
+
+    --brand: 191 82% 32%;
+  }
+
   /* Alternate dark palettes — set by the Appearance theme picker. */
   html[data-theme="midnight"] {
     --background: 222 47% 5.5%;
@@ -212,7 +258,7 @@
   }
 
   ::selection {
-    @apply bg-brand/30 text-white;
+    @apply bg-brand/30 text-foreground;
   }
 }
 

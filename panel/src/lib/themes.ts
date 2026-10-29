@@ -1,5 +1,11 @@
 export const THEMES = [
   {
+    id: "daylight",
+    name: "Daylight",
+    description: "Clean light surfaces, cyan edge.",
+    preview: ["hsl(210 20% 98%)", "hsl(0 0% 100%)", "hsl(191 82% 32%)"],
+  },
+  {
     id: "luma",
     name: "Luma",
     description: "Graphite with a cyan edge.",
