@@ -121,6 +121,12 @@ export interface RebootResponse {
   rebooted: boolean;
 }
 
+export interface UpdateResponse {
+  started: boolean;
+  version: string;
+  log?: string;
+}
+
 export interface SessionUser {
   username: string;
 }

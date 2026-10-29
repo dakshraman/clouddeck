@@ -18,6 +18,7 @@ Base URL: `http://127.0.0.1:9090` (configurable via `AGENT_LISTEN`). Prefix `/v1
 | GET | `/v1/health` | Liveness + version |
 | GET | `/v1/system` | Host metrics (CPU/RAM/disk) + `agentVersion` and `agentTime` |
 | POST | `/v1/system/reboot` | Reboot the host: audits `system.reboot`, then runs `AGENT_REBOOT_CMD` (default `systemctl reboot`) in the background ~0.5 s later; `409 dry_run`, `412 reboot_not_configured`, `502 reboot_failed` |
+| POST | `/v1/update` | `{version?}` (`X.Y.Z`, empty = latest): audits `system.update` and starts `AGENT_UPDATE_CMD` (default `clouddeck update`) in a transient systemd unit (or its own session without systemd) so the installer can restart the agent mid-update; `202 {started,version,log}`; `400 invalid_version`, `409 dry_run`, `412 update_not_configured`, `502 update_failed` |
 | GET | `/v1/php/versions` | Offered PHP versions |
 | GET | `/v1/sites` | List sites |
 | POST | `/v1/sites` | Create site → `202 {taskId}` |
@@ -456,6 +457,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | PATCH | `/api/auth/me` | `{email?,currentPassword?,newPassword?}` → updated `{user,session}`; `400 invalid_email`, `400 invalid_current_password`, `400 current_password_required` |
 | GET | `/api/system` | Passthrough agent `/v1/system` (includes `agentVersion`, `agentTime`) |
 | POST | `/api/system/reboot` | Passthrough agent reboot (`401` unauthenticated) |
+| POST | `/api/update` | `{version}` → passthrough `/v1/update` (202 `{started}`) |
 | GET | `/api/panel` | → `{version,agentUrl,cookieSecure,sessionTtlDays,nodeVersion}` |
 | GET | `/api/updates` | → `{panelVersion,latest,checkedAt,error}`; `?refresh=1` forces a GitHub check (min 60s between checks) |
 | GET | `/api/php-versions` | Passthrough → `{versions:[...]}` |
@@ -636,6 +638,7 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |
 | `AGENT_REBOOT_CMD` | `systemctl reboot` (host reboot command; run ~0.5 s after the 200 response) |
+| `AGENT_UPDATE_CMD` | `clouddeck update` (self-update command; the requested version is appended as the last argument when given) |
 | `AGENT_APP_SUPERVISOR` | `systemd` (also `pm2` or `supervisor`) |
 | `AGENT_APP_UNIT_DIR` | `/etc/systemd/system` (systemd unit directory) |
 | `AGENT_APP_SUPERVISOR_DIR` | `/etc/supervisor/conf.d` (supervisord `conf.d` directory; must match `[include] files` in `supervisord.conf`) |

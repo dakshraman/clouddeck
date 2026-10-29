@@ -38,7 +38,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.9"
+const Version = "0.6.10"
 
 const maxBodyBytes = 1 << 20
 
@@ -73,6 +73,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 	mux.HandleFunc("GET /v1/system", s.handleSystem)
 	mux.HandleFunc("POST /v1/system/reboot", s.handleSystemReboot)
+	mux.HandleFunc("POST /v1/update", s.handleUpdate)
 	mux.HandleFunc("GET /v1/processes", s.handleProcesses)
 	mux.HandleFunc("POST /v1/processes/{pid}/kill", s.handleKillProcess)
 	mux.HandleFunc("GET /v1/php/versions", s.handlePHPVersions)

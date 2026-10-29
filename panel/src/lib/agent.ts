@@ -11,6 +11,7 @@ import type {
   SystemInfo,
   Task,
   TaskListResponse,
+  UpdateResponse,
 } from "@/lib/types";
 
 const REQUEST_TIMEOUT_MS = 8000;
@@ -99,6 +100,10 @@ export function killProcess(pid: number): Promise<KillProcessResponse> {
 
 export function rebootServer(): Promise<RebootResponse> {
   return agentFetch<RebootResponse>("/v1/system/reboot", { method: "POST" });
+}
+
+export function startUpdate(version: string): Promise<UpdateResponse> {
+  return agentFetch<UpdateResponse>("/v1/update", { method: "POST", body: { version } });
 }
 
 export function getPhpVersions(): Promise<PhpVersionsResponse> {

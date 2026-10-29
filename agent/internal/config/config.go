@@ -34,6 +34,9 @@ type Config struct {
 	PHPFpmRestartCmd  string
 	// RebootCmd reboots the whole host (AGENT_REBOOT_CMD).
 	RebootCmd string
+	// UpdateCmd runs a self-update (AGENT_UPDATE_CMD); the requested version,
+	// when given, is appended as the last argument.
+	UpdateCmd string
 
 	// v0.3 DNS (PowerDNS via pdnsutil)
 	PdnsUtilBin    string
@@ -121,6 +124,7 @@ func Load() (Config, error) {
 		MySQLRestartCmd:   env("AGENT_MYSQL_RESTART_CMD", ""),
 		PHPFpmRestartCmd:  env("AGENT_PHP_FPM_RESTART_CMD", ""),
 		RebootCmd:         env("AGENT_REBOOT_CMD", "systemctl reboot"),
+		UpdateCmd:         env("AGENT_UPDATE_CMD", "clouddeck update"),
 		NginxReloadSettle: envBool("AGENT_NGINX_RELOAD_SETTLE", true),
 
 		PdnsUtilBin:    env("AGENT_PDNSUTIL_BIN", "pdnsutil"),

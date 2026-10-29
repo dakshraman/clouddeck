@@ -183,6 +183,9 @@ export default function SettingsPage() {
   const [panelError, setPanelError] = useState<string | null>(null);
   const [updatesFetchError, setUpdatesFetchError] = useState<string | null>(null);
   const [updatesLoading, setUpdatesLoading] = useState(false);
+  const [startingUpdate, setStartingUpdate] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const [updateActionError, setUpdateActionError] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
@@ -265,6 +268,59 @@ export default function SettingsPage() {
     } finally {
       setSystemRefreshing(false);
     }
+  }
+
+  // The installer restarts the panel while it runs, so poll until the panel
+  // reports a new version, then reload into the updated UI.
+  async function onInstallUpdate() {
+    if (!updates?.latest || startingUpdate) return;
+    const target = updates.latest.version;
+    if (
+      !window.confirm(
+        `Update CloudDeck to v${target}? The panel restarts once the update finishes.`,
+      )
+    ) {
+      return;
+    }
+    setStartingUpdate(true);
+    setUpdateNotice(null);
+    setUpdateActionError(null);
+    const before = updates.panelVersion;
+    try {
+      await apiFetch<{ started: boolean }>("/api/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version: target }),
+      });
+      setUpdateNotice(
+        `Updating to v${target}. The panel restarts; this page reloads when it is back.`,
+      );
+    } catch (err) {
+      setUpdateActionError(errorMessage(err, "The update could not be started."));
+      setStartingUpdate(false);
+      return;
+    }
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      void apiFetch<UpdatesResponse>("/api/updates")
+        .then((result) => {
+          if (result.panelVersion && result.panelVersion !== before) {
+            clearInterval(timer);
+            window.location.reload();
+          }
+        })
+        .catch(() => {
+          // The panel is restarting; keep waiting.
+        });
+      if (tries >= 60) {
+        clearInterval(timer);
+        setStartingUpdate(false);
+        setUpdateActionError(
+          "The panel has not reported the new version yet. Check the server, then reload this page.",
+        );
+      }
+    }, 5000);
   }
 
   async function saveEmail(event: FormEvent<HTMLFormElement>) {
@@ -730,8 +786,22 @@ export default function SettingsPage() {
                 <Skeleton className="h-10 w-full" />
               ) : updateAvailable && updates.latest ? (
                 <Alert variant="info">
-                  CloudDeck v{updates.latest.version} is available. You are running v
-                  {panelVersion}.
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span>
+                      CloudDeck v{updates.latest.version} is available. You are running v
+                      {panelVersion}.
+                    </span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      loading={startingUpdate}
+                      disabled={startingUpdate}
+                      onClick={() => void onInstallUpdate()}
+                    >
+                      <ArrowUpCircle size={13} aria-hidden="true" />
+                      Update now
+                    </Button>
+                  </div>
                 </Alert>
               ) : runningAhead && updates.latest ? (
                 <Alert variant="success">
@@ -744,6 +814,17 @@ export default function SettingsPage() {
                 <Alert variant="info">No published release was found.</Alert>
               )}
             </div>
+
+            {updateNotice ? (
+              <Alert variant="success" className="mt-3">
+                {updateNotice}
+              </Alert>
+            ) : null}
+            {updateActionError ? (
+              <Alert variant="error" className="mt-3">
+                {updateActionError}
+              </Alert>
+            ) : null}
 
             <div className="mt-5 rounded-lg border border-border bg-background/50">
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
