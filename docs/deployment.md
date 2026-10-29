@@ -300,6 +300,7 @@ Certbot's systemd timer renews certificates automatically.
 sudo ufw allow OpenSSH      # keep SSH open BEFORE enabling ufw
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
+sudo ufw allow 2083/tcp     # direct CloudDeck panel access
 sudo ufw enable
 sudo ufw status verbose
 ```
@@ -307,6 +308,13 @@ sudo ufw status verbose
 **Port 9090 must never be exposed.** The agent binds `127.0.0.1:9090`, which is
 unreachable from outside the machine. Do not `ufw allow 9090` or change
 `AGENT_LISTEN` to `0.0.0.0` on a host with a public interface.
+
+The installer binds the panel to `0.0.0.0:2083` and adds the matching UFW
+allow rule. On a public VPS, use `http://<server-ip>:2083` immediately after
+installation. Prefer the HTTPS reverse-proxy configuration above for
+production exposure. WSL distributions still require Windows host port
+forwarding; their private `172.x.x.x` address is not an Internet-routable
+server address.
 
 ## 6. Updates
 

@@ -159,7 +159,7 @@ Default layout:
 | `/var/lib/clouddeck` | sites, tasks, audit log, backups, panel users |
 | `/etc/clouddeck` | `agent.env`, `panel.env`, generated secrets (mode 0600) |
 
-The panel listens on `0.0.0.0:2083`; the agent listens on `127.0.0.1:9090`. Open `http://<server-ip>:2083` and create the admin account in the first-run setup wizard.
+The panel listens on `0.0.0.0:2083`; the installer allows `2083/tcp` through UFW so a public server can be reached at `http://<server-ip>:2083`. The agent remains on `127.0.0.1:9090`. Open the panel URL and create the admin account in the first-run setup wizard. For production, put the panel behind HTTPS on ports 80/443.
 
 **Installer flags:**
 

@@ -300,6 +300,15 @@ configure_powerdns() {
 configure_security_services() {
   configure_fail2ban
   configure_powerdns
+  if command -v ufw >/dev/null 2>&1; then
+    _panel_firewall_port="$PANEL_PORT"
+    if [ -f "$ETCDIR/panel.env" ]; then
+      _configured_panel_port="$(sed -n 's/^PORT=\([0-9][0-9]*\)$/\1/p' "$ETCDIR/panel.env" | tail -n 1)"
+      [ -n "$_configured_panel_port" ] && _panel_firewall_port="$_configured_panel_port"
+    fi
+    ufw allow "${_panel_firewall_port}/tcp" comment 'CloudDeck panel' >/dev/null 2>&1 \
+      || warn "could not allow panel port ${_panel_firewall_port}/tcp in UFW"
+  fi
   if systemd_present; then
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl enable --now fail2ban >/dev/null 2>&1 \
@@ -879,6 +888,7 @@ say ""
 say "================ CloudDeck installed ================"
 if [ "$DO_PANEL" = "1" ]; then
   say "  Panel:     $PANEL_URL"
+  say "  Public:    http://<server-ip>:$EFFECTIVE_PANEL_PORT"
   say "  Setup:     open the panel URL to create your admin account"
 fi
 if [ "$DO_AGENT" = "1" ]; then
