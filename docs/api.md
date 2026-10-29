@@ -311,7 +311,7 @@ Audit actions: `ftp.create`, `ftp.delete`, `ftp.password`.
 
 #### Web terminal (`/v1/term/*`)
 
-PTY-backed shell running as `AGENT_TERM_USER` (default `root`) via `AGENT_TERM_SHELL`. At most 4 live sessions; idle sessions are killed after 15 minutes. Output streams over SSE, input is base64. Disabled (`409 term_disabled`) under `dry_run`.
+PTY-backed shell running as `AGENT_TERM_USER` (default `clouddeck`) via `AGENT_TERM_SHELL`. At most 4 live sessions; idle sessions are killed after 15 minutes. Output streams over SSE, input is base64. Disabled (`409 term_disabled`) under `dry_run`.
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
@@ -623,7 +623,7 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_FTP_RUNAS` | `www` (unix user owning FTP home dirs) |
 | `AGENT_FTP_RELOAD_CMD` | (empty — no reload). Whitespace-split argv, e.g. `pure-pw mkdb`; never a shell |
 | `AGENT_WEB_RUNAS` | (empty — ownership left untouched). Unix user owning site webroots the agent creates |
-| `AGENT_TERM_USER` | `root` (unix user the web-terminal shell runs as) |
+| `AGENT_TERM_USER` | `clouddeck` (unix user the web-terminal shell runs as) |
 | `AGENT_TERM_SHELL` | `/bin/bash` |
 | `AGENT_SSH_KEYS_FILE` | `/root/.ssh/authorized_keys` |
 | `AGENT_SSH_KEY_DIR` | `/root/.ssh/clouddeck-keys` |

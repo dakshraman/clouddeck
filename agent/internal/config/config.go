@@ -170,7 +170,7 @@ func Load() (Config, error) {
 	cfg.WebRunAs = env("AGENT_WEB_RUNAS", "")
 
 	// v0.5 web terminal
-	cfg.TermUser = env("AGENT_TERM_USER", "root")
+	cfg.TermUser = env("AGENT_TERM_USER", "clouddeck")
 	cfg.TermShell = env("AGENT_TERM_SHELL", "/bin/bash")
 
 	// v0.5 SSH key management
