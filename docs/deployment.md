@@ -23,9 +23,9 @@ The supported deployment topology runs nginx, the agent, PHP-FPM, MariaDB,
 and certbot as host services. The panel runs as an unprivileged service and
 should be exposed through nginx with TLS.
 
-> **Security model:** the v0.1 agent API has **no authentication** — it trusts
-> anything that can reach it. It must stay bound to `127.0.0.1:9090`. Only the
-> panel is ever exposed, behind TLS.
+> **Security model:** the agent requires `X-CloudDeck-Agent-Token` on every
+> route except health checks. It must stay bound to `127.0.0.1:9090`. Only the
+> panel is ever exposed, preferably behind TLS.
 
 ## 1. Prerequisites
 
@@ -354,8 +354,9 @@ Paths that do not exist can simply be dropped. Copy the archive off the server
   restarts the panel.
 - **Set `PANEL_SESSION_SECRET`** to a long random value (`openssl rand -hex 32`).
   Rotating it invalidates existing sessions.
-- **Keep the agent on `127.0.0.1`.** No authentication exists in v0.1 (mutual
-  TLS + tokens arrive with multi-server support in v0.5).
-- Serve the panel over HTTPS only; never expose its HTTP port directly.
+- **Keep the agent on `127.0.0.1`.** Token authentication protects the agent
+  routes, but the privileged API must still never be published to the network.
+- Serve the panel over HTTPS in production. Port 2083 is available for initial
+  setup and direct access when a reverse proxy is not configured.
 - Keep the OS, nginx and the CloudDeck checkout updated; review
   `sudo journalctl -u clouddeck-agent` and the panel's task logs after upgrades.

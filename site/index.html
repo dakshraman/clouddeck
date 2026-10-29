@@ -54,7 +54,7 @@
         "description": "Self-hosted web hosting control panel for sites, SSL, application runtimes, databases, mail, DNS, backups, files, and server security.",
         "url": "https://clouddeck.dakshraman.in/",
         "codeRepository": "https://github.com/dakshraman/clouddeck",
-        "softwareVersion": "0.6.8",
+        "softwareVersion": "0.6.19",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -157,7 +157,7 @@
       <section class="hero" id="top">
         <div class="container hero-layout">
           <div class="hero-copy">
-            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> Self-hosted hosting control panel <span class="eyebrow-sep">/</span> v0.6.8</p>
+            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> Self-hosted hosting control panel <span class="eyebrow-sep">/</span> v0.6.19</p>
             <h1 class="reveal" style="--delay: 60ms">Every site, service, and secret. <span class="text-gradient">One deck.</span></h1>
             <p class="hero-lede reveal" style="--delay: 120ms">
               CloudDeck is the modern cPanel alternative for your own Linux server. Sites, SSL, app runtimes, databases, mail, DNS, backups, files, and security — without a root web app, and without living in SSH.
@@ -201,6 +201,7 @@
                   <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> MariaDB</span>
                   <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> certbot</span>
                   <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Node 22</span>
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ModSecurity + CRS</span>
                 </div>
                 <div class="install-ready">
                   <span class="status-pulse" aria-hidden="true"></span>
@@ -485,7 +486,7 @@
             <p class="eyebrow"><span class="eyebrow-dot"></span> Security model</p>
             <h2>The web app <span class="text-gradient">never runs as root.</span></h2>
             <p>
-              Most control panels put a root process behind a web login. CloudDeck splits the job in two: a small unprivileged panel for the browser, and a small privileged agent that only accepts typed operations.
+              Most control panels put a root process behind a web login. CloudDeck splits the job in two: a small unprivileged panel for the browser, and a small privileged agent that only accepts authenticated, typed operations.
             </p>
           </div>
 
@@ -493,7 +494,7 @@
             <div class="security-points reveal">
               <article class="security-point">
                 <span class="security-icon"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg></span>
-                <div><h3>Least privilege by design</h3><p>The Next.js panel holds no system privileges. Only the Go agent runs as root, bound to <code>127.0.0.1:9090</code>.</p></div>
+                <div><h3>Least privilege by design</h3><p>The Next.js panel holds no system privileges. Only the Go agent runs as root, bound to <code>127.0.0.1:9090</code> and protected by a shared token.</p></div>
               </article>
               <article class="security-point">
                 <span class="security-icon"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg></span>
@@ -512,7 +513,7 @@
             <div class="architecture-card reveal" style="--delay: 120ms">
               <div class="architecture-head">
                 <span>Request path</span>
-                <span class="pill pill-cyan"><span class="status-pulse" aria-hidden="true"></span> localhost only</span>
+                <span class="pill pill-cyan"><span class="status-pulse" aria-hidden="true"></span> agent localhost only</span>
               </div>
               <div class="architecture">
                 <div class="arch-node arch-browser">
@@ -529,7 +530,7 @@
                 <div class="arch-node arch-agent">
                   <span class="arch-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span>
                   <span><strong>Agent</strong><small>Go · 127.0.0.1:9090</small></span>
-                  <span class="arch-badge arch-badge-cyan">typed API</span>
+                  <span class="arch-badge arch-badge-cyan">token + typed API</span>
                 </div>
                 <span class="arch-arrow">exec · arg arrays <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></span>
                 <div class="arch-targets">
@@ -560,7 +561,6 @@
             <div class="install-tabs reveal">
               <div class="tab-list" role="tablist" aria-label="Install methods">
                 <button class="tab-button is-active" role="tab" aria-selected="true" aria-controls="panel-linux" id="tab-linux" data-tab="linux">Linux VPS <span>recommended</span></button>
-                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-docker" id="tab-docker" tabindex="-1" data-tab="docker">Docker</button>
                 <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-source" id="tab-source" tabindex="-1" data-tab="source">From source</button>
               </div>
 
@@ -570,7 +570,7 @@
                   <div class="code-block-head"><span>terminal</span><button class="copy-btn" type="button" data-copy-target="install-linux" aria-label="Copy Linux install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
                   <pre><code id="install-linux"><span class="code-prompt">$</span> curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash</code></pre>
                 </div>
-                <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg><span>Installs to <code>/opt/clouddeck</code>. State lives in <code>/var/lib/clouddeck</code>, config in <code>/etc/clouddeck</code>. The admin account is created in the browser on first visit.</span></div>
+                <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg><span>Installs to <code>/opt/clouddeck</code>, provisions the web and security stack on Debian or Ubuntu, and allows the panel through <code>2083/tcp</code>. Fresh installs securely prompt for the admin username and password.</span></div>
                 <div class="install-subhead">Installer flags</div>
                 <div class="flag-grid">
                   <span><code>--version vX.Y.Z</code> pin a release</span>
@@ -579,23 +579,6 @@
                   <span><code>--no-panel</code> agent only</span>
                   <span><code>--no-agent</code> panel only</span>
                   <span><code>--uninstall --purge</code> remove everything</span>
-                </div>
-              </div>
-
-              <div class="tab-panel" role="tabpanel" id="panel-docker" aria-labelledby="tab-docker" data-panel="docker" hidden>
-                <p class="tab-lede">A self-contained development stack: panel, agent, and nginx in containers. Good for a demo or a local evaluation.</p>
-                <div class="code-block">
-                  <div class="code-block-head"><span>compose</span><button class="copy-btn" type="button" data-copy-target="install-docker" aria-label="Copy Docker command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
-                  <pre><code id="install-docker"><span class="code-prompt">$</span> git clone https://github.com/dakshraman/clouddeck.git
-<span class="code-prompt">$</span> cd clouddeck
-<span class="code-prompt">$</span> docker compose up -d --build</code></pre>
-                </div>
-                <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg><span>Open <code>http://localhost:2083</code>. Sites are served on <code>:8080</code>; the agent is published on <code>:9090</code> for development only. Keep it on localhost in production.</span></div>
-                <div class="install-subhead">Ports</div>
-                <div class="port-grid">
-                  <span><strong>2083</strong> panel UI</span>
-                  <span><strong>9090</strong> agent API <small>dev only</small></span>
-                  <span><strong>8080</strong> hosted sites</span>
                 </div>
               </div>
 
@@ -614,7 +597,6 @@
                 <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg><span>Dry-run writes rendered nginx configs to <code>agent/data/dryrun/</code> instead of touching the system. Requires Go 1.23+.</span></div>
                 <div class="install-subhead">Make targets</div>
                 <div class="flag-grid">
-                  <span><code>make up</code> full Docker stack</span>
                   <span><code>make panel-dev</code> Next.js dev server</span>
                   <span><code>make agent-dry</code> dry-run agent</span>
                   <span><code>make typecheck</code> panel types</span>
@@ -628,7 +610,7 @@
               <div class="install-aside-head"><span class="eyebrow">First run</span><h3>Three steps to live.</h3></div>
               <ol class="step-list">
                 <li><span class="step-num">01</span><div><strong>Run the installer</strong><p>One command pulls the agent, panel, pinned Node runtime, and on Debian/Ubuntu the web stack.</p></div></li>
-                <li><span class="step-num">02</span><div><strong>Open the panel</strong><p>Visit <code>http://your-server:2083</code> and create the admin account in the first-run wizard.</p></div></li>
+                <li><span class="step-num">02</span><div><strong>Open the panel</strong><p>Visit <code>http://your-server:2083</code> on a public VPS and sign in with the credentials entered during installation.</p></div></li>
                 <li><span class="step-num">03</span><div><strong>Add your first site</strong><p>Name the domain, pick PHP or an app runtime, point DNS at the server, and issue SSL.</p></div></li>
               </ol>
               <div class="install-aside-foot">
@@ -729,7 +711,7 @@
             </details>
             <details>
               <summary>Does the panel run as root?<span class="faq-plus" aria-hidden="true"></span></summary>
-              <p>No. The browser-facing Next.js panel is unprivileged. The small Go agent is the only privileged process, and it binds to <code>127.0.0.1:9090</code> by default. It accepts typed parameters, never shell strings, and audits every mutation.</p>
+              <p>No. The browser-facing Next.js panel is unprivileged. The small Go agent is the only privileged process, binds to <code>127.0.0.1:9090</code> by default, and requires a shared authentication token. It accepts typed parameters, never shell strings, and audits every mutation.</p>
             </details>
             <details>
               <summary>Can I host Node, Python, Go, and Ruby apps?<span class="faq-plus" aria-hidden="true"></span></summary>
@@ -741,7 +723,7 @@
             </details>
             <details>
               <summary>Can I try it without a server?<span class="faq-plus" aria-hidden="true"></span></summary>
-              <p>Yes. The Docker Compose stack runs the panel, agent, and nginx locally. Or run the agent with <code>AGENT_DRY_RUN=true</code> — it renders nginx configs to disk without changing the system, so it works on any OS.</p>
+              <p>Docker is not required for production. The supported installation runs directly on a Linux host. For local development, run the panel with Node.js and the agent with <code>AGENT_DRY_RUN=true</code> — it renders nginx configs without changing the system.</p>
             </details>
             <details>
               <summary>How do updates work?<span class="faq-plus" aria-hidden="true"></span></summary>
@@ -864,7 +846,7 @@
             <span class="brand-text"><strong>CloudDeck</strong><span>Hosting console</span></span>
           </a>
           <p>A self-hosted hosting control panel for people who would rather own the server than rent the dashboard.</p>
-          <span class="footer-version">v0.6.8 · Linux x86_64 + arm64</span>
+          <span class="footer-version">v0.6.19 · Linux x86_64 + arm64</span>
         </div>
 
         <div class="footer-col">
@@ -880,6 +862,7 @@
           <a href="https://github.com/dakshraman/clouddeck#readme" target="_blank" rel="noreferrer">README</a>
           <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md" target="_blank" rel="noreferrer">Deployment</a>
           <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/api.md" target="_blank" rel="noreferrer">API reference</a>
+          <a href="https://github.com/dakshraman/clouddeck/blob/main/SECURITY.md" target="_blank" rel="noreferrer">Security policy</a>
           <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/roadmap.md" target="_blank" rel="noreferrer">Roadmap</a>
         </div>
 
@@ -895,7 +878,7 @@
       <div class="container footer-bottom">
         <span>© <span data-year>2026</span> CloudDeck. Built by <a href="https://dakshraman.in" target="_blank" rel="noreferrer">Daksh Raman</a>.</span>
         <span class="footer-status"><span class="status-pulse" aria-hidden="true"></span> Panel unprivileged · agent on localhost</span>
-        <span>License TBD</span>
+        <span>License not yet selected</span>
       </div>
     </footer>
 

@@ -66,7 +66,9 @@ Future (v0.5, multi-server): mutual TLS between panel and agents, agent tokens, 
 
 ## Deployment topologies
 
-- **v0.1 (current):** single server — panel + agent + nginx on one machine. Panel behind TLS (Caddy/nginx), agent on localhost only.
+- **Current:** single server — panel + agent + nginx on one machine. The panel
+  may listen publicly for initial setup, but production deployments should put
+  it behind TLS (Caddy/nginx); the authenticated agent stays on localhost.
 - **v0.5:** split — panel on its own host, managing many servers, one agent per server, mutual TLS.
 - **v1.0:** SaaS — the RunCloud/Ploi model (bring your own server) with billing and white-label.
 

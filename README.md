@@ -2,9 +2,9 @@
 
 **A self-hosted web hosting control panel for Linux.** Sites, SSL, application runtimes, databases, mail, DNS, backups, files, and server security — from one clean web UI, without putting a root process behind a browser login.
 
-[Website](https://clouddeck.dakshraman.in) · [Docs](docs/) · [API reference](docs/api.md) · [Deployment guide](docs/deployment.md) · [Roadmap](docs/roadmap.md)
+[Website](https://clouddeck.dakshraman.in) · [Docs](docs/) · [API reference](docs/api.md) · [Deployment guide](docs/deployment.md) · [Roadmap](docs/roadmap.md) · [Security policy](SECURITY.md)
 
-![Version](https://img.shields.io/badge/version-0.6.10-1cc8e8?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.6.19-1cc8e8?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square)
 ![Panel](https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square)
 ![Agent](https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square)
@@ -397,7 +397,7 @@ CI runs the agent build/vet/test and the panel typecheck. See `.github/workflows
 
 ## Status
 
-Current version: **v0.6.10** — a dedicated Runtimes page with guarded uninstall, runtime switching from the Sites list, boot hardening so the panel and hosted sites come back after a reboot, and one-click updates from Settings.
+Current version: **v0.6.19** — public panel installation defaults, automatic host dependency provisioning, PowerDNS SQLite setup, agent authentication, favicon support, and persistent light/dark appearance themes.
 
 - **v0.5.x** — sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring, PowerDNS, backups, mail, site operations, scheduled backups, FTP, web terminal, SSH keys, per-site WAF, remote MySQL, phpMyAdmin.
 - **v0.6.0** — Node/Python/Go/Ruby/custom app hosting, supervisor backends, host firewall, Security page.
@@ -408,9 +408,12 @@ Current version: **v0.6.10** — a dedicated Runtimes page with guarded uninstal
 - **v0.6.8** — SSH password change from the panel, one-click install of extra Node.js (20/22/24) and PHP (8.1–8.4) versions, Hostinger-style file manager (folder tree, multi-select bulk actions, search, drag-and-drop upload, grid view, move), services restart without configured commands, and nginx start-when-stopped fix on site create/delete.
 - **v0.6.9** — separate Runtimes page listing installed Node.js/PHP versions with uninstall (refused while a site or app still uses the version), inline runtime switching from the Sites list, and boot hardening: `Restart=always` units where the panel pulls in the agent, plus the aaPanel port conflict that kept nginx/MariaDB from starting.
 - **v0.6.10** — one-click update from Settings: the panel asks the agent to run `clouddeck update <version>` in a detached unit, then polls until the restarted panel reports the new version and reloads.
+- **v0.6.11–v0.6.19** — authenticated panel-to-agent requests, non-root terminal defaults, installer credential prompts, favicon support, automatic dependency provisioning, PowerDNS/WSL startup fixes, public panel firewall access, and the Daylight light theme.
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 
 ## License
 
-TBD.
+The project license has not yet been selected. Until a license is added to the
+repository, do not assume that the code may be redistributed or used in
+derivative products.

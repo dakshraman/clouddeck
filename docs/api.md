@@ -11,7 +11,10 @@ Error format (both layers): `{"error": {"code": "machine_code", "message": "Huma
 
 ## 1. Agent API
 
-Base URL: `http://127.0.0.1:9090` (configurable via `AGENT_LISTEN`). Prefix `/v1`. No auth in v0.1 — the agent binds localhost-only by design (see architecture.md).
+Base URL: `http://127.0.0.1:9090` (configurable via `AGENT_LISTEN`). Prefix
+`/v1`. The agent requires `X-CloudDeck-Agent-Token` for every route except
+`GET /v1/health`; the installer stores the matching token in the agent and
+panel environment files.
 
 | Method | Path | Purpose |
 |---|---|---|
