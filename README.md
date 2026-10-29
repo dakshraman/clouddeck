@@ -4,7 +4,7 @@
 
 [Website](https://clouddeck.dakshraman.in) · [Docs](docs/) · [API reference](docs/api.md) · [Deployment guide](docs/deployment.md) · [Roadmap](docs/roadmap.md)
 
-![Version](https://img.shields.io/badge/version-0.6.8-1cc8e8?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.6.9-1cc8e8?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square)
 ![Panel](https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square)
 ![Agent](https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square)
@@ -421,7 +421,7 @@ CI runs the agent build/vet/test and the panel typecheck. See `.github/workflows
 
 ## Status
 
-Current version: **v0.6.8** — SSH password change, one-click Node.js/PHP version installs, a Hostinger-style file manager, and self-healing nginx/service restarts.
+Current version: **v0.6.9** — a dedicated Runtimes page with guarded uninstall, runtime switching from the Sites list, and boot hardening so the panel and hosted sites come back after a reboot.
 
 - **v0.5.x** — sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring, PowerDNS, backups, mail, site operations, scheduled backups, FTP, web terminal, SSH keys, per-site WAF, remote MySQL, phpMyAdmin.
 - **v0.6.0** — Node/Python/Go/Ruby/custom app hosting, supervisor backends, host firewall, Security page.
@@ -430,6 +430,7 @@ Current version: **v0.6.8** — SSH password change, one-click Node.js/PHP versi
 - **v0.6.6** — process kill button (SIGTERM → SIGKILL, audited), terminal full-page mode, CI/CD auto-publishing releases.
 - **v0.6.7** — server reboot button from the panel (audited, dry-run protected).
 - **v0.6.8** — SSH password change from the panel, one-click install of extra Node.js (20/22/24) and PHP (8.1–8.4) versions, Hostinger-style file manager (folder tree, multi-select bulk actions, search, drag-and-drop upload, grid view, move), services restart without configured commands, and nginx start-when-stopped fix on site create/delete.
+- **v0.6.9** — separate Runtimes page listing installed Node.js/PHP versions with uninstall (refused while a site or app still uses the version), inline runtime switching from the Sites list, and boot hardening: `Restart=always` units where the panel pulls in the agent, plus the aaPanel port conflict that kept nginx/MariaDB from starting.
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 

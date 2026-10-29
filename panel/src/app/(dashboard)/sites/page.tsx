@@ -1,20 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Site, SiteListResponse } from "@/lib/types";
+import type { PhpVersionsResponse, Site, SiteListResponse } from "@/lib/types";
 import { apiFetch, isAbortError, waitForTask } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { RuntimesCard } from "@/components/sites/runtimes-card";
+import { Label } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { Globe, Plus, Trash2 } from "lucide-react";
+import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -25,6 +26,12 @@ export default function SitesPage() {
   const [confirmDomain, setConfirmDomain] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Record<string, { taskId: string }>>({});
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [editingDomain, setEditingDomain] = useState<string | null>(null);
+  const [editVersion, setEditVersion] = useState("");
+  const [phpVersions, setPhpVersions] = useState<string[] | null>(null);
+  const [versionsError, setVersionsError] = useState("");
+  const [savingRuntime, setSavingRuntime] = useState(false);
+  const [runtimeError, setRuntimeError] = useState("");
   const controllersRef = useRef<Set<AbortController>>(new Set());
 
   const load = useCallback(async () => {
@@ -50,6 +57,43 @@ export default function SitesPage() {
       controllers.forEach((controller) => controller.abort());
     };
   }, []);
+
+  const loadPhpVersions = useCallback(async () => {
+    setVersionsError("");
+    try {
+      const data = await apiFetch<PhpVersionsResponse>("/api/php-versions");
+      setPhpVersions(data.versions);
+    } catch (error) {
+      setVersionsError(error instanceof Error ? error.message : "Failed to load PHP versions");
+    }
+  }, []);
+
+  function startEdit(site: Site) {
+    setEditingDomain(site.domain);
+    setEditVersion(site.phpVersion);
+    setRuntimeError("");
+    if (phpVersions === null && !versionsError) void loadPhpVersions();
+  }
+
+  async function saveRuntime(domain: string) {
+    setSavingRuntime(true);
+    setRuntimeError("");
+    try {
+      const updated = await apiFetch<Site>(`/api/sites/${encodeURIComponent(domain)}/php`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version: editVersion }),
+      });
+      setSites((prev) =>
+        prev ? prev.map((site) => (site.domain === domain ? updated : site)) : prev,
+      );
+      setEditingDomain(null);
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : "Failed to switch the runtime");
+    } finally {
+      setSavingRuntime(false);
+    }
+  }
 
   async function confirmDelete(domain: string) {
     setConfirmDomain(null);
@@ -161,10 +205,8 @@ export default function SitesPage() {
                   const isConfirming = confirmDomain === site.domain;
                   const deleteError = rowError[site.domain];
                   return (
-                    <tr
-                      key={site.domain}
-                      className="border-t border-border hover:bg-muted/40"
-                    >
+                    <Fragment key={site.domain}>
+                      <tr className="border-t border-border hover:bg-muted/40">
                       <td className="px-5 py-3">
                         <Link
                           href={`/sites/${encodeURIComponent(site.domain)}`}
@@ -220,6 +262,10 @@ export default function SitesPage() {
                               >
                                 Open
                               </Link>
+                              <Button variant="ghost" size="sm" onClick={() => startEdit(site)}>
+                                <Pencil size={14} aria-hidden="true" />
+                                Edit
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -243,6 +289,67 @@ export default function SitesPage() {
                         ) : null}
                       </td>
                     </tr>
+                    {editingDomain === site.domain ? (
+                      <tr className="border-t border-border bg-muted/20">
+                        <td colSpan={6} className="px-5 py-3">
+                          <div className="flex flex-wrap items-end gap-3">
+                            <div className="grid gap-1.5">
+                              <Label htmlFor={`php-version-${site.domain}`}>PHP runtime</Label>
+                              {versionsError ? (
+                                <div className="flex items-center gap-2 text-xs text-red-400">
+                                  {versionsError}
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => void loadPhpVersions()}
+                                  >
+                                    Retry
+                                  </Button>
+                                </div>
+                              ) : phpVersions === null ? (
+                                <Skeleton className="h-9 w-48" />
+                              ) : (
+                                <Select
+                                  id={`php-version-${site.domain}`}
+                                  className="w-48"
+                                  value={editVersion}
+                                  disabled={savingRuntime}
+                                  onChange={(event) => {
+                                    setEditVersion(event.target.value);
+                                    setRuntimeError("");
+                                  }}
+                                >
+                                  {phpVersions.map((version) => (
+                                    <option key={version} value={version}>
+                                      {phpVersionLabel(version)}
+                                    </option>
+                                  ))}
+                                </Select>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              loading={savingRuntime}
+                              disabled={phpVersions === null || editVersion === site.phpVersion}
+                              onClick={() => void saveRuntime(site.domain)}
+                            >
+                              Save
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditingDomain(null)}>
+                              Cancel
+                            </Button>
+                            {runtimeError ? (
+                              <span className="text-xs text-red-400">{runtimeError}</span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Switching re-renders the nginx vhost and reloads the web server; a failed
+                            reload reverts.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -250,8 +357,6 @@ export default function SitesPage() {
           </div>
         </Card>
       ) : null}
-
-      <RuntimesCard />
     </>
   );
 }

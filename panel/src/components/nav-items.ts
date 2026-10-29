@@ -1,6 +1,7 @@
 import {
   Activity,
   Archive,
+  Boxes,
   Clock,
   CloudUpload,
   Cpu,
@@ -69,6 +70,13 @@ export const navGroups: NavGroup[] = [
         icon: Cpu,
         description: "Node.js, Python, Go and Ruby processes under supervision.",
         keywords: "node python go ruby runtime process pm2 supervisor systemd app",
+      },
+      {
+        href: "/runtimes",
+        label: "Runtimes",
+        icon: Boxes,
+        description: "Installed Node.js, PHP and other language runtimes.",
+        keywords: "node php python go ruby versions install uninstall runtime",
       },
       {
         href: "/ftp",

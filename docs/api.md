@@ -391,8 +391,9 @@ New in v0.6: application runtimes, supervised app processes behind nginx, the ho
 |---|---|---|---|
 | `GET /v1/runtimes` | — | `200 {runtimes:[{kind,label,description,defaultPort?,versions:[{kind,label,version,bin?,default?}],available}],installable:{node:[majors],php:[versions]},supervisor:{backend,note}}` — `kind` is `static`, `php`, `node`, `python`, `go`, `ruby` or `custom`; detection looks at well-known install paths plus `PATH`; `installable` lists the curated versions one-click install offers | — |
 | `POST /v1/runtimes/install` | `{kind,version}` — `kind` is `node` (major like `22`) or `php` (like `8.2`); runs as a background task, task type `runtime.install` | `202 {task}` — poll `GET /v1/tasks/{id}` | `400 invalid_kind`/`invalid_version`, `409 dry_run`/`already_installed`, `502 install_failed` |
+| `DELETE /v1/runtimes/{kind}/{version}` | `kind` is `node` or `php`; `version` is a major (`24`) or exact node version (`24.22.1`), or a PHP branch (`8.2`); runs as a background task, task type `runtime.uninstall` | `202 {task}` — poll `GET /v1/tasks/{id}` | `400 invalid_kind`/`invalid_version`, `404 not_installed`, `409 dry_run`/`runtime_in_use`, `502 uninstall_failed` |
 
-`installable` covers node `20`/`22`/`24` (official nodejs.org tarball, sha256-verified, installed under `/opt/nodejs/v<version>`) and php `8.1`–`8.4` (apt + ondrej PPA when the base repositories don't carry it). Installs land in directories the detector already scans, so they appear in `GET /v1/runtimes` and the site form pickers without further setup.
+`installable` covers node `20`/`22`/`24` (official nodejs.org tarball, sha256-verified, installed under `/opt/nodejs/v<version>`) and php `8.1`–`8.4` (apt + ondrej PPA when the base repositories don't carry it). Installs land in directories the detector already scans, so they appear in `GET /v1/runtimes` and the site form pickers without further setup. `GET /v1/runtimes` lists only PHP branches that actually exist under `AGENT_PHP_BASE` (it never falls back to the catalog). Uninstall refuses with `409 runtime_in_use` while a site's `phpVersion` or an app's runtime still references the version.
 
 `supervisor.backend` is the configured process manager (`systemd`, `pm2` or `supervisor`).
 
@@ -553,6 +554,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/sites/{domain}/files/extract` | `{archive,dest}` |
 | GET | `/api/runtimes` | passthrough `/v1/runtimes` |
 | POST | `/api/runtimes/install` | passthrough `/v1/runtimes/install` (202 `{task}`) |
+| POST | `/api/runtimes/uninstall` | `{kind,version}` → passthrough `DELETE /v1/runtimes/{kind}/{version}` (202 `{task}`) |
 | GET | `/api/apps` | `?site=` → `{apps:[...]}` (proxied) |
 | POST | `/api/apps` | `{site,name,kind,command,…}` → `201 app` |
 | GET/PUT/DELETE | `/api/sites/{domain}/apps/{name}` | read / update / delete |
@@ -628,6 +630,8 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_CHPASSWD_BIN` | `chpasswd` (unix login password helper; stdin-only) |
 | `AGENT_NODE_INSTALL_CMD` | empty (built-in nodejs.org tarball flow; custom command gets the major appended as its last argument) |
 | `AGENT_PHP_INSTALL_CMD` | empty (built-in apt/ondrej flow; custom command gets the version appended as its last argument) |
+| `AGENT_NODE_UNINSTALL_CMD` | empty (built-in `/opt/nodejs/v<version>` removal; custom command gets the exact version appended as its last argument) |
+| `AGENT_PHP_UNINSTALL_CMD` | empty (built-in apt purge of `php<version>-*`; custom command gets the version appended as its last argument) |
 | `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |

@@ -38,15 +38,17 @@ func Installable() map[string][]string {
 }
 
 const (
-	actionRuntimeInstall = "runtime.install"
-	nodeDistBase         = "https://nodejs.org/dist"
-	downloadTimeout      = 10 * time.Minute
-	installTimeout       = 20 * time.Minute
+	actionRuntimeInstall   = "runtime.install"
+	actionRuntimeUninstall = "runtime.uninstall"
+	nodeDistBase           = "https://nodejs.org/dist"
+	downloadTimeout        = 10 * time.Minute
+	installTimeout         = 20 * time.Minute
 )
 
 var (
-	nodeMajorRe  = regexp.MustCompile(`^\d{1,2}$`)
-	phpVersionRe = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
+	nodeMajorRe   = regexp.MustCompile(`^\d{1,2}$`)
+	nodeVersionRe = regexp.MustCompile(`^\d{1,2}(?:\.\d{1,2}\.\d{1,2})?$`)
+	phpVersionRe  = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
 )
 
 // installPHPScript is agent-owned; the requested version arrives as $1.
@@ -60,6 +62,16 @@ if ! apt-cache show "php$1-fpm" >/dev/null 2>&1; then
 fi
 apt-get install -y -qq "php$1-fpm" "php$1-cli" "php$1-mysql" "php$1-curl" "php$1-gd" "php$1-mbstring" "php$1-xml" "php$1-zip" "php$1-intl" "php$1-bcmath"
 systemctl enable --now "php$1-fpm"
+`
+
+// uninstallPHPScript purges every package for one PHP branch; $1 is the
+// version. The directory removal is a safety net for leftover config.
+const uninstallPHPScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+systemctl disable --now "php$1-fpm" >/dev/null 2>&1 || true
+apt-get purge -y "php$1-*"
+apt-get autoremove -y -qq
+rm -rf "/etc/php/$1"
 `
 
 // Installer performs runtime installs. AGENT_NODE_INSTALL_CMD /
@@ -76,14 +88,16 @@ func NewInstaller(cfg config.Config, auditLog *audit.Log) *Installer {
 }
 
 // Installed reports whether the requested version already exists on the
-// host. The API handler uses it to reject re-installs synchronously with
-// 409 instead of after the install task has started.
+// host. Node accepts a major ("24") or an exact version ("24.22.1"). The API
+// handlers use it to reject re-installs and missing uninstalls synchronously
+// instead of after a task has started.
 func (i *Installer) Installed(kind, version string) bool {
 	switch kind {
 	case KindNode:
-		return installedNodeMajor(version) != ""
+		_, ok := nodeDirFor(version)
+		return ok
 	case KindPHP:
-		return slices.Contains(phpVersions(), version)
+		return i.phpInstalled(version)
 	}
 	return false
 }
@@ -100,6 +114,79 @@ func (i *Installer) Validate(kind, version string) error {
 	if kind == KindPHP && !phpVersionRe.MatchString(version) {
 		return apierr.BadRequest("invalid_version", "php version must look like 8.2")
 	}
+	return nil
+}
+
+// ValidateUninstall is Validate plus exact Node versions, which is what the
+// runtime list reports ("24.22.1").
+func (i *Installer) ValidateUninstall(kind, version string) error {
+	if kind != KindNode && kind != KindPHP {
+		return apierr.BadRequest("invalid_kind", "only node and php can be uninstalled")
+	}
+	if kind == KindNode && !nodeVersionRe.MatchString(version) {
+		return apierr.BadRequest("invalid_version", "node version must be a major or an exact version like 24.22.1")
+	}
+	if kind == KindPHP && !phpVersionRe.MatchString(version) {
+		return apierr.BadRequest("invalid_version", "php version must look like 8.2")
+	}
+	return nil
+}
+
+// Uninstall removes one runtime. Errors: 400 invalid_kind/invalid_version,
+// 404 not_installed, 409 dry_run, 502 uninstall_failed.
+func (i *Installer) Uninstall(ctx context.Context, log tasks.LogFunc, kind, version string) error {
+	if i.cfg.DryRun {
+		return apierr.Conflict("dry_run", "runtime uninstalls are disabled in dry-run mode")
+	}
+	if err := i.ValidateUninstall(kind, version); err != nil {
+		return err
+	}
+	if !i.Installed(kind, version) {
+		return apierr.NotFound("not_installed", fmt.Sprintf("%s %s is not installed", kind, version))
+	}
+	if err := i.audit.Append(audit.Record{
+		Action: actionRuntimeUninstall,
+		Params: map[string]any{"kind": kind, "version": version},
+		Result: audit.ResultAccepted,
+	}); err != nil {
+		return apierr.Internal(fmt.Sprintf("write audit log: %v", err))
+	}
+	if kind == KindNode {
+		return i.uninstallNode(ctx, log, version)
+	}
+	return i.uninstallPHP(ctx, log, version)
+}
+
+func (i *Installer) uninstallNode(ctx context.Context, log tasks.LogFunc, version string) error {
+	dir, ok := nodeDirFor(version)
+	if !ok {
+		return apierr.NotFound("not_installed", fmt.Sprintf("node %s is not installed", version))
+	}
+	exact := strings.TrimPrefix(filepath.Base(dir), "v")
+	if fields := strings.Fields(i.cfg.NodeUninstallCmd); len(fields) > 0 {
+		args := append(slices.Clone(fields), exact)
+		return uninstallFailed(safeexec.RunTimeout(ctx, false, log, installTimeout, args[0], args[1:]...))
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return apierr.New(502, "uninstall_failed", fmt.Sprintf("remove %s: %v", dir, err))
+	}
+	log("info", "removed node "+exact+" from "+dir)
+	return nil
+}
+
+func (i *Installer) uninstallPHP(ctx context.Context, log tasks.LogFunc, version string) error {
+	if fields := strings.Fields(i.cfg.PHPUninstallCmd); len(fields) > 0 {
+		args := append(slices.Clone(fields), version)
+		return uninstallFailed(safeexec.RunTimeout(ctx, false, log, installTimeout, args[0], args[1:]...))
+	}
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", uninstallPHPScript, "clouddeck-uninstall-php", version); err != nil {
+		return uninstallFailed(err)
+	}
+	if i.phpInstalled(version) {
+		return apierr.New(502, "uninstall_failed", fmt.Sprintf("php %s is still present after the package purge", version))
+	}
+	log("info", "uninstalled php "+version)
 	return nil
 }
 
@@ -201,6 +288,36 @@ func installedNodeMajor(major string) string {
 		}
 	}
 	return ""
+}
+
+// nodeDirFor resolves a major or exact version to its install directory.
+func nodeDirFor(version string) (string, bool) {
+	version = strings.TrimPrefix(strings.TrimSpace(version), "v")
+	if version == "" {
+		return "", false
+	}
+	if !strings.Contains(version, ".") {
+		resolved := installedNodeMajor(version)
+		if resolved == "" {
+			return "", false
+		}
+		version = resolved
+	}
+	dir := filepath.Join("/opt/nodejs", "v"+version)
+	return dir, isExecutable(filepath.Join(dir, "bin", "node"))
+}
+
+// phpInstalled checks both the host PHP dirs and the configured base (the
+// sandbox points AGENT_PHP_BASE elsewhere).
+func (i *Installer) phpInstalled(version string) bool {
+	if slices.Contains(phpVersions(), version) {
+		return true
+	}
+	if i.cfg.PHPBase == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(i.cfg.PHPBase, version))
+	return err == nil && info.IsDir()
 }
 
 // latestNodeVersion resolves the newest nodejs.org release for a major.
@@ -327,4 +444,14 @@ func installFailed(err error) error {
 		return apiErr
 	}
 	return apierr.New(502, "install_failed", err.Error())
+}
+
+func uninstallFailed(err error) error {
+	if err == nil {
+		return nil
+	}
+	if apiErr, ok := apierr.As(err); ok {
+		return apiErr
+	}
+	return apierr.New(502, "uninstall_failed", err.Error())
 }

@@ -8,6 +8,7 @@ import (
 	stdlog "log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
@@ -24,8 +25,15 @@ func stdLogger() func(level, message string) {
 // ---- runtimes ----
 
 func (s *Server) handleListRuntimes(w http.ResponseWriter, r *http.Request) {
+	infos := runtimes.Detect()
+	for i := range infos {
+		if infos[i].Kind == runtimes.KindPHP {
+			infos[i].Versions = runtimes.PHPVersions(s.cfg.PHPBase)
+			infos[i].Available = len(infos[i].Versions) > 0
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"runtimes":    runtimes.Detect(),
+		"runtimes":    infos,
 		"installable": runtimes.Installable(),
 		"supervisor": map[string]any{
 			"backend": s.cfg.AppSupervisor,
@@ -64,6 +72,66 @@ func (s *Server) handleRuntimeInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"task": task})
+}
+
+// handleRuntimeUninstall starts a background task removing one runtime
+// version. Refuses while a site or app still references it. Errors:
+// 400 invalid_kind/invalid_version, 404 not_installed, 409 dry_run/runtime_in_use.
+func (s *Server) handleRuntimeUninstall(w http.ResponseWriter, r *http.Request) {
+	kind, version := r.PathValue("kind"), r.PathValue("version")
+	installer := runtimes.NewInstaller(s.cfg, s.audit)
+	if err := installer.ValidateUninstall(kind, version); err != nil {
+		writeError(w, err)
+		return
+	}
+	if !installer.Installed(kind, version) {
+		writeError(w, apierr.NotFound("not_installed",
+			fmt.Sprintf("%s %s is not installed", kind, version)))
+		return
+	}
+	if usedBy := s.runtimeUsedBy(r.Context(), kind, version); usedBy != "" {
+		writeError(w, apierr.Conflict("runtime_in_use",
+			fmt.Sprintf("%s %s is used by %s; switch it first", kind, version, usedBy)))
+		return
+	}
+	task, err := s.eng.Create("runtime.uninstall", "", func(ctx context.Context, log tasks.LogFunc) error {
+		return installer.Uninstall(ctx, log, kind, version)
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"task": task})
+}
+
+// runtimeUsedBy names the site/app that still references a runtime, or "".
+func (s *Server) runtimeUsedBy(ctx context.Context, kind, version string) string {
+	version = strings.TrimPrefix(version, "v")
+	switch kind {
+	case runtimes.KindPHP:
+		for _, site := range s.sites.List() {
+			if site.PHPVersion == version {
+				return "site " + site.Domain
+			}
+		}
+	case runtimes.KindNode:
+		sameMajor := func(candidate string) bool {
+			candidate = strings.TrimPrefix(candidate, "v")
+			return candidate == version ||
+				strings.HasPrefix(candidate, version+".") ||
+				strings.HasPrefix(version, candidate+".")
+		}
+		for _, app := range s.apps.List(ctx) {
+			if app.Kind != runtimes.KindNode {
+				continue
+			}
+			if sameMajor(app.Version) ||
+				strings.Contains(app.Bin, "/opt/nodejs/v"+version+".") {
+				return fmt.Sprintf("app %s on %s", app.Name, app.Site)
+			}
+		}
+	}
+	return ""
 }
 
 func supervisorNote(backend string) string {

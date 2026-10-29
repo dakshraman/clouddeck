@@ -322,6 +322,35 @@ func phpVersions() []string {
 	return out
 }
 
+// PHPVersions lists the PHP branches actually installed under base, for the
+// runtime inventory. Unlike php.Available it never falls back to the default
+// catalog, so a missing install is reported as missing.
+func PHPVersions(base string) []Runtime {
+	if base == "" {
+		base = "/etc/php"
+	}
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return []Runtime{}
+	}
+	var versions []string
+	for _, entry := range entries {
+		if entry.IsDir() && versionRe.MatchString(entry.Name()) {
+			versions = append(versions, entry.Name())
+		}
+	}
+	sort.Slice(versions, func(i, j int) bool { return lessVersion(versions[i], versions[j]) })
+	out := make([]Runtime, 0, len(versions))
+	for _, version := range versions {
+		rt := Runtime{Kind: KindPHP, Label: "PHP", Version: version}
+		if bin := "/usr/bin/php" + version; isExecutable(bin) {
+			rt.Bin = bin
+		}
+		out = append(out, rt)
+	}
+	return out
+}
+
 func dedupe(in []Runtime) []Runtime {
 	seen := map[string]bool{}
 	out := make([]Runtime, 0, len(in))

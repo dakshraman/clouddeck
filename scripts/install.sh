@@ -564,7 +564,7 @@ After=network.target
 Type=simple
 EnvironmentFile=$ETCDIR/agent.env
 ExecStart=$PREFIX/clouddeck-agent
-Restart=on-failure
+Restart=always
 RestartSec=2
 User=root
 
@@ -577,13 +577,14 @@ EOF
 [Unit]
 Description=CloudDeck panel (web UI + API)
 After=network.target clouddeck-agent.service
+Wants=clouddeck-agent.service
 
 [Service]
 Type=simple
 EnvironmentFile=$ETCDIR/panel.env
 ExecStart=$PREFIX/node/bin/node server.js
 WorkingDirectory=$PREFIX/panel
-Restart=on-failure
+Restart=always
 RestartSec=2
 ${PANEL_USER:+User=$PANEL_USER}
 

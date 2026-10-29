@@ -82,10 +82,12 @@ type Config struct {
 	SSHKeygenBin string // AGENT_SSH_KEYGEN_BIN
 	ChpasswdBin  string // AGENT_CHPASSWD_BIN (login password helper, default chpasswd)
 
-	// Runtime install overrides (empty = built-in flow); the exact version
-	// is appended as the last argument.
-	NodeInstallCmd string // AGENT_NODE_INSTALL_CMD
-	PHPInstallCmd  string // AGENT_PHP_INSTALL_CMD
+	// Runtime install/uninstall overrides (empty = built-in flow); the exact
+	// version is appended as the last argument.
+	NodeInstallCmd   string // AGENT_NODE_INSTALL_CMD
+	PHPInstallCmd    string // AGENT_PHP_INSTALL_CMD
+	NodeUninstallCmd string // AGENT_NODE_UNINSTALL_CMD
+	PHPUninstallCmd  string // AGENT_PHP_UNINSTALL_CMD
 
 	// v0.5 phpMyAdmin + WAF
 	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
@@ -171,6 +173,8 @@ func Load() (Config, error) {
 	cfg.ChpasswdBin = env("AGENT_CHPASSWD_BIN", "chpasswd")
 	cfg.NodeInstallCmd = env("AGENT_NODE_INSTALL_CMD", "")
 	cfg.PHPInstallCmd = env("AGENT_PHP_INSTALL_CMD", "")
+	cfg.NodeUninstallCmd = env("AGENT_NODE_UNINSTALL_CMD", "")
+	cfg.PHPUninstallCmd = env("AGENT_PHP_UNINSTALL_CMD", "")
 
 	// v0.5 phpMyAdmin + WAF
 	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")

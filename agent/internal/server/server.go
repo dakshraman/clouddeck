@@ -38,7 +38,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.8"
+const Version = "0.6.9"
 
 const maxBodyBytes = 1 << 20
 
@@ -201,6 +201,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	// v0.6 — application runtimes, app workloads and firewall
 	mux.HandleFunc("GET /v1/runtimes", s.handleListRuntimes)
 	mux.HandleFunc("POST /v1/runtimes/install", s.handleRuntimeInstall)
+	mux.HandleFunc("DELETE /v1/runtimes/{kind}/{version}", s.handleRuntimeUninstall)
 	mux.HandleFunc("GET /v1/apps", s.handleListApps)
 	mux.HandleFunc("POST /v1/apps", s.handleCreateApp)
 	mux.HandleFunc("GET /v1/sites/{domain}/apps", s.handleListApps)
