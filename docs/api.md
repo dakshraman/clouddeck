@@ -620,7 +620,7 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_PHP_SOCK_MAP` | (empty — falls back to `AGENT_PHP_FPM_SOCK`) e.g. `8.3=/tmp/php-cgi-83.sock,8.4=/tmp/php-cgi-84.sock` |
 | `AGENT_CRON_DIR` | `/etc/cron.d` (site cron fragments) |
 | `AGENT_FTP_PASSWD_FILE` | `$AGENT_STATE_DIR/ftp/passwd` (pure-ftpd passwd file) |
-| `AGENT_FTP_RUNAS` | `www` (unix user owning FTP home dirs) |
+| `AGENT_FTP_RUNAS` | `clouddeck` (unix user owning FTP home dirs) |
 | `AGENT_FTP_RELOAD_CMD` | (empty — no reload). Whitespace-split argv, e.g. `pure-pw mkdb`; never a shell |
 | `AGENT_WEB_RUNAS` | (empty — ownership left untouched). Unix user owning site webroots the agent creates |
 | `AGENT_TERM_USER` | `clouddeck` (unix user the web-terminal shell runs as) |

@@ -248,19 +248,52 @@ EOF
 configure_powerdns() {
   command -v pdnsutil >/dev/null 2>&1 || return 0
   mkdir -p /var/lib/powerdns
-  if [ ! -f /var/lib/powerdns/pdns.sqlite3 ] \
-      && [ -f /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql ] \
+  pdns_schema=""
+  for candidate in \
+      /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql \
+      /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql \
+      /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql; do
+    if [ -f "$candidate" ]; then
+      pdns_schema="$candidate"
+      break
+    fi
+  done
+  if [ ! -s /var/lib/powerdns/pdns.sqlite3 ] \
+      && [ -n "$pdns_schema" ] \
       && command -v sqlite3 >/dev/null 2>&1; then
-    sqlite3 /var/lib/powerdns/pdns.sqlite3 \
-      < /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql \
+    rm -f /var/lib/powerdns/pdns.sqlite3
+    sqlite3 /var/lib/powerdns/pdns.sqlite3 < "$pdns_schema" \
       || warn "could not initialize the PowerDNS SQLite database"
     chown pdns:pdns /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
   fi
   if [ -f /etc/powerdns/pdns.conf ]; then
-    grep -q '^launch=' /etc/powerdns/pdns.conf \
-      || printf '\n# CloudDeck managed authoritative backend\nlaunch=gsqlite3\n' >> /etc/powerdns/pdns.conf
-    grep -q '^gsqlite3-database=' /etc/powerdns/pdns.conf \
-      || printf 'gsqlite3-database=/var/lib/powerdns/pdns.sqlite3\n' >> /etc/powerdns/pdns.conf
+    if grep -q '^launch=' /etc/powerdns/pdns.conf; then
+      sed -i 's/^launch=.*/launch=gsqlite3/' /etc/powerdns/pdns.conf
+    else
+      printf '\n# CloudDeck managed authoritative backend\nlaunch=gsqlite3\n' >> /etc/powerdns/pdns.conf
+    fi
+    if grep -q '^gsqlite3-database=' /etc/powerdns/pdns.conf; then
+      sed -i 's#^gsqlite3-database=.*#gsqlite3-database=/var/lib/powerdns/pdns.sqlite3#' /etc/powerdns/pdns.conf
+    else
+      printf 'gsqlite3-database=/var/lib/powerdns/pdns.sqlite3\n' >> /etc/powerdns/pdns.conf
+    fi
+    # WSL reserves the DNS stub port. Keep the backend usable for panel tests
+    # without changing normal Linux production deployments.
+    if grep -qi microsoft /proc/version 2>/dev/null \
+        && command -v ss >/dev/null 2>&1 \
+        && ss -H -lun 'sport = :53' 2>/dev/null | grep -q .; then
+      if grep -q '^local-address=' /etc/powerdns/pdns.conf; then
+        sed -i 's/^local-address=.*/local-address=127.0.0.1/' /etc/powerdns/pdns.conf
+      else
+        printf 'local-address=127.0.0.1\n' >> /etc/powerdns/pdns.conf
+      fi
+      if grep -q '^local-port=' /etc/powerdns/pdns.conf; then
+        sed -i 's/^local-port=.*/local-port=5353/' /etc/powerdns/pdns.conf
+      else
+        printf 'local-port=5353\n' >> /etc/powerdns/pdns.conf
+      fi
+      warn "WSL DNS stub occupies port 53; PowerDNS is configured on 127.0.0.1:5353"
+    fi
   fi
 }
 

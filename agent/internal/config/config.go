@@ -163,7 +163,7 @@ func Load() (Config, error) {
 
 	// v0.5 FTP accounts
 	cfg.FTPPasswdFile = env("AGENT_FTP_PASSWD_FILE", filepath.Join(cfg.StateDir, "ftp", "passwd"))
-	cfg.FTPRunAs = env("AGENT_FTP_RUNAS", "www")
+	cfg.FTPRunAs = env("AGENT_FTP_RUNAS", "clouddeck")
 	cfg.FTPReloadCmd = env("AGENT_FTP_RELOAD_CMD", "")
 
 	// v0.5 hosting user (webroot ownership)
