@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import {
   DOMAIN_REGEX,
   HttpError,

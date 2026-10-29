@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import { HttpError, errorResponse, requireAuth } from "@/lib/http";
 import { resolveTermSessionId } from "@/app/api/term/shared";
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     try {
       upstream = await fetch(
         `${config.agentUrl}/v1/term/sessions/${encodeURIComponent(sessionId)}/stream`,
-        { cache: "no-store", signal: req.signal },
+        { headers: agentHeaders(), cache: "no-store", signal: req.signal },
       );
     } catch {
       return errorResponse(502, "CloudDeck agent is unreachable");

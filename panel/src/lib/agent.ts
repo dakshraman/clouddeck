@@ -1,4 +1,5 @@
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import type {
   CreateSiteRequest,
   IssueSslRequest,
@@ -60,7 +61,7 @@ export async function agentFetch<T>(path: string, init?: AgentFetchInit): Promis
   try {
     res = await fetch(config.agentUrl + path, {
       method: init?.method ?? "GET",
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      headers: agentHeaders(hasBody ? "application/json" : undefined),
       body: hasBody ? JSON.stringify(init?.body) : undefined,
       cache: "no-store",
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

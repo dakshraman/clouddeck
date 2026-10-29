@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import {
   DOMAIN_REGEX,
   HttpError,
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     try {
       res = await fetch(`${config.agentUrl}/v1/sites/${encodeURIComponent(domain)}/files/rename`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: agentHeaders("application/json"),
         body: JSON.stringify({ from, to }),
         cache: "no-store",
         signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),

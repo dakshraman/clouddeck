@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import { HttpError, errorResponse } from "@/lib/http";
 
 /**
@@ -71,7 +72,7 @@ export async function agentPassThrough(
   try {
     res = await fetch(config.agentUrl + path, {
       method: init?.method ?? "GET",
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      headers: agentHeaders(hasBody ? "application/json" : undefined),
       body: hasBody ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
       signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),

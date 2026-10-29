@@ -3,6 +3,7 @@
 package server
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	stdlog "log"
@@ -38,7 +39,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.10"
+const Version = "0.6.11"
 
 const maxBodyBytes = 1 << 20
 
@@ -225,7 +226,28 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)
 	mux.HandleFunc("/", s.handleNotFound)
 
-	return logRequests(mux)
+	return logRequests(s.authenticated(mux))
+}
+
+func (s *Server) authenticated(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.cfg.AuthToken == "" && (s.cfg.DryRun || s.cfg.AllowInsecureDev) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		provided := r.Header.Get("X-CloudDeck-Agent-Token")
+		if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(s.cfg.AuthToken)) != 1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":{"code":"unauthorized","message":"agent authentication required"}}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 type errorBody struct {

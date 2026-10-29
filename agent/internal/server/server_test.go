@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"clouddeck/agent/internal/config"
 )
 
 // The logging middleware wraps every response writer; SSE handlers assert
@@ -29,6 +31,38 @@ func TestLogRequestsPreservesFlusher(t *testing.T) {
 func TestStatusWriterFlushWithoutSupport(t *testing.T) {
 	sw := &statusWriter{ResponseWriter: bareWriter{header: http.Header{}}, status: http.StatusOK}
 	sw.Flush()
+}
+
+func TestAuthenticationMiddleware(t *testing.T) {
+	s := &Server{cfg: config.Config{AuthToken: "secret"}}
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	h := s.authenticated(next)
+
+	t.Run("health is public", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/health", nil))
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+		}
+	})
+	t.Run("missing token is rejected", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/system", nil))
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+	t.Run("valid token is accepted", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/v1/system", nil)
+		req.Header.Set("X-CloudDeck-Agent-Token", "secret")
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+		}
+	})
 }
 
 type bareWriter struct{ header http.Header }

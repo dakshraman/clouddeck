@@ -13,6 +13,7 @@ function resolveCookieSecure(): boolean {
 }
 
 const sessionSecret = process.env.PANEL_SESSION_SECRET || DEFAULT_SESSION_SECRET;
+const agentToken = process.env.AGENT_TOKEN?.trim() || "";
 
 if (sessionSecret === DEFAULT_SESSION_SECRET) {
   console.warn(
@@ -25,6 +26,7 @@ export const config = {
   agentUrl: (process.env.AGENT_URL || DEFAULT_AGENT_URL).replace(/\/+$/, ""),
   dataDir: process.env.PANEL_DATA_DIR || "./data",
   sessionSecret,
+  agentToken,
   cookieSecure: resolveCookieSecure(),
   seedAdmin: process.env.PANEL_SEED_ADMIN?.trim() || null,
   seedPassword: process.env.PANEL_SEED_PASSWORD || null,

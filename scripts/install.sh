@@ -468,10 +468,19 @@ if [ -n "${PANEL_USER:-}" ]; then
 fi
 
 # --- configs -----------------------------------------------------------------
+AGENT_TOKEN=""
+if [ -f "$ETCDIR/agent.env" ]; then
+  AGENT_TOKEN="$(sed -n 's/^AGENT_AUTH_TOKEN=//p' "$ETCDIR/agent.env" | tail -n 1)"
+fi
+if [ -z "$AGENT_TOKEN" ]; then
+  AGENT_TOKEN="$(random_hex 32)"
+fi
+
 if [ "$DO_AGENT" = "1" ] && [ ! -f "$ETCDIR/agent.env" ]; then
   cat > "$ETCDIR/agent.env" <<EOF
 # CloudDeck agent configuration
 AGENT_LISTEN=127.0.0.1:$AGENT_PORT
+AGENT_AUTH_TOKEN=$AGENT_TOKEN
 AGENT_STATE_DIR=$DATADIR/agent
 # Coexisting installs (e.g. aaPanel): point these at the real paths, e.g.
 # AGENT_NGINX_SITES_DIR=/www/server/panel/vhost/nginx
@@ -493,6 +502,13 @@ EOF
   say "-- wrote $ETCDIR/agent.env"
 fi
 
+if [ "$DO_AGENT" = "1" ] && [ -f "$ETCDIR/agent.env" ] \
+    && ! grep -q '^AGENT_AUTH_TOKEN=' "$ETCDIR/agent.env"; then
+  printf '\nAGENT_AUTH_TOKEN=%s\n' "$AGENT_TOKEN" >> "$ETCDIR/agent.env"
+  chmod 600 "$ETCDIR/agent.env"
+  say "-- migrated agent authentication token"
+fi
+
 if [ "$DO_PANEL" = "1" ] && [ ! -f "$ETCDIR/panel.env" ]; then
   SECRET="$(random_hex 32)"
   cat > "$ETCDIR/panel.env" <<EOF
@@ -501,6 +517,7 @@ PORT=$PANEL_PORT
 HOSTNAME=0.0.0.0
 NODE_ENV=production
 AGENT_URL=http://127.0.0.1:$AGENT_PORT
+AGENT_TOKEN=$AGENT_TOKEN
 PANEL_DATA_DIR=$DATADIR/panel
 PANEL_SESSION_SECRET=$SECRET
 # Optional unattended provisioning - uncomment both to create this admin
@@ -512,6 +529,13 @@ PANEL_COOKIE_SECURE=false
 EOF
   chmod 600 "$ETCDIR/panel.env"
   say "-- wrote $ETCDIR/panel.env"
+fi
+
+if [ "$DO_PANEL" = "1" ] && [ -f "$ETCDIR/panel.env" ] \
+    && ! grep -q '^AGENT_TOKEN=' "$ETCDIR/panel.env"; then
+  printf '\nAGENT_TOKEN=%s\n' "$AGENT_TOKEN" >> "$ETCDIR/panel.env"
+  chmod 600 "$ETCDIR/panel.env"
+  say "-- migrated panel agent token"
 fi
 
 # The env files are the source of truth on a rerun: a port passed on the

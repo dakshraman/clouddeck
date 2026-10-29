@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import {
   DOMAIN_REGEX,
   HttpError,
@@ -100,7 +101,7 @@ async function forwardToAgent(
   try {
     res = await fetch(config.agentUrl + agentPath, {
       method: init.method,
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      headers: agentHeaders(hasBody ? "application/json" : undefined),
       body: hasBody ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
       signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),

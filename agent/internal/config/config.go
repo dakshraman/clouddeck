@@ -11,19 +11,21 @@ import (
 
 // Config holds the resolved agent settings.
 type Config struct {
-	Listen        string
-	StateDir      string
-	NginxSitesDir string
-	Webroot       string
-	PHPBase       string
-	LogDir        string
-	PHPFpmSock    string
-	MySQLBin      string
-	MySQLRootUser string
-	MySQLRootPass string
-	MySQLHost     string
-	MySQLPort     string
-	DryRun        bool
+	Listen           string
+	AuthToken        string
+	AllowInsecureDev bool
+	StateDir         string
+	NginxSitesDir    string
+	Webroot          string
+	PHPBase          string
+	LogDir           string
+	PHPFpmSock       string
+	MySQLBin         string
+	MySQLRootUser    string
+	MySQLRootPass    string
+	MySQLHost        string
+	MySQLPort        string
+	DryRun           bool
 
 	// v0.3 monitoring / service control
 	NginxRestartCmd string
@@ -107,18 +109,20 @@ type Config struct {
 // Load reads the environment and applies documented defaults.
 func Load() (Config, error) {
 	cfg := Config{
-		Listen:        env("AGENT_LISTEN", "127.0.0.1:9090"),
-		StateDir:      env("AGENT_STATE_DIR", "./data"),
-		NginxSitesDir: env("AGENT_NGINX_SITES_DIR", "/etc/nginx/conf.d"),
-		Webroot:       env("AGENT_WEBROOT", "/www/wwwroot"),
-		PHPBase:       env("AGENT_PHP_BASE", "/etc/php"),
-		LogDir:        env("AGENT_LOG_DIR", "/var/log/nginx"),
-		PHPFpmSock:    env("AGENT_PHP_FPM_SOCK", "/run/php/php{{version}}-fpm.sock"),
-		MySQLBin:      env("AGENT_MYSQL_BIN", "mysql"),
-		MySQLRootUser: env("AGENT_MYSQL_ROOT_USER", "root"),
-		MySQLRootPass: env("AGENT_MYSQL_ROOT_PASSWORD", ""),
-		MySQLHost:     env("AGENT_MYSQL_HOST", ""),
-		MySQLPort:     env("AGENT_MYSQL_PORT", ""),
+		Listen:           env("AGENT_LISTEN", "127.0.0.1:9090"),
+		AuthToken:        strings.TrimSpace(os.Getenv("AGENT_AUTH_TOKEN")),
+		AllowInsecureDev: envBool("AGENT_ALLOW_INSECURE_DEV", false),
+		StateDir:         env("AGENT_STATE_DIR", "./data"),
+		NginxSitesDir:    env("AGENT_NGINX_SITES_DIR", "/etc/nginx/conf.d"),
+		Webroot:          env("AGENT_WEBROOT", "/www/wwwroot"),
+		PHPBase:          env("AGENT_PHP_BASE", "/etc/php"),
+		LogDir:           env("AGENT_LOG_DIR", "/var/log/nginx"),
+		PHPFpmSock:       env("AGENT_PHP_FPM_SOCK", "/run/php/php{{version}}-fpm.sock"),
+		MySQLBin:         env("AGENT_MYSQL_BIN", "mysql"),
+		MySQLRootUser:    env("AGENT_MYSQL_ROOT_USER", "root"),
+		MySQLRootPass:    env("AGENT_MYSQL_ROOT_PASSWORD", ""),
+		MySQLHost:        env("AGENT_MYSQL_HOST", ""),
+		MySQLPort:        env("AGENT_MYSQL_PORT", ""),
 
 		NginxRestartCmd:   env("AGENT_NGINX_RESTART_CMD", ""),
 		MySQLRestartCmd:   env("AGENT_MYSQL_RESTART_CMD", ""),
@@ -197,6 +201,9 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("AGENT_DRY_RUN: %q is not a boolean", raw)
 		}
 		cfg.DryRun = dryRun
+	}
+	if cfg.AuthToken == "" && !cfg.DryRun && !cfg.AllowInsecureDev {
+		return Config{}, fmt.Errorf("AGENT_AUTH_TOKEN is required unless AGENT_DRY_RUN=true or AGENT_ALLOW_INSECURE_DEV=true")
 	}
 	return cfg, nil
 }

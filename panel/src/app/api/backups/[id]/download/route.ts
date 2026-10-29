@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import { HttpError, handleRoute, requireAuth } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -36,6 +37,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext): Promise<NextRes
     let res: Response;
     try {
       res = await fetch(`${config.agentUrl}/v1/backups/${encodeURIComponent(id)}/download`, {
+        headers: agentHeaders(),
         cache: "no-store",
         signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
       });

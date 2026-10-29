@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import {
   DOMAIN_REGEX,
   HttpError,
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
         `${config.agentUrl}/v1/sites/${encodeURIComponent(domain)}/files/upload?${query}`,
         {
           method: "POST",
+          headers: agentHeaders(),
           body: outgoing,
           cache: "no-store",
           signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),

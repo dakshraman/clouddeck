@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 import { handleRoute, parseJsonBody, requireAuth } from "@/lib/http";
 import { decodeFtpName, resolveFtpName, resolveFtpPassword } from "@/app/api/ftp/shared";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     try {
       res = await fetch(`${config.agentUrl}/v1/ftp/accounts/${encodeURIComponent(name)}/password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: agentHeaders("application/json"),
         body: JSON.stringify({ password }),
         cache: "no-store",
         signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { config } from "@/lib/config";
+import { agentHeaders } from "@/lib/agent-headers";
 
 const AGENT_TIMEOUT_MS = 15000;
 
@@ -17,7 +18,7 @@ export async function proxyAgent(
   try {
     res = await fetch(config.agentUrl + path, {
       method,
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      headers: agentHeaders(hasBody ? "application/json" : undefined),
       body: hasBody ? JSON.stringify(body) : undefined,
       cache: "no-store",
       signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
