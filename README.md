@@ -128,7 +128,7 @@ The panel is the only process the operator's browser talks to. It owns user acco
 | Panel | Node.js 20+; the installer ships Node 22 |
 | Agent | Go 1.23+ only when building from source; release binaries are static |
 | Web stack | nginx, PHP-FPM, MariaDB/MySQL, certbot — auto-installed on Debian/Ubuntu |
-| Optional | PowerDNS, Postfix/Dovecot, pure-ftpd, fail2ban, ufw/firewalld, rclone, phpMyAdmin |
+| Optional integrations | Postfix/Dovecot, pure-ftpd, rclone, phpMyAdmin |
 
 The agent targets Linux. The panel can run on any OS for development, and the agent has a dry-run mode that works without root.
 
@@ -146,8 +146,8 @@ On Debian/Ubuntu the installer:
 
 - downloads the static agent binary and the self-contained panel bundle;
 - installs a pinned Node 22 runtime under `/opt/clouddeck`;
-- provisions nginx, PHP-FPM + common extensions, MariaDB server/client, certbot, git, and unzip with `apt-get`;
-- creates `/www/wwwroot` and enables the web stack services;
+- provisions nginx, PHP-FPM + common extensions, MariaDB server/client, certbot, PowerDNS with SQLite, ModSecurity + OWASP CRS, fail2ban, UFW, git, and unzip with `apt-get`;
+- creates `/www/wwwroot`, configures the security jails and PowerDNS backend, and enables the host services;
 - writes systemd units (`clouddeck-agent`, `clouddeck-panel`), or plain init scripts when systemd is unavailable;
 - installs the `clouddeck` management CLI on `PATH`.
 

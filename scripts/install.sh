@@ -227,10 +227,57 @@ prompt_panel_admin() {
 prompt_panel_admin
 
 # --- hosting stack -----------------------------------------------------------
-# The panel manages nginx, PHP-FPM, MariaDB and certbot on the host, so install
-# them here instead of leaving the web UI with dead pages. This runs on every
-# install, including same-version reruns; apt-get is idempotent. Non-Debian
-# hosts still get the panel/agent, but must install the stack themselves.
+# The panel manages the host web stack and its security/DNS integrations, so
+# install the packages required by the shipped feature surface. This runs on
+# every install, including same-version reruns; apt-get is idempotent.
+configure_fail2ban() {
+  command -v fail2ban-client >/dev/null 2>&1 || return 0
+  mkdir -p /etc/fail2ban/jail.d
+  cat > /etc/fail2ban/jail.d/clouddeck.conf <<'EOF'
+# CloudDeck baseline jails. Operators can override these in jail.local.
+[sshd]
+enabled = true
+backend = systemd
+
+[nginx-http-auth]
+enabled = true
+logpath = /var/log/nginx/error.log
+EOF
+}
+
+configure_powerdns() {
+  command -v pdnsutil >/dev/null 2>&1 || return 0
+  mkdir -p /var/lib/powerdns
+  if [ ! -f /var/lib/powerdns/pdns.sqlite3 ] \
+      && [ -f /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql ] \
+      && command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 /var/lib/powerdns/pdns.sqlite3 \
+      < /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql \
+      || warn "could not initialize the PowerDNS SQLite database"
+    chown pdns:pdns /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
+  fi
+  if [ -f /etc/powerdns/pdns.conf ]; then
+    grep -q '^launch=' /etc/powerdns/pdns.conf \
+      || printf '\n# CloudDeck managed authoritative backend\nlaunch=gsqlite3\n' >> /etc/powerdns/pdns.conf
+    grep -q '^gsqlite3-database=' /etc/powerdns/pdns.conf \
+      || printf 'gsqlite3-database=/var/lib/powerdns/pdns.sqlite3\n' >> /etc/powerdns/pdns.conf
+  fi
+}
+
+configure_security_services() {
+  configure_fail2ban
+  configure_powerdns
+  if systemd_present; then
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    systemctl enable --now fail2ban >/dev/null 2>&1 \
+      || warn "could not start fail2ban; inspect: systemctl status fail2ban"
+    if systemctl list-unit-files pdns.service >/dev/null 2>&1; then
+      systemctl enable --now pdns >/dev/null 2>&1 \
+        || warn "could not start PowerDNS; inspect: systemctl status pdns"
+    fi
+  fi
+}
+
 provision_packages() {
   if ! command -v apt-get >/dev/null 2>&1; then
     warn "apt-get not found: install nginx, PHP-FPM, MariaDB and certbot manually"
@@ -238,7 +285,9 @@ provision_packages() {
   fi
 
   _pkgs="nginx php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml
-    php-zip php-intl php-bcmath php-opcache git unzip"
+    php-zip php-intl php-bcmath php-opcache git unzip sqlite3
+    libnginx-mod-http-modsecurity modsecurity-crs fail2ban ufw
+    pdns-server pdns-backend-sqlite3"
 
   # MariaDB and MySQL server packages conflict: keep whichever is already here.
   if command -v mysqld >/dev/null 2>&1 \
@@ -278,7 +327,7 @@ provision_packages() {
   if [ -z "$_missing" ]; then
     say "-- hosting packages already installed"
   else
-    say "-- installing hosting packages (nginx, PHP-FPM, database, certbot)"
+    say "-- installing hosting and feature packages"
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
       apt-get update -qq -o DPkg::Lock::Timeout=300 \
       || warn "apt-get update failed; using the current package lists"
@@ -292,6 +341,7 @@ provision_packages() {
 
   mkdir -p /www/wwwroot
   STACK_PROVISIONED=1
+  configure_security_services
 }
 
 start_hosting_services() {
@@ -521,6 +571,10 @@ if [ "$DO_AGENT" = "1" ] && [ ! -f "$ETCDIR/agent.env" ]; then
 AGENT_LISTEN=127.0.0.1:$AGENT_PORT
 AGENT_AUTH_TOKEN=$AGENT_TOKEN
 AGENT_STATE_DIR=$DATADIR/agent
+AGENT_FTP_RUNAS=clouddeck
+AGENT_WEB_RUNAS=clouddeck
+AGENT_TERM_USER=clouddeck
+AGENT_MODSEC_CONF=/etc/nginx/modsec/clouddeck.conf
 # Coexisting installs (e.g. aaPanel): point these at the real paths, e.g.
 # AGENT_NGINX_SITES_DIR=/www/server/panel/vhost/nginx
 # AGENT_LOG_DIR=/www/wwwlogs
@@ -546,6 +600,18 @@ if [ "$DO_AGENT" = "1" ] && [ -f "$ETCDIR/agent.env" ] \
   printf '\nAGENT_AUTH_TOKEN=%s\n' "$AGENT_TOKEN" >> "$ETCDIR/agent.env"
   chmod 600 "$ETCDIR/agent.env"
   say "-- migrated agent authentication token"
+fi
+
+if [ "$DO_AGENT" = "1" ] && [ -f "$ETCDIR/agent.env" ]; then
+  grep -q '^AGENT_FTP_RUNAS=' "$ETCDIR/agent.env" ||
+    printf 'AGENT_FTP_RUNAS=clouddeck\n' >> "$ETCDIR/agent.env"
+  grep -q '^AGENT_WEB_RUNAS=' "$ETCDIR/agent.env" ||
+    printf 'AGENT_WEB_RUNAS=clouddeck\n' >> "$ETCDIR/agent.env"
+  grep -q '^AGENT_TERM_USER=' "$ETCDIR/agent.env" ||
+    printf 'AGENT_TERM_USER=clouddeck\n' >> "$ETCDIR/agent.env"
+  grep -q '^AGENT_MODSEC_CONF=' "$ETCDIR/agent.env" ||
+    printf 'AGENT_MODSEC_CONF=/etc/nginx/modsec/clouddeck.conf\n' >> "$ETCDIR/agent.env"
+  chmod 600 "$ETCDIR/agent.env"
 fi
 
 if [ "$DO_PANEL" = "1" ] && [ ! -f "$ETCDIR/panel.env" ]; then
