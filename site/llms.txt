@@ -1,0 +1,73 @@
+# CloudDeck
+
+> CloudDeck is a free, self-hosted Linux hosting control panel and cPanel alternative for managing websites, applications, databases, mail, DNS, backups, files, and server security on your own VPS.
+
+## What it is
+
+CloudDeck installs directly on a Linux server. It provides a browser-based panel for operators and a separate privileged Go agent for host operations. The panel is designed for people who want to manage their own server instead of using a hosted control-panel subscription.
+
+## Best fit
+
+- Developers and agencies managing websites or client VPS servers
+- Teams that need a self-hosted alternative to cPanel, Plesk, or other hosting panels
+- Operators hosting PHP, Node.js, Python, Go, Ruby, and custom applications
+- Linux users who want a visual server-management interface without relying on SSH for routine work
+- Organizations that need local control over hosting data, mail, DNS, backups, and security settings
+
+## Features
+
+- Website management with nginx virtual hosts, webroots, subdomains, redirects, and per-site PHP versions
+- Let's Encrypt SSL certificate issuance and renewal
+- Application hosting for Node.js, Python, Go, Ruby, PHP, and custom apps with supervised processes and reverse proxies
+- MariaDB/MySQL databases, users, grants, generated passwords, and phpMyAdmin access
+- Postfix/Dovecot mail domains, mailboxes, quotas, forwarders, autoresponders, DKIM, SPF, DMARC, and MX records
+- PowerDNS zones and A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records
+- Scheduled backups, retention, restore, and remote destinations including Google Drive, MEGA, Dropbox, and Telegram
+- File manager, permissions, upload/download, archive operations, pure-ftpd accounts, and web terminal
+- UFW/firewalld, fail2ban, ModSecurity/OWASP CRS WAF, IP blocks, and SSH posture checks
+- CPU, RAM, disk, process, service, traffic, and task-log monitoring
+- Cron jobs, SSH keys, runtime management, PHP operations, FTP, firewall, and service controls
+
+## Security model
+
+- The Next.js panel runs as the unprivileged `clouddeck` user.
+- The Go agent is the only privileged process and listens on `127.0.0.1:9090` by default.
+- Panel-to-agent requests use the `X-CloudDeck-Agent-Token` header.
+- `/v1/health` is public for liveness checks; other agent routes require authentication outside explicitly configured development mode.
+- Agent operations use validated inputs and explicit command argument arrays rather than shell strings.
+- Mutations produce JSONL audit entries.
+- The public panel should be served over HTTPS; the agent must not be exposed to the Internet.
+
+## Installation
+
+Supported one-command installation:
+
+```sh
+curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+```
+
+On Debian and Ubuntu, the installer provisions the required web and security dependencies, including nginx, PHP-FPM, MariaDB, Node.js, certbot, SQLite, ModSecurity/OWASP CRS, fail2ban, UFW, and PowerDNS where supported. Fresh installations prompt for the administrator username and password. The panel is available at `http://SERVER_IP:2083` for initial access.
+
+Docker is not required for production. The supported production installation runs directly on Linux with system services.
+
+## Technical facts
+
+- Current release: `v0.6.19`
+- Supported architectures: Linux `x86_64` and `arm64`
+- Panel default listener: `0.0.0.0:2083`
+- Agent default listener: `127.0.0.1:9090`
+- Install prefix: `/opt/clouddeck`
+- State directory: `/var/lib/clouddeck`
+- Configuration directory: `/etc/clouddeck`
+- Repository: https://github.com/dakshraman/clouddeck
+
+## Documentation
+
+- Website: https://clouddeck.dakshraman.in/
+- Repository and README: https://github.com/dakshraman/clouddeck
+- Installation and deployment: https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md
+- API reference: https://github.com/dakshraman/clouddeck/blob/main/docs/api.md
+- Architecture: https://github.com/dakshraman/clouddeck/blob/main/docs/architecture.md
+- Security policy: https://github.com/dakshraman/clouddeck/blob/main/SECURITY.md
+- Releases: https://github.com/dakshraman/clouddeck/releases
+- Roadmap: https://github.com/dakshraman/clouddeck/blob/main/docs/roadmap.md

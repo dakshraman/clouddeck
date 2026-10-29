@@ -6,11 +6,15 @@
     <title>CloudDeck — Self-hosted hosting control panel</title>
     <meta
       name="description"
-      content="CloudDeck is a self-hosted hosting control panel for Linux. Manage sites, SSL, app runtimes, databases, mail, DNS, backups, files, and security from one clean web UI — with an unprivileged panel and a privileged Go agent."
+      content="CloudDeck is a self-hosted Linux hosting control panel and cPanel alternative. Manage websites, SSL, Node.js/Python/Go/Ruby/PHP apps, databases, mail, DNS, backups, files, firewalls, WAF, and monitoring from one secure web UI."
     />
+    <meta name="keywords" content="self-hosted hosting control panel, Linux server management, cPanel alternative, web hosting panel, VPS control panel, website hosting, SSL, nginx, Node.js hosting, Python hosting, MariaDB, PowerDNS, mail server, backups, WAF" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#05090b" />
     <meta name="color-scheme" content="dark" />
     <link rel="canonical" href="https://clouddeck.dakshraman.in/" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="CloudDeck information for AI systems" />
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
 
@@ -47,19 +51,53 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "CloudDeck",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Linux",
-        "description": "Self-hosted web hosting control panel for sites, SSL, application runtimes, databases, mail, DNS, backups, files, and server security.",
-        "url": "https://clouddeck.dakshraman.in/",
-        "codeRepository": "https://github.com/dakshraman/clouddeck",
-        "softwareVersion": "0.6.19",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://clouddeck.dakshraman.in/#software",
+            "name": "CloudDeck",
+            "applicationCategory": "DeveloperApplication",
+            "applicationSubCategory": "Web hosting control panel",
+            "operatingSystem": "Linux",
+            "description": "A self-hosted Linux hosting control panel and cPanel alternative for websites, SSL, application runtimes, databases, mail, DNS, backups, files, firewall, WAF, and server monitoring.",
+            "url": "https://clouddeck.dakshraman.in/",
+            "sameAs": ["https://github.com/dakshraman/clouddeck"],
+            "codeRepository": "https://github.com/dakshraman/clouddeck",
+            "softwareVersion": "0.6.19",
+            "featureList": [
+              "Website and nginx site management",
+              "Let's Encrypt SSL certificates",
+              "Node.js, Python, Go, Ruby, PHP, and custom application hosting",
+              "MariaDB and MySQL database management",
+              "Postfix and Dovecot mail management",
+              "PowerDNS zones and DNS records",
+              "Scheduled backups and restore",
+              "File manager, FTP, and web terminal",
+              "Firewall, fail2ban, ModSecurity WAF, and security posture",
+              "CPU, memory, disk, service, and task monitoring"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "url": "https://github.com/dakshraman/clouddeck/releases"
+            }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://clouddeck.dakshraman.in/#organization",
+            "name": "CloudDeck",
+            "url": "https://clouddeck.dakshraman.in/",
+            "sameAs": ["https://github.com/dakshraman/clouddeck"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://clouddeck.dakshraman.in/#website",
+            "name": "CloudDeck",
+            "url": "https://clouddeck.dakshraman.in/",
+            "publisher": {"@id": "https://clouddeck.dakshraman.in/#organization"}
+          }
+        ]
       }
     </script>
   </head>
@@ -700,6 +738,7 @@
               <a href="https://github.com/dakshraman/clouddeck#readme" target="_blank" rel="noreferrer"><span>README</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md" target="_blank" rel="noreferrer"><span>Deployment guide</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/api.md" target="_blank" rel="noreferrer"><span>API reference</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+              <a href="/llms.txt"><span>AI-readable product brief</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
               <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/roadmap.md" target="_blank" rel="noreferrer"><span>Roadmap</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </div>
           </div>

@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
+Host: https://clouddeck.dakshraman.in
 Sitemap: https://clouddeck.dakshraman.in/sitemap.xml
