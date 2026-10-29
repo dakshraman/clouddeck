@@ -96,7 +96,6 @@ USAGE
 done
 
 [ "$(id -u)" = "0" ] || die "must run as root:  curl ... | sudo bash"
-prompt_panel_admin
 
 # Generated units/scripts do not quote these paths, so keep them shell-safe.
 for _dir in "$PREFIX" "$DATADIR" "$ETCDIR"; do
@@ -224,6 +223,8 @@ prompt_panel_admin() {
   unset _panel_password_confirm
   exec 3<&-
 }
+
+prompt_panel_admin
 
 # --- hosting stack -----------------------------------------------------------
 # The panel manages nginx, PHP-FPM, MariaDB and certbot on the host, so install
