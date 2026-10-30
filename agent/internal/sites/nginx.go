@@ -110,6 +110,8 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
     root {{.Root}};
     index index.html index.php;
 
+    client_max_body_size 100m;
+
     access_log {{.LogDir}}/{{.Domain}}.access.log;
     error_log {{.LogDir}}/{{.Domain}}.error.log;
 {{range .Denies}}    deny {{.}};
@@ -132,6 +134,8 @@ server {
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
     root {{$.Root}}/{{.}};
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     access_log {{$.LogDir}}/{{$.Domain}}.access.log;
     error_log {{$.LogDir}}/{{$.Domain}}.error.log;
@@ -160,11 +164,13 @@ var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMark
 {{end}}}
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
     root {{.Root}};
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     ssl_certificate /etc/letsencrypt/live/{{.Domain}}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{.Domain}}/privkey.pem;
@@ -191,6 +197,8 @@ server {
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
     root {{$.Root}}/{{.}};
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     access_log {{$.LogDir}}/{{$.Domain}}.access.log;
     error_log {{$.LogDir}}/{{$.Domain}}.error.log;

@@ -52,6 +52,8 @@ func (s *Service) writeSystemdUnit(app Spec) error {
 [Unit]
 Description=CloudDeck app %s on %s (%s)
 After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -64,6 +66,7 @@ TimeoutStopSec=20
 CPUQuota=%s
 MemoryMax=%s
 TasksMax=%s
+NoNewPrivileges=true
 %s%s
 StandardOutput=append:%s/app.log
 StandardError=append:%s/app.log
@@ -329,7 +332,7 @@ func (s *Service) liveStatus(ctx context.Context, app Spec) Status {
 func (s *Service) systemdStatus(ctx context.Context, app Spec) Status {
 	unit := unitName(app) + ".service"
 	out, err := exec.CommandContext(ctx, "systemctl", "show", unit,
-		"--property=ActiveState,SubState,MainPID,ExecMainStartTimestamp").Output()
+		"--property=ActiveState,SubState,MainPID,ExecMainStartTimestamp,Result").Output()
 	if err != nil {
 		return Status{State: StateUnknown, Detail: "systemctl is unavailable"}
 	}
@@ -347,7 +350,11 @@ func (s *Service) systemdStatus(ctx context.Context, app Spec) Status {
 	case "failed":
 		status.State = StateError
 	case "activating":
-		status.State = StateStopped
+		if props["SubState"] == "auto-restart" {
+			status.State = StateError
+		} else {
+			status.State = StateStopped
+		}
 	}
 	if pid, err := strconv.Atoi(props["MainPID"]); err == nil && pid > 0 {
 		status.PID = pid
@@ -358,7 +365,15 @@ func (s *Service) systemdStatus(ctx context.Context, app Spec) Status {
 			status.UptimeSec = int64(time.Since(ts).Seconds())
 		}
 	}
-	status.Detail = strings.TrimSpace(props["SubState"])
+	detail := strings.TrimSpace(props["SubState"])
+	if res := strings.TrimSpace(props["Result"]); res != "" && res != "success" {
+		if detail != "" {
+			detail = fmt.Sprintf("%s (%s)", detail, res)
+		} else {
+			detail = res
+		}
+	}
+	status.Detail = detail
 	return status
 }
 

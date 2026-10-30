@@ -82,7 +82,7 @@ func TestRenderWAFBlockPlacement(t *testing.T) {
 		t.Errorf("SSL WAF blocks = %d, want 2 (443 main + subdomain):\n%s", got, conf)
 	}
 	assertContains(t, conf,
-		"listen [::]:443 ssl;\n    server_name example.com www.example.com;\n    # clouddeck waf\n",
+		"listen [::]:443 ssl http2;\n    server_name example.com www.example.com;\n    # clouddeck waf\n",
 		"server_name blog.example.com;\n    # clouddeck waf\n",
 	)
 

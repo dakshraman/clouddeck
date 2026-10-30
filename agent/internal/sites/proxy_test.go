@@ -51,6 +51,17 @@ func TestRenderProxyPathPrefix(t *testing.T) {
 	if !strings.Contains(conf, "proxy_set_header Upgrade $http_upgrade;") {
 		t.Fatal("missing WebSocket upgrade headers")
 	}
+	// Slash normalization redirect for prefix apps.
+	if !strings.Contains(conf, "location = /api {\n        return 308 /api/$is_args$args;\n    }") {
+		t.Fatalf("missing trailing slash redirect for /api:\n%s", conf)
+	}
+	// Forwarded headers and proxy buffer tuning.
+	if !strings.Contains(conf, "proxy_set_header X-Forwarded-Host $host;") {
+		t.Fatal("missing X-Forwarded-Host header")
+	}
+	if !strings.Contains(conf, "proxy_buffer_size 128k;") {
+		t.Fatal("missing proxy buffer tuning")
+	}
 }
 
 func TestRenderSingleAppOwnsRoot(t *testing.T) {

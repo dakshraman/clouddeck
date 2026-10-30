@@ -93,7 +93,7 @@ func TestRenderNginxConfigWithSSL(t *testing.T) {
 	config := RenderNginxConfig(site, "/var/log/nginx", "/run/php/php{{version}}-fpm.sock")
 	for _, want := range []string{
 		managedMarker,
-		"listen 443 ssl;",
+		"listen 443 ssl http2;",
 		"return 301 https://$host$request_uri;",
 		"ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;",
 		"ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;",
@@ -115,6 +115,8 @@ func TestRenderNginxConfigByteIdenticalWithoutExtras(t *testing.T) {
     server_name static.example.org www.static.example.org;
     root /www/wwwroot/static.example.org;
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     access_log /var/log/nginx/static.example.org.access.log;
     error_log /var/log/nginx/static.example.org.error.log;
@@ -140,6 +142,8 @@ func TestRenderNginxConfigByteIdenticalPHPSite(t *testing.T) {
     server_name example.com www.example.com;
     root /www/wwwroot/example.com;
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     access_log /var/log/nginx/example.com.access.log;
     error_log /var/log/nginx/example.com.error.log;
@@ -178,11 +182,13 @@ func TestRenderNginxConfigByteIdenticalSSLSite(t *testing.T) {
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name example.com www.example.com;
     root /www/wwwroot/example.com;
     index index.html index.php;
+
+    client_max_body_size 100m;
 
     ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;

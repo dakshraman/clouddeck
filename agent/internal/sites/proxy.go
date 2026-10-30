@@ -35,6 +35,9 @@ func (p ProxyTargets) HasProxy() bool { return len(p.Apps) > 0 }
 // single-app site behaves like a normal website.
 const proxyBlock = `{{define "proxy"}}{{if or .Proxies.HasProxy .RootProxy}}{{range .Proxies.Apps}}
     # clouddeck app: {{.Name}}
+    location = /{{.Name}} {
+        return 308 /{{.Name}}/$is_args$args;
+    }
     location /{{.Name}}/ {
         proxy_pass http://127.0.0.1:{{.Port}}/;
         proxy_http_version 1.1;
@@ -42,8 +45,13 @@ const proxyBlock = `{{define "proxy"}}{{if or .Proxies.HasProxy .RootProxy}}{{ra
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
     }
@@ -56,8 +64,13 @@ const proxyBlock = `{{define "proxy"}}{{if or .Proxies.HasProxy .RootProxy}}{{ra
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
     }

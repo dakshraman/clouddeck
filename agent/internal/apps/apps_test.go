@@ -1,6 +1,12 @@
 package apps
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+
+	"clouddeck/agent/internal/config"
+)
 
 func TestValidateName(t *testing.T) {
 	valid := []string{"api", "web-app", "a1", "worker2", "API"}
@@ -98,5 +104,42 @@ func TestUnitName(t *testing.T) {
 	spec := Spec{Site: "example.com", Name: "api"}
 	if got, want := unitName(spec), "clouddeck-app-example.com-api"; got != want {
 		t.Fatalf("unitName = %q, want %q", got, want)
+	}
+}
+
+func TestWriteSystemdUnitDirectives(t *testing.T) {
+	tmp := t.TempDir()
+	svc := &Service{
+		cfg: config.Config{
+			AppUnitDir: tmp,
+			StateDir:   tmp,
+		},
+	}
+	spec := Spec{
+		Site:        "example.com",
+		Name:        "api",
+		Kind:        "nodejs",
+		Command:     "node index.js",
+		Dir:         tmp,
+		Port:        3000,
+		AutoRestart: true,
+	}
+	if err := svc.writeSystemdUnit(spec); err != nil {
+		t.Fatalf("writeSystemdUnit: %v", err)
+	}
+	content, err := os.ReadFile(svc.unitPath(spec))
+	if err != nil {
+		t.Fatalf("read unit file: %v", err)
+	}
+	text := string(content)
+	for _, expected := range []string{
+		"StartLimitIntervalSec=60",
+		"StartLimitBurst=5",
+		"NoNewPrivileges=true",
+		"Environment=\"PORT=3000\"",
+	} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("unit file missing %q:\n%s", expected, text)
+		}
 	}
 }

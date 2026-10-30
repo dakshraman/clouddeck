@@ -5,6 +5,7 @@ package apps
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -344,12 +345,18 @@ func (s *Service) allocatePort(site, kind string) (int, error) {
 	return 0, apierr.Conflict("no_free_port", "no free local port is available for this app")
 }
 
-// checkPortFree rejects a port already claimed by another app on the same site.
+// checkPortFree rejects a port already claimed by another app or in use by a host service.
 func (s *Service) checkPortFree(site string, port int) error {
 	for _, app := range s.st.ListApps() {
-		if app.Port == port && app.Site == site {
-			return apierr.Conflict("port_in_use", fmt.Sprintf("port %d is already used by app %q on %s", port, app.Name, site))
+		if app.Port == port {
+			if app.Site == site {
+				return apierr.Conflict("port_in_use", fmt.Sprintf("port %d is already used by app %q on %s", port, app.Name, site))
+			}
+			return apierr.Conflict("port_in_use", fmt.Sprintf("port %d is already used by app %q on %s", port, app.Name, app.Site))
 		}
+	}
+	if s.portInUse(port) {
+		return apierr.Conflict("port_in_use", fmt.Sprintf("port %d is already in use on this server", port))
 	}
 	return nil
 }
@@ -361,6 +368,11 @@ func (s *Service) portInUse(port int) bool {
 			return true
 		}
 	}
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return true
+	}
+	_ = ln.Close()
 	return false
 }
 

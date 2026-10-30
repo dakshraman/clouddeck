@@ -87,7 +87,16 @@ func (e *Engine) run(id string, fn RunFunc) {
 		}
 	}
 
-	runErr := fn(e.base, emit)
+	var runErr error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				runErr = fmt.Errorf("task panicked: %v", r)
+				emit("error", fmt.Sprintf("task panicked: %v", r))
+			}
+		}()
+		runErr = fn(e.base, emit)
+	}()
 
 	finished := store.Now()
 	e.update(id, func(t *store.Task) {
