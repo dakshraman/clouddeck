@@ -14,6 +14,15 @@ function resolveCookieSecure(): boolean {
 
 const sessionSecret = process.env.PANEL_SESSION_SECRET || DEFAULT_SESSION_SECRET;
 const agentToken = process.env.AGENT_TOKEN?.trim() || "";
+const isProductionRuntime =
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build";
+const productionConfigError =
+  isProductionRuntime && sessionSecret === DEFAULT_SESSION_SECRET
+    ? "PANEL_SESSION_SECRET must be configured for production"
+    : isProductionRuntime && !agentToken
+      ? "AGENT_TOKEN must be configured for production"
+      : null;
 
 if (sessionSecret === DEFAULT_SESSION_SECRET) {
   console.warn(
@@ -30,4 +39,5 @@ export const config = {
   cookieSecure: resolveCookieSecure(),
   seedAdmin: process.env.PANEL_SEED_ADMIN?.trim() || null,
   seedPassword: process.env.PANEL_SEED_PASSWORD || null,
+  productionConfigError,
 } as const;

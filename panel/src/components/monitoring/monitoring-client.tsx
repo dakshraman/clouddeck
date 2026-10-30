@@ -251,6 +251,14 @@ export function MonitoringClient() {
 
   const memoryPercent = system ? percentOf(system.memory.usedBytes, system.memory.totalBytes) : 0;
   const diskPercent = system ? percentOf(system.disk.usedBytes, system.disk.totalBytes) : 0;
+  const healthWarnings = [
+    system && system.cpu.usagePercent >= 90 ? "CPU usage is above 90%." : null,
+    system && memoryPercent >= 90 ? "Memory usage is above 90%." : null,
+    system && diskPercent >= 90 ? `Disk usage is above 90% on ${system.disk.mount}.` : null,
+    ...(services ?? [])
+      .filter((service) => service.state === "stopped")
+      .map((service) => `${service.label} is stopped.`),
+  ].filter((warning): warning is string => warning !== null);
 
   return (
     <>
@@ -269,6 +277,17 @@ export function MonitoringClient() {
 
       {rebootMessage ? <Alert className="mb-6">{rebootMessage}</Alert> : null}
       {rebootError ? <Alert variant="error" className="mb-6">{rebootError}</Alert> : null}
+
+      {healthWarnings.length > 0 ? (
+        <Alert variant="warning" className="mb-6">
+          <div>
+            <p className="font-medium">Attention needed</p>
+            <ul className="mt-1 list-disc pl-5 text-sm">
+              {healthWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </div>
+        </Alert>
+      ) : null}
 
       {systemError ? (
         <Alert variant="error" className="mb-6">

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AgentError } from "@/lib/agent";
+import { config } from "@/lib/config";
 import { getSession } from "@/lib/session";
 import { isSetupComplete } from "@/lib/users";
 import type { SessionUser } from "@/lib/types";
@@ -65,6 +66,9 @@ export function decodeDomainParam(raw: string): string {
 
 export async function handleRoute(fn: () => Promise<NextResponse>): Promise<NextResponse> {
   try {
+    if (config.productionConfigError) {
+      throw new HttpError(503, config.productionConfigError, "production_config_invalid");
+    }
     return await fn();
   } catch (err) {
     if (err instanceof HttpError) {

@@ -561,6 +561,9 @@ func lookupUser(name string) (*user.User, int, int, error) {
 	if err != nil {
 		return nil, 0, 0, apierr.Internal(fmt.Sprintf("term: user %q has an invalid gid %q", u.Username, u.Gid))
 	}
+	if uid == 0 || u.Username == "root" {
+		return nil, 0, 0, apierr.BadRequest("term_root_forbidden", "web terminal cannot run as root; configure AGENT_TERM_USER with a dedicated non-root user")
+	}
 	return u, uid, gid, nil
 }
 

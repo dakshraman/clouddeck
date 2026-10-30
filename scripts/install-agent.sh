@@ -16,7 +16,7 @@
 # Usage:
 #   sudo ./scripts/install-agent.sh
 #   # or, once the repo URL below is real, straight from the web:
-#   curl -fsSL https://raw.githubusercontent.com/CHANGE_ME/clouddeck/main/scripts/install-agent.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/dakshraman/clouddeck/main/scripts/install-agent.sh | sudo bash
 
 set -euo pipefail
 
@@ -78,9 +78,7 @@ if [[ -f "${REPO_DIR}/agent/go.mod" ]]; then
 else
   # (b) No checkout — download a released binary.
   #
-  # PLACEHOLDER: CHANGE_ME must be replaced with the real GitHub owner once
-  # releases exist. Until then, this branch only works for published releases.
-  RELEASE_BASE="https://github.com/CHANGE_ME/clouddeck/releases/latest/download"
+  RELEASE_BASE="https://github.com/dakshraman/clouddeck/releases/latest/download"
   BIN_URL="${RELEASE_BASE}/clouddeck-agent-${ARCH}"
   echo "==> downloading ${BIN_URL}"
   TMP_DIR="$(mktemp -d)"
@@ -102,11 +100,19 @@ echo "==> installed /usr/local/bin/clouddeck-agent"
 # ---------------------------------------------------------------------------
 mkdir -p /etc/clouddeck
 if [[ ! -f /etc/clouddeck/agent.env ]]; then
-  cat > /etc/clouddeck/agent.env <<'EOF'
+  AGENT_AUTH_TOKEN="$(od -An -N 32 -tx1 /dev/urandom | tr -d ' \n')"
+  cat > /etc/clouddeck/agent.env <<EOF
 # CloudDeck agent configuration (read by systemd via EnvironmentFile).
-# The v0.1 agent API has NO authentication — keep it on loopback only.
+# The agent API is protected by the panel token when configured; keep it on
+# loopback unless a separately authenticated deployment requires otherwise.
 AGENT_LISTEN=127.0.0.1:9090
-AGENT_STATE_DIR=/var/lib/clouddeck-agent
+AGENT_AUTH_TOKEN=${AGENT_AUTH_TOKEN}
+AGENT_STATE_DIR=/var/lib/clouddeck/agent
+AGENT_WEB_RUNAS=clouddeck
+AGENT_TERM_USER=clouddeck
+AGENT_APP_CPU_QUOTA=200%
+AGENT_APP_MEMORY_MAX=512M
+AGENT_APP_TASKS_MAX=256
 AGENT_NGINX_SITES_DIR=/etc/nginx/conf.d
 AGENT_WEBROOT=/www/wwwroot
 # App hosting supervisor: systemd (default), pm2 or supervisor.
@@ -117,11 +123,22 @@ EOF
 else
   echo "==> kept existing /etc/clouddeck/agent.env"
 fi
+if ! grep -q '^AGENT_AUTH_TOKEN=' /etc/clouddeck/agent.env 2>/dev/null; then
+  printf 'AGENT_AUTH_TOKEN=%s\n' "$(od -An -N 32 -tx1 /dev/urandom | tr -d ' \n')" >> /etc/clouddeck/agent.env
+  chmod 600 /etc/clouddeck/agent.env
+fi
+if ! grep -q '^AGENT_WEB_RUNAS=' /etc/clouddeck/agent.env 2>/dev/null; then
+  printf 'AGENT_WEB_RUNAS=clouddeck\nAGENT_TERM_USER=clouddeck\nAGENT_APP_CPU_QUOTA=200%%\nAGENT_APP_MEMORY_MAX=512M\nAGENT_APP_TASKS_MAX=256\n' >> /etc/clouddeck/agent.env
+  chmod 600 /etc/clouddeck/agent.env
+fi
 
 # ---------------------------------------------------------------------------
 # 6. Directories
 # ---------------------------------------------------------------------------
-mkdir -p /var/lib/clouddeck-agent /www/wwwroot
+if command -v useradd >/dev/null 2>&1; then
+  id clouddeck >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin clouddeck
+fi
+mkdir -p /var/lib/clouddeck/agent /www/wwwroot
 
 # ---------------------------------------------------------------------------
 # 7. systemd unit

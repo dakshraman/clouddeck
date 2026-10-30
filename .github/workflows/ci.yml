@@ -25,6 +25,8 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
+      - name: Format check
+        run: test -z "$(gofmt -l .)"
 
   panel:
     name: Panel (Next.js)
@@ -44,7 +46,22 @@ jobs:
         run: |
           agent_v=$(grep -oP '(?<=const Version = ")[^"]+' ../agent/internal/server/server.go)
           [ "$(node -p "require('./package.json').version")" = "$agent_v" ]
-      - name: Typecheck
-        run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  scripts:
+    name: Installer and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax
+        run: |
+          bash -n scripts/install.sh
+          bash -n scripts/install-agent.sh
+          bash -n scripts/install-test.sh
+      - name: Installer lifecycle tests
+        run: bash scripts/install-test.sh

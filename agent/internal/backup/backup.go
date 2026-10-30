@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,6 +84,7 @@ type Archive struct {
 	Source    string    `json:"source"`
 	SizeBytes int64     `json:"sizeBytes"`
 	CreatedAt time.Time `json:"createdAt"`
+	Checksum  string    `json:"checksum,omitempty"`
 }
 
 // UploadTarget is one post-backup upload: Telegram (Bot API) or an
@@ -220,6 +223,9 @@ func (s *Service) startTask(target backupTarget, uploads []UploadTarget, onSucce
 		if err != nil {
 			return fmt.Errorf("stat archive: %w", err)
 		}
+		if _, err := writeChecksum(archivePath); err != nil {
+			return err
+		}
 		log("info", fmt.Sprintf("archive %s created (%d bytes)", name, info.Size()))
 		for _, upload := range uploads {
 			if err := s.runUpload(ctx, log, archivePath, upload); err != nil {
@@ -267,6 +273,7 @@ func (s *Service) List() ([]Archive, error) {
 			Source:    parsed.source,
 			SizeBytes: info.Size(),
 			CreatedAt: createdAt(parsed, info),
+			Checksum:  readChecksum(filepath.Join(s.cfg.BackupDir, name)),
 		})
 	}
 	sort.Slice(archives, func(i, j int) bool {
@@ -290,6 +297,7 @@ func (s *Service) Get(id string) (Archive, error) {
 		Source:    parsed.source,
 		SizeBytes: info.Size(),
 		CreatedAt: createdAt(parsed, info),
+		Checksum:  readChecksum(filepath.Join(s.cfg.BackupDir, id)),
 	}, nil
 }
 
@@ -314,6 +322,9 @@ func (s *Service) Restore(ctx context.Context, id string) (store.Task, error) {
 		return store.Task{}, err
 	}
 	archivePath := filepath.Join(s.cfg.BackupDir, archive.ID)
+	if err := verifyChecksum(archivePath); err != nil {
+		return store.Task{}, err
+	}
 
 	// The task's site field carries the archive's source; both restore paths
 	// re-resolve the target now so a deleted site or database fails fast.
@@ -366,7 +377,65 @@ func (s *Service) Delete(id string) error {
 		}
 		return apierr.Internal(fmt.Sprintf("delete backup %s: %v", id, err))
 	}
+	_ = os.Remove(checksumPath(filepath.Join(s.cfg.BackupDir, id)))
 	return nil
+}
+
+func checksumPath(archivePath string) string { return archivePath + ".sha256" }
+
+func writeChecksum(archivePath string) (string, error) {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return "", apierr.Internal(fmt.Sprintf("open backup for checksum: %v", err))
+	}
+	defer f.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return "", apierr.Internal(fmt.Sprintf("checksum backup: %v", err))
+	}
+	sum := hex.EncodeToString(hash.Sum(nil))
+	if err := os.WriteFile(checksumPath(archivePath), []byte(sum+"\n"), 0o600); err != nil {
+		return "", apierr.Internal(fmt.Sprintf("write backup checksum: %v", err))
+	}
+	return sum, nil
+}
+
+func readChecksum(archivePath string) string {
+	data, err := os.ReadFile(checksumPath(archivePath))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func verifyChecksum(archivePath string) error {
+	expected := readChecksum(archivePath)
+	if expected == "" {
+		// Backups created before checksum sidecars were introduced remain
+		// restorable for compatibility; newly created backups are always signed.
+		return nil
+	}
+	actual, err := writeChecksumToMemory(archivePath)
+	if err != nil {
+		return err
+	}
+	if actual != expected {
+		return apierr.Conflict("backup_corrupt", "backup integrity verification failed")
+	}
+	return nil
+}
+
+func writeChecksumToMemory(archivePath string) (string, error) {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return "", apierr.Internal(fmt.Sprintf("open backup for verification: %v", err))
+	}
+	defer f.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return "", apierr.Internal(fmt.Sprintf("verify backup checksum: %v", err))
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // reject records a refused mutation (best effort) and returns err unchanged.

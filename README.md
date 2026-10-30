@@ -4,7 +4,7 @@
 
 [Website](https://clouddeck.dakshraman.in) · [Docs](docs/) · [API reference](docs/api.md) · [Deployment guide](docs/deployment.md) · [Roadmap](docs/roadmap.md) · [Security policy](SECURITY.md)
 
-![Version](https://img.shields.io/badge/version-0.6.19-1cc8e8?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.6.20-1cc8e8?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square)
 ![Panel](https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square)
 ![Agent](https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square)
@@ -397,7 +397,7 @@ CI runs the agent build/vet/test and the panel typecheck. See `.github/workflows
 
 ## Status
 
-Current version: **v0.6.19** — public panel installation defaults, automatic host dependency provisioning, PowerDNS SQLite setup, agent authentication, favicon support, and persistent light/dark appearance themes.
+Current version: **v0.6.20** — SHA-256 backup integrity, per-app systemd resource limits, non-root enforcement for apps and the web terminal, dashboard alerts for failed tasks and expiring certificates, and installer lifecycle tests in CI.
 
 - **v0.5.x** — sites + SSL, live task logs, dashboard, session auth, file manager, MySQL, service monitoring, PowerDNS, backups, mail, site operations, scheduled backups, FTP, web terminal, SSH keys, per-site WAF, remote MySQL, phpMyAdmin.
 - **v0.6.0** — Node/Python/Go/Ruby/custom app hosting, supervisor backends, host firewall, Security page.
@@ -409,6 +409,7 @@ Current version: **v0.6.19** — public panel installation defaults, automatic h
 - **v0.6.9** — separate Runtimes page listing installed Node.js/PHP versions with uninstall (refused while a site or app still uses the version), inline runtime switching from the Sites list, and boot hardening: `Restart=always` units where the panel pulls in the agent, plus the aaPanel port conflict that kept nginx/MariaDB from starting.
 - **v0.6.10** — one-click update from Settings: the panel asks the agent to run `clouddeck update <version>` in a detached unit, then polls until the restarted panel reports the new version and reloads.
 - **v0.6.11–v0.6.19** — authenticated panel-to-agent requests, non-root terminal defaults, installer credential prompts, favicon support, automatic dependency provisioning, PowerDNS/WSL startup fixes, public panel firewall access, and the Daylight light theme.
+- **v0.6.20** — backup integrity (SHA-256 sidecar per archive, verified on restore), per-app systemd resource limits (`AGENT_APP_CPU_QUOTA`/`MEMORY_MAX`/`TASKS_MAX`, validated), root refused for hosted apps and the web terminal, dashboard alerts for failed tasks and expiring certificates, monitoring "attention needed" banner, production config guard in the panel, and installer lifecycle tests (`scripts/install-test.sh`) plus gofmt/audit/artifact checks in CI.
 
 See [docs/roadmap.md](docs/roadmap.md) for what lands next.
 

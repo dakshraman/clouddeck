@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { SystemInfo, Task, TaskListResponse } from "@/lib/types";
+import type { Site, SiteListResponse, SystemInfo, Task, TaskListResponse } from "@/lib/types";
 import { apiFetch } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,7 @@ function MeterRow({
 export default function DashboardPage() {
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [sites, setSites] = useState<Site[] | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
@@ -91,9 +92,10 @@ export default function DashboardPage() {
     setErrorMessage(null);
     setTasksError(null);
 
-    const [systemResult, tasksResult] = await Promise.allSettled([
+    const [systemResult, tasksResult, sitesResult] = await Promise.allSettled([
       apiFetch<SystemInfo>("/api/system"),
       apiFetch<TaskListResponse>("/api/tasks"),
+      apiFetch<SiteListResponse>("/api/sites"),
     ]);
 
     if (systemResult.status === "fulfilled") {
@@ -117,6 +119,12 @@ export default function DashboardPage() {
         tasksResult.reason instanceof Error ? tasksResult.reason.message : "Failed to load tasks",
       );
     }
+
+    if (sitesResult.status === "fulfilled") {
+      setSites(sitesResult.value.sites);
+    } else {
+      setSites(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -124,6 +132,13 @@ export default function DashboardPage() {
   }, [load]);
 
   const loading = state === "loading";
+  const failedTasks = tasks?.filter((task) => task.status === "failed") ?? [];
+  const expiringCertificates =
+    sites?.filter((site) => {
+      if (!site.ssl.enabled || !site.ssl.expiresAt) return false;
+      const expiry = Date.parse(site.ssl.expiresAt);
+      return Number.isFinite(expiry) && expiry - Date.now() <= 30 * 24 * 60 * 60 * 1000;
+    }) ?? [];
 
   return (
     <>
@@ -141,6 +156,21 @@ export default function DashboardPage() {
       {state === "error" ? (
         <Alert variant="error" className="mb-6">
           {errorMessage ?? "Cannot reach the CloudDeck agent"}
+        </Alert>
+      ) : null}
+      {failedTasks.length > 0 ? (
+        <Alert variant="warning" className="mb-6">
+          {failedTasks.length === 1
+            ? "The latest agent operation failed. Review Recent tasks for details."
+            : `${failedTasks.length} recent agent operations failed. Review Recent tasks for details.`}
+        </Alert>
+      ) : null}
+      {expiringCertificates.length > 0 ? (
+        <Alert variant="warning" className="mb-6">
+          {expiringCertificates.length === 1
+            ? `SSL certificate for ${expiringCertificates[0].domain} expires within 30 days.`
+            : `${expiringCertificates.length} SSL certificates expire within 30 days.`}{" "}
+          Review the affected site before renewal.
         </Alert>
       ) : null}
 

@@ -1,7 +1,11 @@
 {
   "name": "clouddeck-panel",
-  "version": "0.6.19",
+  "version": "0.6.20",
   "private": true,
+  "overrides": {
+    "postcss": "^8.5.23",
+    "postcss-selector-parser": "^6.1.5"
+  },
   "engines": {
     "node": ">=20"
   },
@@ -38,7 +42,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.23",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }

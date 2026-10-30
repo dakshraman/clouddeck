@@ -58,6 +58,7 @@ jobs:
         run: |
           cd panel
           npm ci
+          npm audit --omit=dev --audit-level=high
           npm run build
           cp -r .next/static .next/standalone/.next/static
           if [ -d public ]; then cp -r public .next/standalone/public; fi
@@ -69,9 +70,19 @@ jobs:
           tar -czf ../dist/clouddeck-panel.tar.gz -C .next/standalone .
           cp ../scripts/clouddeck ../dist/clouddeck-cli
           chmod +x ../dist/clouddeck-cli
+          test -f .next/standalone/server.js
+          test -x ../dist/clouddeck-cli
 
       - name: Checksums
         run: cd dist && sha256sum clouddeck-agent-linux-amd64 clouddeck-agent-linux-arm64 clouddeck-panel.tar.gz clouddeck-cli > SHA256SUMS
+
+      - name: Verify release artifacts
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS
+          tar -tzf clouddeck-panel.tar.gz | grep -qx './server.js'
+          test -s clouddeck-agent-linux-amd64
+          test -s clouddeck-agent-linux-arm64
 
       - name: Publish release assets
         env:

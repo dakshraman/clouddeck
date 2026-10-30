@@ -61,6 +61,9 @@ Restart=%s
 RestartSec=3
 KillSignal=SIGTERM
 TimeoutStopSec=20
+CPUQuota=%s
+MemoryMax=%s
+TasksMax=%s
 %s%s
 StandardOutput=append:%s/app.log
 StandardError=append:%s/app.log
@@ -72,6 +75,9 @@ WantedBy=multi-user.target
 		app.Dir,
 		quoteUnit(app.Command),
 		restartPolicy(app.AutoRestart),
+		s.cfg.AppCPUQuota,
+		s.cfg.AppMemoryMax,
+		s.cfg.AppTasksMax,
 		runAsLine(app.RunAs),
 		envLines.String(),
 		logDir(s.cfg.StateDir, app.Site, app.Name),
@@ -118,6 +124,14 @@ func sortedKeys(in map[string]string) []string {
 
 // Start launches an app under the configured supervisor.
 func (s *Service) Start(ctx context.Context, log safeexec.Logger, app Spec) error {
+	runAs := strings.TrimSpace(app.RunAs)
+	if runAs == "" {
+		runAs = strings.TrimSpace(s.cfg.WebRunAs)
+		app.RunAs = runAs
+	}
+	if runAs == "" || runAs == "root" {
+		return fmt.Errorf("app %s/%s cannot run without a non-root user", app.Site, app.Name)
+	}
 	switch supervisorName(s.cfg.AppSupervisor) {
 	case SupervisorPM2:
 		return s.startPM2(ctx, log, app)

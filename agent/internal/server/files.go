@@ -185,10 +185,3 @@ func contentDisposition(name string) string {
 	}
 	return `attachment; filename="` + clean + `"`
 }
-
-func (s *Server) notImplemented(w http.ResponseWriter, feature string) {
-	writeJSON(w, http.StatusNotImplemented, errorBody{Error: errorInfo{
-		Code:    "not_implemented",
-		Message: feature + " is not implemented yet",
-	}})
-}

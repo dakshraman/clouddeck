@@ -205,7 +205,7 @@ Creating and restoring run as **tasks** (`backup.create`, `backup.restore`) with
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
-| `GET /v1/backups` | — | `200 {"backups":[{"id","kind","source","sizeBytes","createdAt"}]}` newest first; unparseable files are skipped | — |
+| `GET /v1/backups` | — | `200 {"backups":[{"id","kind","source","sizeBytes","createdAt","checksum"}]}` newest first; `checksum` is a SHA-256 digest when verified metadata exists; unparseable files are skipped | — |
 | `POST /v1/backups` | `{"kind":"site"\|"database","site"?,"database"?,"uploads":[...]}` | `202 {"taskId"}` | `400 invalid_request`, `404 site_not_found`/`database_not_found`, `409 dry_run`, `412 telegram_not_configured` |
 | `GET /v1/backups/{id}` | — | `200 {archive}` | `400 invalid_id`, `404 backup_not_found` |
 | `GET /v1/backups/{id}/download` | — | `200` raw bytes, `Content-Disposition: attachment` | `400 invalid_id`, `404 backup_not_found` |
@@ -403,7 +403,7 @@ New in v0.6: application runtimes, supervised app processes behind nginx, the ho
 
 #### Applications
 
-An app belongs to a site (`site` + `name` is the key, `name` matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`), runs as `AGENT_WEB_RUNAS` when set, and listens on a local port the agent allocates (3000–3999 unless `port` is given and free). A site with exactly one app serves it at `/`; a site with several apps mounts each at `/<name>/` and leaves `/` static.
+An app belongs to a site (`site` + `name` is the key, `name` matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`), requires a configured non-root `AGENT_WEB_RUNAS` or explicit non-root `runAs`, and listens on a local port the agent allocates (3000–3999 unless `port` is given and free). A site with exactly one app serves it at `/`; a site with several apps mounts each at `/<name>/` and leaves `/` static.
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
@@ -626,7 +626,10 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_FTP_RUNAS` | `clouddeck` (unix user owning FTP home dirs) |
 | `AGENT_FTP_RELOAD_CMD` | (empty — no reload). Whitespace-split argv, e.g. `pure-pw mkdb`; never a shell |
 | `AGENT_WEB_RUNAS` | (empty — ownership left untouched). Unix user owning site webroots the agent creates |
-| `AGENT_TERM_USER` | `clouddeck` (unix user the web-terminal shell runs as) |
+| `AGENT_TERM_USER` | `clouddeck` (unix user the web-terminal shell runs as; root is rejected) |
+| `AGENT_APP_CPU_QUOTA` | `200%` systemd CPU limit for hosted apps |
+| `AGENT_APP_MEMORY_MAX` | `512M` systemd memory limit for hosted apps |
+| `AGENT_APP_TASKS_MAX` | `256` systemd process/thread limit for hosted apps |
 | `AGENT_TERM_SHELL` | `/bin/bash` |
 | `AGENT_SSH_KEYS_FILE` | `/root/.ssh/authorized_keys` |
 | `AGENT_SSH_KEY_DIR` | `/root/.ssh/clouddeck-keys` |

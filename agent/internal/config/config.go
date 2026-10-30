@@ -104,6 +104,9 @@ type Config struct {
 	AppUnitDir    string // AGENT_APP_UNIT_DIR: systemd unit directory
 	SupConfDir    string // AGENT_APP_SUPERVISOR_DIR: supervisord conf.d directory
 	AppLogDir     string // AGENT_APP_LOG_DIR: app stdout/stderr logs
+	AppCPUQuota   string // AGENT_APP_CPU_QUOTA: systemd CPUQuota value
+	AppMemoryMax  string // AGENT_APP_MEMORY_MAX: systemd MemoryMax value
+	AppTasksMax   string // AGENT_APP_TASKS_MAX: systemd TasksMax value
 }
 
 // Load reads the environment and applies documented defaults.
@@ -194,6 +197,18 @@ func Load() (Config, error) {
 	cfg.AppUnitDir = env("AGENT_APP_UNIT_DIR", "/etc/systemd/system")
 	cfg.SupConfDir = env("AGENT_APP_SUPERVISOR_DIR", "/etc/supervisor/conf.d")
 	cfg.AppLogDir = env("AGENT_APP_LOG_DIR", filepath.Join(cfg.StateDir, "logs", "apps"))
+	cfg.AppCPUQuota = env("AGENT_APP_CPU_QUOTA", "200%")
+	cfg.AppMemoryMax = env("AGENT_APP_MEMORY_MAX", "512M")
+	cfg.AppTasksMax = env("AGENT_APP_TASKS_MAX", "256")
+	for key, value := range map[string]string{
+		"AGENT_APP_CPU_QUOTA":  cfg.AppCPUQuota,
+		"AGENT_APP_MEMORY_MAX": cfg.AppMemoryMax,
+		"AGENT_APP_TASKS_MAX":  cfg.AppTasksMax,
+	} {
+		if !validUnitValue(value) {
+			return Config{}, fmt.Errorf("%s contains unsupported characters", key)
+		}
+	}
 
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {
 		dryRun, err := strconv.ParseBool(raw)
@@ -224,4 +239,21 @@ func envBool(key string, fallback bool) bool {
 		return false
 	}
 	return fallback
+}
+
+// validUnitValue guards the systemd resource-limit strings: unit values are
+// written into the generated unit file unquoted, so only systemd's own value
+// alphabet may pass.
+func validUnitValue(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || strings.ContainsRune("%./_-", r) {
+			continue
+		}
+		return false
+	}
+	return true
 }

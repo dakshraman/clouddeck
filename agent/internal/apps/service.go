@@ -11,6 +11,7 @@ import (
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/runas"
 	"clouddeck/agent/internal/runtimes"
 	"clouddeck/agent/internal/safeexec"
 	"clouddeck/agent/internal/store"
@@ -161,6 +162,16 @@ func (s *Service) Create(ctx context.Context, log safeexec.Logger, in CreateInpu
 	runAs := strings.TrimSpace(in.RunAs)
 	if runAs == "" {
 		runAs = s.cfg.WebRunAs
+	}
+	if runAs == "" {
+		return App{}, apierr.BadRequest("app_run_as_required", "hosted applications require AGENT_WEB_RUNAS or an explicit non-root runAs user")
+	}
+	uid, _, err := runas.Lookup(runAs)
+	if err != nil {
+		return App{}, apierr.BadRequest("invalid_run_as", err.Error())
+	}
+	if uid == 0 || runAs == "root" {
+		return App{}, apierr.BadRequest("invalid_run_as", "hosted applications cannot run as root")
 	}
 	app := store.App{
 		ID:          NewID(),

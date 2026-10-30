@@ -381,6 +381,12 @@ func TestSiteCreateRestoreRoundTrip(t *testing.T) {
 	if archive.Kind != KindSite || archive.Source != "example.com" || archive.SizeBytes == 0 {
 		t.Fatalf("archive = %+v", archive)
 	}
+	if len(archive.Checksum) != 64 {
+		t.Fatalf("archive checksum = %q, want SHA-256 hex digest", archive.Checksum)
+	}
+	if _, err := os.Stat(filepath.Join(h.cfg.BackupDir, archive.ID+".sha256")); err != nil {
+		t.Fatalf("checksum sidecar missing: %v", err)
+	}
 	if !strings.HasPrefix(archive.ID, "site-example.com-") || !strings.HasSuffix(archive.ID, ".tar.gz") {
 		t.Fatalf("archive id = %q", archive.ID)
 	}
@@ -412,6 +418,29 @@ func TestSiteCreateRestoreRoundTrip(t *testing.T) {
 	}
 	if got := mustRead(t, filepath.Join(root, "index.html")); got != "hello" {
 		t.Errorf("index.html after overwrite = %q, want %q", got, "hello")
+	}
+}
+
+func TestRestoreRejectsCorruptArchiveWithChecksum(t *testing.T) {
+	h := newHarness(t, nil)
+	root := h.addSite("example.com")
+	mustWrite(t, filepath.Join(root, "index.html"), "hello")
+
+	task := h.runTask(h.mustCreate(CreateRequest{Kind: KindSite, Site: "example.com"}))
+	if task.Status != store.TaskSucceeded {
+		t.Fatalf("create task = %s, error %v", task.Status, task.Error)
+	}
+	archives, err := h.svc.List()
+	if err != nil || len(archives) != 1 {
+		t.Fatalf("List = %v, %d archives, want one", err, len(archives))
+	}
+	archive := archives[0]
+	if err := os.WriteFile(filepath.Join(h.cfg.BackupDir, archive.ID), []byte("corrupt"), 0o600); err != nil {
+		t.Fatalf("corrupt archive: %v", err)
+	}
+
+	if _, err := h.svc.Restore(context.Background(), archive.ID); err == nil || !strings.Contains(err.Error(), "integrity") {
+		t.Fatalf("Restore error = %v, want integrity failure", err)
 	}
 }
 
