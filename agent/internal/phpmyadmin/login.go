@@ -136,7 +136,7 @@ func (s *Service) Login(ctx context.Context) (LoginResult, error) {
 	}
 	authed := false
 	for _, cookie := range browserCookies {
-		if strings.HasPrefix(cookie.Name, "pmaAuth-") {
+		if strings.HasPrefix(cookie.Name, "pmaAuth-") && cookie.Value != "deleted" && cookie.Value != "" && cookie.MaxAge >= 0 {
 			authed = true
 		}
 	}

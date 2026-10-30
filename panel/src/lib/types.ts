@@ -707,3 +707,23 @@ export interface SecurityStatus {
   };
   checks: SecurityCheck[];
 }
+
+export interface PanelSSLStatus {
+  enabled: boolean;
+  type: "self-signed" | "letsencrypt" | "custom" | "none";
+  domain?: string;
+  issuer?: string;
+  expiresAt?: string;
+  subject?: string;
+  port: number;
+  cookieSecure: boolean;
+}
+
+export interface PanelSSLInstallRequest {
+  type: "self-signed" | "letsencrypt" | "custom";
+  domain?: string;
+  email?: string;
+  cert?: string;
+  key?: string;
+}
+

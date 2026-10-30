@@ -21,7 +21,7 @@ import {
   titleCase,
   usageTone,
 } from "@/components/format";
-import { Activity, Cpu, HardDrive, MemoryStick, Plus } from "lucide-react";
+import { Activity, AlertCircle, CheckCircle, Cpu, HardDrive, MemoryStick, Plus, X } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
 type LoadState = "loading" | "ready" | "error";
@@ -131,14 +131,48 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
+  const [taskFilter, setTaskFilter] = useState<"all" | "failed" | "succeeded">("all");
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [dismissedFailedTaskIds, setDismissedFailedTaskIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("clouddeck_dismissed_failed_tasks");
+      if (stored) {
+        setDismissedFailedTaskIds(JSON.parse(stored));
+      }
+    } catch {}
+  }, []);
+
+  const dismissFailedTasks = () => {
+    if (!tasks) return;
+    const failedIds = tasks.filter((t) => t.status === "failed").map((t) => t.id);
+    const updated = Array.from(new Set([...dismissedFailedTaskIds, ...failedIds]));
+    setDismissedFailedTaskIds(updated);
+    try {
+      localStorage.setItem("clouddeck_dismissed_failed_tasks", JSON.stringify(updated));
+    } catch {}
+  };
+
   const loading = state === "loading";
   const failedTasks = tasks?.filter((task) => task.status === "failed") ?? [];
+  const succeededTasks = tasks?.filter((task) => task.status === "succeeded") ?? [];
+  const unacknowledgedFailedTasks =
+    tasks?.filter((task) => task.status === "failed" && !dismissedFailedTaskIds.includes(task.id)) ?? [];
   const expiringCertificates =
     sites?.filter((site) => {
       if (!site.ssl.enabled || !site.ssl.expiresAt) return false;
       const expiry = Date.parse(site.ssl.expiresAt);
       return Number.isFinite(expiry) && expiry - Date.now() <= 30 * 24 * 60 * 60 * 1000;
     }) ?? [];
+
+  const filteredTasks = (tasks ?? []).filter((task) => {
+    if (taskFilter === "failed") return task.status === "failed";
+    if (taskFilter === "succeeded") return task.status === "succeeded";
+    return true;
+  });
+
+  const visibleTasks = showAllTasks ? filteredTasks : filteredTasks.slice(0, 8);
 
   return (
     <>
@@ -158,11 +192,36 @@ export default function DashboardPage() {
           {errorMessage ?? "Cannot reach the CloudDeck agent"}
         </Alert>
       ) : null}
-      {failedTasks.length > 0 ? (
-        <Alert variant="warning" className="mb-6">
-          {failedTasks.length === 1
-            ? "The latest agent operation failed. Review Recent tasks for details."
-            : `${failedTasks.length} recent agent operations failed. Review Recent tasks for details.`}
+      {unacknowledgedFailedTasks.length > 0 ? (
+        <Alert variant="warning" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span>
+              {unacknowledgedFailedTasks.length === 1
+                ? "The latest agent operation failed. Review Recent tasks for details."
+                : `${unacknowledgedFailedTasks.length} recent agent operations failed. Review Recent tasks for details.`}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setTaskFilter("failed");
+                document.getElementById("recent-tasks")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="text-xs font-semibold text-amber-500 dark:text-amber-300 underline underline-offset-2 hover:opacity-80"
+            >
+              View failed tasks ({unacknowledgedFailedTasks.length})
+            </button>
+            <button
+              type="button"
+              onClick={dismissFailedTasks}
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+              title="Dismiss warning"
+            >
+              <X size={13} aria-hidden="true" />
+              Dismiss
+            </button>
+          </div>
         </Alert>
       ) : null}
       {expiringCertificates.length > 0 ? (
@@ -178,13 +237,52 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-6">
           <DashboardToolbox />
 
-          <Card>
-            <CardHeader>
+          <Card id="recent-tasks">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <CardTitle>Recent tasks</CardTitle>
                 <CardDescription>Latest operations handled by the agent.</CardDescription>
               </div>
-              <Activity size={16} className="mt-0.5 shrink-0 text-muted-foreground/80" aria-hidden="true" />
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setTaskFilter("all")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    taskFilter === "all"
+                      ? "bg-secondary text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  }`}
+                >
+                  All ({tasks?.length ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskFilter("failed")}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    taskFilter === "failed"
+                      ? "bg-red-500/20 text-red-500 dark:text-red-400 font-semibold shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  }`}
+                >
+                  Failed
+                  {failedTasks.length > 0 ? (
+                    <span className="rounded-full bg-red-500/20 px-1.5 py-0.2 text-[10px] font-bold text-red-600 dark:text-red-400">
+                      {failedTasks.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskFilter("succeeded")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    taskFilter === "succeeded"
+                      ? "bg-secondary text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  }`}
+                >
+                  Succeeded ({succeededTasks.length})
+                </button>
+              </div>
             </CardHeader>
 
             {tasks === null && !tasksError ? (
@@ -211,36 +309,55 @@ export default function DashboardPage() {
               </CardBody>
             ) : null}
 
-            {tasks && tasks.length > 0 ? (
-              <ul className="divide-y divide-border px-5 pb-2 pt-1">
-                {tasks.slice(0, 8).map((task) => {
-                  const lastLog = task.logs.length > 0 ? task.logs[task.logs.length - 1].message : null;
-                  const failureLine = task.status === "failed" ? task.error ?? lastLog : null;
-                  return (
-                    <li key={task.id} className="flex items-start justify-between gap-4 py-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[13px] text-card-foreground">{taskTypeLabel(task.type)}</span>
-                          {task.site ? (
-                            <span className="truncate font-mono text-xs text-muted-foreground">
-                              {task.site}
-                            </span>
+            {tasks && taskFilter === "failed" && failedTasks.length === 0 ? (
+              <CardBody className="py-8 text-center text-xs text-muted-foreground">
+                No failed operations recorded. All tasks completed successfully.
+              </CardBody>
+            ) : null}
+
+            {tasks && visibleTasks.length > 0 ? (
+              <>
+                <ul className="divide-y divide-border px-5 pb-2 pt-1">
+                  {visibleTasks.map((task) => {
+                    const lastLog = task.logs.length > 0 ? task.logs[task.logs.length - 1].message : null;
+                    const failureLine = task.status === "failed" ? task.error ?? lastLog : null;
+                    return (
+                      <li key={task.id} className="flex items-start justify-between gap-4 py-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[13px] text-card-foreground">{taskTypeLabel(task.type)}</span>
+                            {task.site ? (
+                              <span className="truncate font-mono text-xs text-muted-foreground">
+                                {task.site}
+                              </span>
+                            ) : null}
+                          </div>
+                          {failureLine ? (
+                            <p className="mt-1 truncate font-mono text-xs text-red-500 dark:text-red-400" title={failureLine}>
+                              {failureLine}
+                            </p>
                           ) : null}
                         </div>
-                        {failureLine ? (
-                          <p className="mt-1 truncate font-mono text-xs text-red-400" title={failureLine}>
-                            {failureLine}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="text-xs text-muted-foreground">{relativeTime(task.createdAt)}</span>
-                        <Badge variant={taskStatusVariant(task.status)}>{titleCase(task.status)}</Badge>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="text-xs text-muted-foreground">{relativeTime(task.createdAt)}</span>
+                          <Badge variant={taskStatusVariant(task.status)}>{titleCase(task.status)}</Badge>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {filteredTasks.length > 8 ? (
+                  <div className="border-t border-border px-5 py-2.5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTasks(!showAllTasks)}
+                      className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showAllTasks ? "Show fewer tasks" : `Show all ${filteredTasks.length} tasks`}
+                    </button>
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </Card>
         </div>

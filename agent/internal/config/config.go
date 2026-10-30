@@ -114,6 +114,14 @@ type Config struct {
 	AppCPUQuota   string // AGENT_APP_CPU_QUOTA: systemd CPUQuota value
 	AppMemoryMax  string // AGENT_APP_MEMORY_MAX: systemd MemoryMax value
 	AppTasksMax   string // AGENT_APP_TASKS_MAX: systemd TasksMax value
+
+	// Panel SSL and reverse proxy configuration
+	PanelEnvFile      string // AGENT_PANEL_ENV_FILE (/etc/clouddeck/panel.env)
+	PanelSSLDir       string // AGENT_PANEL_SSL_DIR (/etc/clouddeck/ssl)
+	PanelNginxConf    string // AGENT_PANEL_NGINX_CONF (/etc/nginx/conf.d/clouddeck-panel.conf)
+	PanelRestartCmd   string // AGENT_PANEL_RESTART_CMD (systemctl restart clouddeck-panel)
+	PanelPort         int    // AGENT_PANEL_PORT (2083)
+	PanelInternalPort int    // AGENT_PANEL_INTERNAL_PORT (2082)
 }
 
 // Load reads the environment and applies documented defaults.
@@ -231,6 +239,28 @@ func Load() (Config, error) {
 		if !validUnitValue(value) {
 			return Config{}, fmt.Errorf("%s contains unsupported characters", key)
 		}
+	}
+
+	// Panel SSL
+	cfg.PanelEnvFile = env("AGENT_PANEL_ENV_FILE", "/etc/clouddeck/panel.env")
+	cfg.PanelSSLDir = env("AGENT_PANEL_SSL_DIR", "/etc/clouddeck/ssl")
+	cfg.PanelNginxConf = env("AGENT_PANEL_NGINX_CONF", filepath.Join(cfg.NginxSitesDir, "clouddeck-panel.conf"))
+	cfg.PanelRestartCmd = env("AGENT_PANEL_RESTART_CMD", "systemctl restart clouddeck-panel")
+	cfg.PanelPort = 2083
+	if raw := strings.TrimSpace(os.Getenv("AGENT_PANEL_PORT")); raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port <= 0 || port > 65535 {
+			return Config{}, fmt.Errorf("AGENT_PANEL_PORT: %q is not a port number", raw)
+		}
+		cfg.PanelPort = port
+	}
+	cfg.PanelInternalPort = 2082
+	if raw := strings.TrimSpace(os.Getenv("AGENT_PANEL_INTERNAL_PORT")); raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port <= 0 || port > 65535 {
+			return Config{}, fmt.Errorf("AGENT_PANEL_INTERNAL_PORT: %q is not a port number", raw)
+		}
+		cfg.PanelInternalPort = port
 	}
 
 	if raw := strings.TrimSpace(os.Getenv("AGENT_DRY_RUN")); raw != "" {

@@ -12,11 +12,12 @@ import {
   Palette,
   RefreshCw,
   Server,
+  ShieldAlert,
   ShieldCheck,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import type { SystemInfo } from "@/lib/types";
+import type { PanelSSLStatus, SystemInfo } from "@/lib/types";
 import { apiFetch } from "@/components/api";
 import { formatBytes, relativeTime, shortDateTime } from "@/components/format";
 import { PageHeader } from "@/components/page-header";
@@ -30,6 +31,7 @@ import { cn } from "@/components/ui/cn";
 import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TwoFactorCard } from "@/components/two-factor-card";
+import { PanelSSLDialog } from "@/components/settings/panel-ssl-dialog";
 
 interface Profile {
   username: string;
@@ -179,6 +181,9 @@ export default function SettingsPage() {
   const [updates, setUpdates] = useState<UpdatesResponse | null>(null);
 
   const [accountLoading, setAccountLoading] = useState(true);
+  const [sslStatus, setSslStatus] = useState<PanelSSLStatus | null>(null);
+  const [sslLoading, setSslLoading] = useState(true);
+  const [sslDialogOpen, setSslDialogOpen] = useState(false);
   const [systemLoading, setSystemLoading] = useState(true);
   const [systemRefreshing, setSystemRefreshing] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -238,6 +243,24 @@ export default function SettingsPage() {
       })
       .catch((err) => {
         if (!cancelled) setPanelError(errorMessage(err, "Failed to load panel details."));
+      });
+
+    apiFetch<PanelSSLStatus>("/api/panel/ssl")
+      .then((result) => {
+        if (!cancelled) setSslStatus(result);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSslStatus({
+            enabled: false,
+            type: "none",
+            port: 2083,
+            cookieSecure: false,
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSslLoading(false);
       });
 
     apiFetch<SystemInfo>("/api/system")
@@ -588,15 +611,24 @@ export default function SettingsPage() {
 
             <div className="my-5 h-px bg-border" />
 
-            <dl className="grid gap-4 sm:grid-cols-4">
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <Fact label="Session length">
                 {me ? `${me.session.ttlDays} days` : "—"}
               </Fact>
               <Fact label="Session cookie">
-                {me?.session.cookieSecure ? (
+                {me?.session.cookieSecure || sslStatus?.cookieSecure ? (
                   <Badge variant="green">Secure</Badge>
                 ) : (
                   <Badge variant="amber">Not secure</Badge>
+                )}
+              </Fact>
+              <Fact label="Panel SSL / HTTPS">
+                {sslLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : sslStatus?.enabled ? (
+                  <Badge variant="green">HTTPS Active</Badge>
+                ) : (
+                  <Badge variant="amber">HTTP Insecure</Badge>
                 )}
               </Fact>
               <Fact label="Two-factor auth">
@@ -609,13 +641,89 @@ export default function SettingsPage() {
               <Fact label="Sign-in protection">bcrypt + signed session</Fact>
             </dl>
 
-            {me && !me.session.cookieSecure ? (
-              <Alert variant="info" className="mt-4">
-                This panel is served over plain HTTP. Set{" "}
-                <code className="font-mono">PANEL_COOKIE_SECURE=true</code> after enabling HTTPS to
-                mark the session cookie secure.
-              </Alert>
-            ) : null}
+            {sslLoading ? (
+              <div className="mt-4 rounded-lg border border-border bg-card/40 p-4">
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : sslStatus?.enabled ? (
+              <div className="mt-4 flex flex-col gap-3 rounded-lg border border-success/30 bg-success/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                    <ShieldCheck size={20} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">Panel HTTPS Active</p>
+                      <Badge variant="green">HTTPS Active</Badge>
+                      <Badge variant="neutral" className="capitalize">
+                        {sslStatus.type.replace("-", " ")}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Issued by{" "}
+                      <span className="font-medium text-foreground">
+                        {sslStatus.issuer || "Self-signed CA"}
+                      </span>
+                      {sslStatus.expiresAt ? (
+                        <>
+                          {" "}
+                          &bull; Expires{" "}
+                          <span className="font-medium text-foreground">
+                            {formatDate(sslStatus.expiresAt)}
+                          </span>
+                        </>
+                      ) : null}
+                      {sslStatus.domain ? (
+                        <>
+                          {" "}
+                          &bull; Domain:{" "}
+                          <span className="font-mono text-foreground">{sslStatus.domain}</span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSslDialogOpen(true)}
+                  >
+                    <ShieldCheck size={14} aria-hidden="true" />
+                    Manage Panel SSL
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+                    <ShieldAlert size={20} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">Panel SSL Not Active</p>
+                      <Badge variant="amber">HTTP Insecure</Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                      This panel is currently served over plain HTTP. Passwords and session cookies are transmitted unencrypted.
+                      Install an SSL certificate to activate HTTPS encryption and mark session cookies as Secure.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setSslDialogOpen(true)}
+                  >
+                    <ShieldCheck size={14} aria-hidden="true" />
+                    Install Panel SSL
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
               <div>
@@ -891,6 +999,24 @@ export default function SettingsPage() {
           </SectionCard>
         </div>
       </div>
+
+      <PanelSSLDialog
+        open={sslDialogOpen}
+        onOpenChange={setSslDialogOpen}
+        currentStatus={sslStatus}
+        onStatusUpdated={(status) => {
+          setSslStatus(status);
+          if (me) {
+            setMe({
+              ...me,
+              session: {
+                ...me.session,
+                cookieSecure: status.cookieSecure,
+              },
+            });
+          }
+        }}
+      />
     </>
   );
 }

@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/empty-state";
 import { formatBytes } from "@/components/format";
 import { cn } from "@/components/ui/cn";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Database, Download, FileText, Plus, Trash2, Upload, UploadCloud, X } from "lucide-react";
+import { Database, Download, ExternalLink, FileText, Plus, Trash2, Upload, UploadCloud, X } from "lucide-react";
 
 const DATABASE_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
 
@@ -22,9 +22,10 @@ export interface DatabasesCardProps {
   error: string | null;
   disabled: boolean;
   onRefresh: () => void;
+  pmaInstalled?: boolean;
 }
 
-export function DatabasesCard({ databases, error, disabled, onRefresh }: DatabasesCardProps) {
+export function DatabasesCard({ databases, error, disabled, onRefresh, pmaInstalled = false }: DatabasesCardProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -290,6 +291,19 @@ export function DatabasesCard({ databases, error, disabled, onRefresh }: Databas
                                 </>
                               ) : (
                                 <>
+                                  {pmaInstalled ? (
+                                    <a
+                                      href={`/api/phpmyadmin/login?db=${encodeURIComponent(db.name)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={buttonClass("ghost", "sm")}
+                                      aria-label={`Open ${db.name} in phpMyAdmin`}
+                                      title={`Open ${db.name} directly in phpMyAdmin`}
+                                    >
+                                      <ExternalLink size={14} aria-hidden="true" />
+                                      phpMyAdmin
+                                    </a>
+                                  ) : null}
                                   <a
                                     href={`/api/mysql/databases/${encodeURIComponent(db.name)}/export`}
                                     download={`${db.name}.sql`}

@@ -35,17 +35,24 @@ function rawSetCookie(cookie: PmaLoginCookie, path: string): string {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
+    const db = request.nextUrl.searchParams.get("db")?.trim();
     try {
       const login = await agentFetch<PmaLoginResponse>("/v1/phpmyadmin/login", { method: "POST" });
-      const target = `http://${requestHostname(request)}:${login.port}${login.urlPath}`;
+      const rawPath = login.urlPath || "/";
+      const cleanPath = rawPath.endsWith("/") ? rawPath : `${rawPath}/`;
+      // Deep link to the specific database structure page when db parameter is provided
+      const targetPath = db
+        ? `${cleanPath}index.php?route=/database/structure&db=${encodeURIComponent(db)}`
+        : rawPath;
+      const target = `http://${requestHostname(request)}:${login.port}${targetPath}`;
       const response = NextResponse.redirect(target, 302);
       response.headers.set("Cache-Control", "no-store");
       // Keep phpMyAdmin's cookies off the panel origin while still matching
       // every phpMyAdmin URL. Cookies ignore ports, so the browser sends these
       // to the phpMyAdmin port.
-      const path = (login.urlPath || "/").replace(/[\r\n;]/g, "");
+      const cookiePath = (login.urlPath || "/").replace(/[\r\n;]/g, "");
       for (const cookie of login.cookies) {
-        if (cookie.name) response.headers.append("Set-Cookie", rawSetCookie(cookie, path));
+        if (cookie.name) response.headers.append("Set-Cookie", rawSetCookie(cookie, cookiePath));
       }
       return response;
     } catch (error) {
@@ -53,8 +60,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // unix_socket, still send the browser to phpMyAdmin's login form.
       const status = await agentFetch<PmaStatusResponse>("/v1/phpmyadmin/status");
       if (!status.installed || typeof status.port !== "number" || !status.urlPath) throw error;
+      const rawPath = status.urlPath || "/";
+      const cleanPath = rawPath.endsWith("/") ? rawPath : `${rawPath}/`;
+      const targetPath = db
+        ? `${cleanPath}index.php?route=/database/structure&db=${encodeURIComponent(db)}`
+        : rawPath;
       const response = NextResponse.redirect(
-        `http://${requestHostname(request)}:${status.port}${status.urlPath}`,
+        `http://${requestHostname(request)}:${status.port}${targetPath}`,
         302,
       );
       response.headers.set("Cache-Control", "no-store");

@@ -7,6 +7,7 @@ import type {
   MySQLListUsersResponse,
   MySQLStatus,
   MySQLUser,
+  PmaStatusResponse,
 } from "@/lib/types";
 import { apiFetch } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
@@ -26,6 +27,7 @@ export default function DatabasesPage() {
   const [status, setStatus] = useState<MySQLStatus | null>(null);
   const [databases, setDatabases] = useState<MySQLDatabase[] | null>(null);
   const [users, setUsers] = useState<MySQLUser[] | null>(null);
+  const [pmaStatus, setPmaStatus] = useState<PmaStatusResponse | null>(null);
   const [databasesError, setDatabasesError] = useState<string | null>(null);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>("loading");
@@ -35,10 +37,11 @@ export default function DatabasesPage() {
     if (!options?.silent) setState("loading");
     setErrorMessage(null);
 
-    const [statusResult, databasesResult, usersResult] = await Promise.allSettled([
+    const [statusResult, databasesResult, usersResult, pmaResult] = await Promise.allSettled([
       apiFetch<MySQLStatus>("/api/mysql/status"),
       apiFetch<MySQLListDatabasesResponse>("/api/mysql/databases"),
       apiFetch<MySQLListUsersResponse>("/api/mysql/users"),
+      apiFetch<PmaStatusResponse>("/api/phpmyadmin/status"),
     ]);
 
     if (statusResult.status === "rejected") {
@@ -52,6 +55,10 @@ export default function DatabasesPage() {
     }
 
     setStatus(statusResult.value);
+
+    if (pmaResult.status === "fulfilled") {
+      setPmaStatus(pmaResult.value);
+    }
 
     if (databasesResult.status === "fulfilled") {
       setDatabases(databasesResult.value.databases);
@@ -157,6 +164,7 @@ export default function DatabasesPage() {
             error={databasesError}
             disabled={!available}
             onRefresh={refresh}
+            pmaInstalled={Boolean(pmaStatus?.installed)}
           />
           <div className="mt-6">
             <UsersCard
@@ -167,9 +175,11 @@ export default function DatabasesPage() {
               onRefresh={refresh}
             />
           </div>
-          <div className="mt-6">
-            <PmaCard />
-          </div>
+          {pmaStatus && !pmaStatus.installed ? (
+            <div className="mt-6">
+              <PmaCard onInstalled={refresh} />
+            </div>
+          ) : null}
           <div className="mt-6">
             <RemoteMysqlCard />
           </div>

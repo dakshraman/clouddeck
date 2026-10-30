@@ -39,7 +39,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.24"
+const Version = "0.6.25"
 
 const maxBodyBytes = 1 << 20
 
@@ -63,12 +63,13 @@ type Server struct {
 	apps     *apps.Service
 	firewall *firewall.Service
 	security *security.Service
+	panelSSL *ssl.PanelSSL
 	audit    *audit.Log
 }
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -224,6 +225,11 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/security/modsec", s.handleModsecStatus)
 	mux.HandleFunc("POST /v1/security/unban", s.handleSecurityUnban)
 	mux.HandleFunc("PUT /v1/security/jails/{jail}", s.handleSecurityJail)
+
+	// Panel SSL
+	mux.HandleFunc("GET /v1/panel/ssl", s.handleGetPanelSSL)
+	mux.HandleFunc("POST /v1/panel/ssl", s.handleInstallPanelSSL)
+	mux.HandleFunc("DELETE /v1/panel/ssl", s.handleDisablePanelSSL)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

@@ -475,8 +475,14 @@ FLUSH PRIVILEGES;`, pmaUser, pmaUser, password, pmaUser)
 // loginCredentials prefers the dedicated phpMyAdmin account created at install
 // time; hosts with a configured MySQL root password keep using it.
 func (s *Service) loginCredentials() (string, string) {
+	candidateDirs := []string{}
 	if s.cfg.PHPMYADMINStateDir != "" {
-		raw, err := os.ReadFile(filepath.Join(s.cfg.PHPMYADMINStateDir, "db.json"))
+		candidateDirs = append(candidateDirs, s.cfg.PHPMYADMINStateDir)
+	}
+	candidateDirs = append(candidateDirs, "/var/lib/clouddeck/phpmyadmin", "/var/lib/clouddeck-phpmyadmin")
+
+	for _, dir := range candidateDirs {
+		raw, err := os.ReadFile(filepath.Join(dir, "db.json"))
 		if err == nil {
 			var creds dbCredentials
 			if json.Unmarshal(raw, &creds) == nil && creds.User != "" {
