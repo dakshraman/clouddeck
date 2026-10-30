@@ -154,7 +154,95 @@ func TestLoginRejectsWrongCredentials(t *testing.T) {
 	svc := New(config.Config{PHPMYADMINDir: dir, MySQLRootUser: "root", MySQLRootPass: "wrong"})
 
 	if _, err := svc.Login(context.Background()); err == nil {
-		t.Fatal("Login succeeded with a rejected credential post")
+		t.Fatal("Login succeeded with a rejected credential posted")
+	}
+}
+
+func TestLoginReversedAttributeOrderAndSingleQuotes(t *testing.T) {
+	var posted url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/phpmyadmin_abc123/" && r.Method == http.MethodGet:
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodGet:
+			fmt.Fprint(w, `<form method="post">`+
+				`<input type='hidden' value='session-rev' name='set_session'>`+
+				`<input type="hidden" value="token-rev" name="token">`+
+				`</form>`)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodPost:
+			_ = r.ParseForm()
+			posted = r.PostForm
+			http.SetCookie(w, &http.Cookie{
+				Name:  "pmaAuth-1",
+				Value: "auth-1",
+				Path:  "/phpmyadmin_abc123/",
+			})
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer srv.Close()
+
+	dir := installDir(t, serverPort(t, srv))
+	writeTestFile(t, filepath.Join(dir, "phpmyadmin_abc123", "config.inc.php"),
+		"<?php\n$cfg['Servers'][$i]['auth_type'] = 'cookie';\n")
+	svc := New(config.Config{
+		PHPMYADMINDir: dir,
+		MySQLRootUser: "root",
+		MySQLRootPass: "pw",
+	})
+
+	_, err := svc.Login(context.Background())
+	if err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+	if posted.Get("token") != "token-rev" || posted.Get("set_session") != "session-rev" {
+		t.Fatalf("posted token=%q, session=%q; want token-rev, session-rev",
+			posted.Get("token"), posted.Get("set_session"))
+	}
+}
+
+func TestLoginSessionFromCookieFallback(t *testing.T) {
+	var posted url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/phpmyadmin_abc123/" && r.Method == http.MethodGet:
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodGet:
+			http.SetCookie(w, &http.Cookie{
+				Name:  "phpMyAdmin",
+				Value: "cookie-session-id",
+				Path:  "/phpmyadmin_abc123/",
+			})
+			// Form only has token, no set_session input.
+			fmt.Fprint(w, `<form method="post"><input type="hidden" name="token" value="tok123"></form>`)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodPost:
+			_ = r.ParseForm()
+			posted = r.PostForm
+			http.SetCookie(w, &http.Cookie{
+				Name:  "pmaAuth-1",
+				Value: "auth-1",
+				Path:  "/phpmyadmin_abc123/",
+			})
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer srv.Close()
+
+	dir := installDir(t, serverPort(t, srv))
+	writeTestFile(t, filepath.Join(dir, "phpmyadmin_abc123", "config.inc.php"),
+		"<?php\n$cfg['Servers'][$i]['auth_type'] = 'cookie';\n")
+	svc := New(config.Config{
+		PHPMYADMINDir: dir,
+		MySQLRootUser: "root",
+		MySQLRootPass: "pw",
+	})
+
+	_, err := svc.Login(context.Background())
+	if err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+	if posted.Get("set_session") != "cookie-session-id" {
+		t.Fatalf("posted set_session=%q; want cookie-session-id", posted.Get("set_session"))
 	}
 }
 

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PmaStatusResponse } from "@/lib/types";
-import { apiFetch } from "@/components/api";
+import type { PmaStatusResponse, Task } from "@/lib/types";
+import { apiFetch, apiPost } from "@/components/api";
+import { TaskLog } from "@/components/task-log";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Copy, Database, ExternalLink } from "lucide-react";
+import { Check, Copy, Database, Download, ExternalLink } from "lucide-react";
 
 type CopyState = "idle" | "copied" | "failed";
 
@@ -40,6 +41,10 @@ export function PmaCard() {
   const [status, setStatus] = useState<PmaStatusResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const [startingInstall, setStartingInstall] = useState(false);
+  const [installFailed, setInstallFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +86,35 @@ export function PmaCard() {
     setCopyState(ok ? "copied" : "failed");
   }
 
+  async function onInstall() {
+    setStartingInstall(true);
+    setInstallError(null);
+    setInstallFailed(false);
+    try {
+      const { task } = await apiPost<{ task: Task }>("/api/phpmyadmin/install", {});
+      setTaskId(task.id);
+    } catch (error) {
+      setInstallError(
+        error instanceof Error ? error.message : "Failed to start the phpMyAdmin install",
+      );
+    } finally {
+      setStartingInstall(false);
+    }
+  }
+
+  const onInstallComplete = useCallback(
+    async (task: Task) => {
+      if (task.status === "succeeded") {
+        setTaskId(null);
+        setInstallFailed(false);
+        await load();
+      } else if (task.status === "failed") {
+        setInstallFailed(true);
+      }
+    },
+    [load],
+  );
+
   const urlAvailable =
     status !== null &&
     status.installed &&
@@ -93,7 +127,7 @@ export function PmaCard() {
         <div>
           <CardTitle>phpMyAdmin</CardTitle>
           <CardDescription>
-            Browser-based database administration detected on this server.
+            Browser-based database administration for this server.
           </CardDescription>
         </div>
         <Database size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -116,15 +150,43 @@ export function PmaCard() {
           <Skeleton className="h-9 sm:max-w-xs" />
         </CardBody>
       ) : !status.installed ? (
-        <CardBody>
-          <p className="text-sm text-muted-foreground">phpMyAdmin not detected on this server.</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Install phpMyAdmin on the server, or point{" "}
-            <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
-              AGENT_PHPMYADMIN_DIR
-            </code>{" "}
-            at an existing installation.
-          </p>
+        <CardBody className="grid gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">phpMyAdmin is not installed on this server.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              CloudDeck can install the latest official release, verify its checksum, configure
+              cookie authentication and start it as a systemd service. Point{" "}
+              <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
+                AGENT_PHPMYADMIN_DIR
+              </code>{" "}
+              at an existing installation instead if you already run one.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => void onInstall()}
+              loading={startingInstall}
+              disabled={startingInstall || (taskId !== null && !installFailed)}
+            >
+              <Download size={16} aria-hidden="true" />
+              {installFailed ? "Retry install" : "Install latest phpMyAdmin"}
+            </Button>
+            {installFailed ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setTaskId(null);
+                  setInstallFailed(false);
+                }}
+              >
+                Dismiss
+              </Button>
+            ) : null}
+          </div>
+          {installError ? <Alert variant="error">{installError}</Alert> : null}
+          {taskId ? (
+            <TaskLog taskId={taskId} onComplete={(task) => void onInstallComplete(task)} />
+          ) : null}
         </CardBody>
       ) : (
         <CardBody className="grid gap-5">

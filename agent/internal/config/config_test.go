@@ -39,3 +39,40 @@ func TestLoadRejectsUnsafeResourceLimitValues(t *testing.T) {
 		t.Fatalf("Load() error = %v, want invalid resource-limit error", err)
 	}
 }
+
+func TestLoadRejectsInvalidPHPMYADMINRunAs(t *testing.T) {
+	t.Setenv("AGENT_AUTH_TOKEN", "test-token")
+	t.Setenv("AGENT_PHPMYADMIN_RUNAS", "user;rm -rf /")
+
+	_, err := Load()
+	if err == nil || !strings.Contains(err.Error(), "AGENT_PHPMYADMIN_RUNAS") {
+		t.Fatalf("Load() error = %v, want invalid AGENT_PHPMYADMIN_RUNAS error", err)
+	}
+}
+
+func TestLoadRejectsInvalidPHPMYADMINPort(t *testing.T) {
+	t.Setenv("AGENT_AUTH_TOKEN", "test-token")
+	t.Setenv("AGENT_PHPMYADMIN_PORT", "99999")
+
+	_, err := Load()
+	if err == nil || !strings.Contains(err.Error(), "AGENT_PHPMYADMIN_PORT") {
+		t.Fatalf("Load() error = %v, want invalid AGENT_PHPMYADMIN_PORT error", err)
+	}
+}
+
+func TestLoadParsesPHPMYADMINConfig(t *testing.T) {
+	t.Setenv("AGENT_AUTH_TOKEN", "test-token")
+	t.Setenv("AGENT_PHPMYADMIN_PORT", "18080")
+	t.Setenv("AGENT_PHPMYADMIN_RUNAS", "custom-user")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.PHPMYADMINPort != 18080 {
+		t.Fatalf("PHPMYADMINPort = %d, want 18080", cfg.PHPMYADMINPort)
+	}
+	if cfg.PHPMYADMINRunAs != "custom-user" {
+		t.Fatalf("PHPMYADMINRunAs = %q, want custom-user", cfg.PHPMYADMINRunAs)
+	}
+}

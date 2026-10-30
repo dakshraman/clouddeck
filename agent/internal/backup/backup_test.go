@@ -398,7 +398,11 @@ func TestSiteCreateRestoreRoundTrip(t *testing.T) {
 	}
 	restore := h.runTask(h.mustRestore(archive.ID))
 	if restore.Status != store.TaskSucceeded {
-		t.Fatalf("restore task = %s, error %v", restore.Status, restore.Error)
+		errMsg := ""
+		if restore.Error != nil {
+			errMsg = *restore.Error
+		}
+		t.Fatalf("restore task = %s, error %q", restore.Status, errMsg)
 	}
 	if got := mustRead(t, filepath.Join(root, "index.html")); got != "hello" {
 		t.Errorf("index.html = %q, want %q", got, "hello")
@@ -570,7 +574,11 @@ func TestDatabaseCreateRestoreWithFakeClient(t *testing.T) {
 
 	restore := h.runTask(h.mustRestore(archive.ID))
 	if restore.Status != store.TaskSucceeded {
-		t.Fatalf("restore task = %s, error %v", restore.Status, restore.Error)
+		errMsg := ""
+		if restore.Error != nil {
+			errMsg = *restore.Error
+		}
+		t.Fatalf("restore task = %s, error %q", restore.Status, errMsg)
 	}
 	if got := mustRead(t, capture); got != dump {
 		t.Errorf("client stdin = %q, want the dump %q", got, dump)

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { agentFetch } from "@/lib/agent";
 import { handleRoute, requireAuth } from "@/lib/http";
-import type { PmaLoginCookie, PmaLoginResponse } from "@/lib/types";
+import type { PmaLoginCookie, PmaLoginResponse, PmaStatusResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,17 +35,30 @@ function rawSetCookie(cookie: PmaLoginCookie, path: string): string {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
-    const login = await agentFetch<PmaLoginResponse>("/v1/phpmyadmin/login", { method: "POST" });
-    const target = `http://${requestHostname(request)}:${login.port}${login.urlPath}`;
-    const response = NextResponse.redirect(target, 302);
-    response.headers.set("Cache-Control", "no-store");
-    // Keep phpMyAdmin's cookies off the panel origin while still matching
-    // every phpMyAdmin URL. Cookies ignore ports, so the browser sends these
-    // to the phpMyAdmin port.
-    const path = (login.urlPath || "/").replace(/[\r\n;]/g, "");
-    for (const cookie of login.cookies) {
-      if (cookie.name) response.headers.append("Set-Cookie", rawSetCookie(cookie, path));
+    try {
+      const login = await agentFetch<PmaLoginResponse>("/v1/phpmyadmin/login", { method: "POST" });
+      const target = `http://${requestHostname(request)}:${login.port}${login.urlPath}`;
+      const response = NextResponse.redirect(target, 302);
+      response.headers.set("Cache-Control", "no-store");
+      // Keep phpMyAdmin's cookies off the panel origin while still matching
+      // every phpMyAdmin URL. Cookies ignore ports, so the browser sends these
+      // to the phpMyAdmin port.
+      const path = (login.urlPath || "/").replace(/[\r\n;]/g, "");
+      for (const cookie of login.cookies) {
+        if (cookie.name) response.headers.append("Set-Cookie", rawSetCookie(cookie, path));
+      }
+      return response;
+    } catch (error) {
+      // Auto-login needs password auth. If the agent's MySQL root only accepts
+      // unix_socket, still send the browser to phpMyAdmin's login form.
+      const status = await agentFetch<PmaStatusResponse>("/v1/phpmyadmin/status");
+      if (!status.installed || typeof status.port !== "number" || !status.urlPath) throw error;
+      const response = NextResponse.redirect(
+        `http://${requestHostname(request)}:${status.port}${status.urlPath}`,
+        302,
+      );
+      response.headers.set("Cache-Control", "no-store");
+      return response;
     }
-    return response;
   });
 }

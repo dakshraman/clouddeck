@@ -15,9 +15,35 @@ import (
 
 const loginTimeout = 6 * time.Second
 
-// loginInputRe extracts the hidden token and set_session fields from the
-// phpMyAdmin cookie-auth login form.
-var loginInputRe = regexp.MustCompile(`(?is)<input[^>]*\bname="(token|set_session)"[^>]*\bvalue="([^"]+)"`)
+// Input extraction patterns supporting any attribute order and single/double quotes.
+var (
+	inputTagRe  = regexp.MustCompile(`(?is)<input\b[^>]*>`)
+	inputNameRe = regexp.MustCompile(`(?i)\bname\s*=\s*["']?([^"' >]+)`)
+	inputValRe  = regexp.MustCompile(`(?i)\bvalue\s*=\s*["']?([^"'>]*)`)
+)
+
+func extractLoginFields(page string) (token, session string) {
+	for _, tag := range inputTagRe.FindAllString(page, -1) {
+		nameMatch := inputNameRe.FindStringSubmatch(tag)
+		if len(nameMatch) < 2 {
+			continue
+		}
+		name := strings.ToLower(nameMatch[1])
+		if name != "token" && name != "set_session" {
+			continue
+		}
+		valMatch := inputValRe.FindStringSubmatch(tag)
+		if len(valMatch) >= 2 {
+			val := valMatch[1]
+			if name == "token" && token == "" {
+				token = val
+			} else if name == "set_session" && session == "" {
+				session = val
+			}
+		}
+	}
+	return token, session
+}
 
 // Cookie is a phpMyAdmin cookie that should be handed to the browser.
 type Cookie struct {
@@ -70,23 +96,20 @@ func (s *Service) Login(ctx context.Context) (LoginResult, error) {
 		return LoginResult{}, err
 	}
 	browserCookies := collectCookies(loginCookies)
-	fields := loginInputRe.FindAllStringSubmatch(page, -1)
-	values := make(map[string]string, len(fields))
-	for _, field := range fields {
-		values[field[1]] = field[2]
+	token, session := extractLoginFields(page)
+	if session == "" {
+		if cookie, ok := browserCookies["phpMyAdmin"]; ok && cookie.Value != "" {
+			session = cookie.Value
+		}
 	}
-	token, session := values["token"], values["set_session"]
 	if token == "" || session == "" {
 		return LoginResult{}, errors.New("phpMyAdmin login token not found")
 	}
 
-	user := s.cfg.MySQLRootUser
-	if user == "" {
-		user = "root"
-	}
+	user, password := s.loginCredentials()
 	form := url.Values{}
 	form.Set("pma_username", user)
-	form.Set("pma_password", s.cfg.MySQLRootPass)
+	form.Set("pma_password", password)
 	form.Set("server", "1")
 	form.Set("target", "index.php")
 	form.Set("set_session", session)
@@ -118,7 +141,7 @@ func (s *Service) Login(ctx context.Context) (LoginResult, error) {
 		}
 	}
 	if !authed {
-		return LoginResult{}, errors.New("phpMyAdmin login failed; check the agent's MySQL root credentials")
+		return LoginResult{}, errors.New("phpMyAdmin login failed; check MySQL credentials")
 	}
 	for _, cookie := range browserCookies {
 		out.Cookies = append(out.Cookies, cookie)

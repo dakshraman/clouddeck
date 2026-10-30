@@ -95,9 +95,16 @@ type Config struct {
 	PHPUninstallCmd  string // AGENT_PHP_UNINSTALL_CMD
 
 	// v0.5 phpMyAdmin + WAF
-	PHPMYADMINDir string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
-	NginxBin      string // AGENT_NGINX_BIN (used for -V module detection)
-	ModsecConf    string // AGENT_MODSEC_CONF (rules file when the module exists)
+	PHPMYADMINDir        string // AGENT_PHPMYADMIN_DIR (aaPanel-style install root)
+	PHPMYADMINVersionURL string // AGENT_PHPMYADMIN_VERSION_URL (latest-release JSON)
+	PHPMYADMINDistBase   string // AGENT_PHPMYADMIN_DIST_BASE (official tarball base)
+	PHPMYADMINPHPBin     string // AGENT_PHPMYADMIN_PHP_BIN (CLI used by the built-in server)
+	PHPMYADMINRunAs      string // AGENT_PHPMYADMIN_RUNAS (service user)
+	PHPMYADMINStateDir   string // AGENT_PHPMYADMIN_STATE_DIR (sessions, temp, DB credentials)
+	PHPMYADMINUnitDir    string // AGENT_PHPMYADMIN_UNIT_DIR (systemd unit directory)
+	PHPMYADMINPort       int    // AGENT_PHPMYADMIN_PORT (0 = pick a free port)
+	NginxBin             string // AGENT_NGINX_BIN (used for -V module detection)
+	ModsecConf           string // AGENT_MODSEC_CONF (rules file when the module exists)
 
 	// v0.6 application hosting (Node/Python/Go/Ruby/custom)
 	AppSupervisor string // AGENT_APP_SUPERVISOR: systemd (default), pm2 or supervisor
@@ -189,6 +196,22 @@ func Load() (Config, error) {
 
 	// v0.5 phpMyAdmin + WAF
 	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")
+	cfg.PHPMYADMINVersionURL = env("AGENT_PHPMYADMIN_VERSION_URL", "https://www.phpmyadmin.net/home_page/version.json")
+	cfg.PHPMYADMINDistBase = env("AGENT_PHPMYADMIN_DIST_BASE", "https://files.phpmyadmin.net/phpMyAdmin")
+	cfg.PHPMYADMINPHPBin = env("AGENT_PHPMYADMIN_PHP_BIN", "php")
+	cfg.PHPMYADMINRunAs = env("AGENT_PHPMYADMIN_RUNAS", "www-data")
+	cfg.PHPMYADMINStateDir = env("AGENT_PHPMYADMIN_STATE_DIR", "/var/lib/clouddeck-phpmyadmin")
+	cfg.PHPMYADMINUnitDir = env("AGENT_PHPMYADMIN_UNIT_DIR", "/etc/systemd/system")
+	if raw := strings.TrimSpace(os.Getenv("AGENT_PHPMYADMIN_PORT")); raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port < 0 || port > 65535 {
+			return Config{}, fmt.Errorf("AGENT_PHPMYADMIN_PORT: %q is not a port number", raw)
+		}
+		cfg.PHPMYADMINPort = port
+	}
+	if !validRunAs(cfg.PHPMYADMINRunAs) {
+		return Config{}, fmt.Errorf("AGENT_PHPMYADMIN_RUNAS contains unsupported characters")
+	}
 	cfg.NginxBin = env("AGENT_NGINX_BIN", "nginx")
 	cfg.ModsecConf = env("AGENT_MODSEC_CONF", "/etc/nginx/modsec/clouddeck.conf")
 
@@ -251,6 +274,21 @@ func validUnitValue(value string) bool {
 	for _, r := range value {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
 			(r >= '0' && r <= '9') || strings.ContainsRune("%./_-", r) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// validRunAs guards the phpMyAdmin service user written into User=.
+func validRunAs(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' {
 			continue
 		}
 		return false

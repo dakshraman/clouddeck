@@ -72,6 +72,10 @@ export function taskTypeLabel(type: TaskType | string): string {
       return "Create backup";
     case "backup.restore":
       return "Restore backup";
+    case "runtime.install":
+      return "Install runtime";
+    case "phpmyadmin.install":
+      return "Install phpMyAdmin";
     default:
       return type;
   }

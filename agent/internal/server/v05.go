@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/ftp"
+	"clouddeck/agent/internal/tasks"
 )
 
 // nonNilSlice returns a non-nil copy so JSON responses use [] instead of null.
@@ -353,6 +355,27 @@ func (s *Server) handleSSHDeleteGenerated(w http.ResponseWriter, r *http.Request
 
 func (s *Server) handlePHPMYADMINStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.pma.Status())
+}
+
+// handlePHPMYADMINInstall starts a background task installing the latest
+// official release. Errors: 409 already_installed/dry_run, 502 install_failed (the latter from the task).
+func (s *Server) handlePHPMYADMINInstall(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.DryRun {
+		writeError(w, apierr.Conflict("dry_run", "phpMyAdmin installs are disabled in dry-run mode"))
+		return
+	}
+	if s.pma.Status().Installed {
+		writeError(w, apierr.Conflict("already_installed", "phpMyAdmin is already installed"))
+		return
+	}
+	task, err := s.eng.Create("phpmyadmin.install", "", func(ctx context.Context, log tasks.LogFunc) error {
+		return s.pma.Install(ctx, log, s.audit)
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"task": task})
 }
 
 func (s *Server) handlePHPMYADMINLogin(w http.ResponseWriter, r *http.Request) {

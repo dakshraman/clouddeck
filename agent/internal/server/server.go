@@ -39,7 +39,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.20"
+const Version = "0.6.21"
 
 const maxBodyBytes = 1 << 20
 
@@ -186,6 +186,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 
 	// v0.5 — phpMyAdmin + remote MySQL
 	mux.HandleFunc("GET /v1/phpmyadmin/status", s.handlePHPMYADMINStatus)
+	mux.HandleFunc("POST /v1/phpmyadmin/install", s.handlePHPMYADMINInstall)
 	mux.HandleFunc("POST /v1/phpmyadmin/login", s.handlePHPMYADMINLogin)
 	mux.HandleFunc("GET /v1/mysql/remote", s.handleMySQLListRemote)
 	mux.HandleFunc("POST /v1/mysql/remote", s.handleMySQLAddRemote)

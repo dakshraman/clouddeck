@@ -350,7 +350,10 @@ Audit actions: `ssh.key.add`, `ssh.key.delete`, `ssh.keygen.create`, `ssh.keygen
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
 | `GET /v1/phpmyadmin/status` | — | `200 {installed,dir?,port?,version?,urlPath?,reachable,authType?}` — detection only; `reachable` is a localhost HTTP probe of the discovered URL | — |
-| `POST /v1/phpmyadmin/login` | — | `200 {port,urlPath,cookies:[{name,value,path?,maxAge?,httpOnly?,secure?,sameSite?}]}` — cookie-auth login with the agent's MySQL root credentials; the cookies are handed to the browser. Non-cookie auth returns no cookies and only the URL. | `500 internal` |
+| `POST /v1/phpmyadmin/install` | — | `202 {task}` — installs the latest official release (`task.type` `phpmyadmin.install`): resolves `version.json`, verifies the tarball SHA-256, writes the aaPanel-style layout, generates `config.inc.php` (cookie auth), and runs `clouddeck-phpmyadmin.service` as `AGENT_PHPMYADMIN_RUNAS`. Poll `GET /v1/tasks/{id}`. | `409 already_installed`, `409 dry_run` / `502 install_failed` (task) |
+| `POST /v1/phpmyadmin/login` | — | `200 {port,urlPath,cookies:[{name,value,path?,maxAge?,httpOnly?,secure?,sameSite?}]}` — cookie-auth login with the install-time database account (or the agent's MySQL root credentials); the cookies are handed to the browser. Non-cookie auth returns no cookies and only the URL. | `500 internal` |
+
+Audit actions: `phpmyadmin.install`.
 
 #### Remote MySQL hosts
 
@@ -548,6 +551,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET/DELETE | `/api/ssh/keys/generated/{name}` | read (incl. private) / delete |
 | POST | `/api/ssh/password` | `{user,password}` → `/v1/ssh/password` |
 | GET | `/api/phpmyadmin/status` | passthrough `/v1/phpmyadmin/status` |
+| POST | `/api/phpmyadmin/install` | passthrough `/v1/phpmyadmin/install` (202 `{task}`) |
 | GET | `/api/phpmyadmin/login` | authenticate via the agent, set phpMyAdmin cookies, redirect to the discovered phpMyAdmin URL |
 | GET | `/api/mysql/remote` | list remote hosts |
 | POST | `/api/mysql/remote` | `{user,host}` |
@@ -641,6 +645,13 @@ The panel validates input again (same domain regex, same path/identifier rules) 
 | `AGENT_NODE_UNINSTALL_CMD` | empty (built-in `/opt/nodejs/v<version>` removal; custom command gets the exact version appended as its last argument) |
 | `AGENT_PHP_UNINSTALL_CMD` | empty (built-in apt purge of `php<version>-*`; custom command gets the version appended as its last argument) |
 | `AGENT_PHPMYADMIN_DIR` | `/www/server/phpmyadmin` |
+| `AGENT_PHPMYADMIN_VERSION_URL` | `https://www.phpmyadmin.net/home_page/version.json` (latest-release feed) |
+| `AGENT_PHPMYADMIN_DIST_BASE` | `https://files.phpmyadmin.net/phpMyAdmin` (tarball + `.sha256` base) |
+| `AGENT_PHPMYADMIN_PHP_BIN` | `php` (CLI used by the built-in server) |
+| `AGENT_PHPMYADMIN_RUNAS` | `www-data` (service user; must exist) |
+| `AGENT_PHPMYADMIN_STATE_DIR` | `/var/lib/clouddeck-phpmyadmin` (sessions, temp, generated DB credentials) |
+| `AGENT_PHPMYADMIN_UNIT_DIR` | `/etc/systemd/system` |
+| `AGENT_PHPMYADMIN_PORT` | `0` (pick a free port; set a fixed port to pin it) |
 | `AGENT_NGINX_BIN` | `nginx` (used only for `-V` WAF module detection) |
 | `AGENT_MODSEC_CONF` | `/etc/nginx/modsec/clouddeck.conf` (rules file when the ModSecurity module exists) |
 | `AGENT_REBOOT_CMD` | `systemctl reboot` (host reboot command; run ~0.5 s after the 200 response) |
