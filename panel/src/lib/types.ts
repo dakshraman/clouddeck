@@ -183,6 +183,26 @@ export interface FileRenameRequest {
   to: string;
 }
 
+export interface FileChmodRequest {
+  path: string;
+  mode: string | number;
+}
+
+export interface FileCompressRequest {
+  paths: string[];
+  format: "tar.gz" | "zip";
+  target: string;
+}
+
+export interface FileExtractRequest {
+  archive: string;
+  dest: string;
+}
+
+export interface FilePathResponse {
+  path: string;
+}
+
 // --- MySQL (v0.2) ---
 
 export interface MySQLStatus {

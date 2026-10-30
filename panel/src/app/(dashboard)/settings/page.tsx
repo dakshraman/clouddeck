@@ -29,11 +29,13 @@ import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/compon
 import { cn } from "@/components/ui/cn";
 import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TwoFactorCard } from "@/components/two-factor-card";
 
 interface Profile {
   username: string;
   email: string | null;
   createdAt: string;
+  totpEnabled?: boolean;
 }
 
 interface MeResponse {
@@ -76,6 +78,7 @@ const INSTALL_COMMAND =
 const sections = [
   { id: "account", label: "Account", icon: UserRound },
   { id: "security", label: "Security", icon: ShieldCheck },
+  { id: "two-factor", label: "Two-Factor Auth", icon: KeyRound },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "server", label: "Server", icon: Server },
   { id: "updates", label: "Updates", icon: ArrowUpCircle },
@@ -585,7 +588,7 @@ export default function SettingsPage() {
 
             <div className="my-5 h-px bg-border" />
 
-            <dl className="grid gap-4 sm:grid-cols-3">
+            <dl className="grid gap-4 sm:grid-cols-4">
               <Fact label="Session length">
                 {me ? `${me.session.ttlDays} days` : "—"}
               </Fact>
@@ -594,6 +597,13 @@ export default function SettingsPage() {
                   <Badge variant="green">Secure</Badge>
                 ) : (
                   <Badge variant="amber">Not secure</Badge>
+                )}
+              </Fact>
+              <Fact label="Two-factor auth">
+                {me?.user.totpEnabled ? (
+                  <Badge variant="green">Enabled</Badge>
+                ) : (
+                  <Badge variant="neutral">Disabled</Badge>
                 )}
               </Fact>
               <Fact label="Sign-in protection">bcrypt + signed session</Fact>
@@ -620,6 +630,21 @@ export default function SettingsPage() {
               </Button>
             </div>
           </SectionCard>
+
+          <TwoFactorCard
+            initialEnabled={Boolean(me?.user.totpEnabled)}
+            onStatusChange={(enabled) => {
+              if (me) {
+                setMe({
+                  ...me,
+                  user: {
+                    ...me.user,
+                    totpEnabled: enabled,
+                  },
+                });
+              }
+            }}
+          />
 
           <SectionCard
             id="appearance"

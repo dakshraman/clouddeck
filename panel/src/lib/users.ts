@@ -8,6 +8,8 @@ export interface StoredUser {
   email?: string;
   passwordHash: string;
   createdAt: string;
+  totpSecret?: string;
+  totpEnabled?: boolean;
 }
 
 interface UsersStore {
@@ -93,6 +95,7 @@ export interface UserProfile {
   username: string;
   email: string | null;
   createdAt: string;
+  totpEnabled?: boolean;
 }
 
 function toProfile(user: StoredUser): UserProfile {
@@ -100,6 +103,7 @@ function toProfile(user: StoredUser): UserProfile {
     username: user.username,
     email: user.email ?? null,
     createdAt: user.createdAt,
+    totpEnabled: Boolean(user.totpEnabled && user.totpSecret),
   };
 }
 
@@ -128,6 +132,31 @@ export function setUserPassword(username: string, password: string): boolean {
   user.passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
   persist(current);
   return true;
+}
+
+export function setTOTPSecret(username: string, secret: string): boolean {
+  const current = load();
+  const user = current.users.find((candidate) => candidate.username === username);
+  if (!user) return false;
+  user.totpSecret = secret;
+  user.totpEnabled = true;
+  persist(current);
+  return true;
+}
+
+export function disableTOTP(username: string): boolean {
+  const current = load();
+  const user = current.users.find((candidate) => candidate.username === username);
+  if (!user) return false;
+  user.totpEnabled = false;
+  delete user.totpSecret;
+  persist(current);
+  return true;
+}
+
+export function hasTOTP(username: string): boolean {
+  const user = getUser(username);
+  return Boolean(user && user.totpEnabled && user.totpSecret);
 }
 
 export async function verifyUser(username: string, password: string): Promise<boolean> {

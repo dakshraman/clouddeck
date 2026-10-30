@@ -112,10 +112,19 @@ func (s *Service) Install(ctx context.Context, log tasks.LogFunc, auditLog *audi
 	}
 
 	stateDir := s.cfg.PHPMYADMINStateDir
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return installFailed(fmt.Sprintf("create %s: %v", stateDir, err))
+	}
+	// Ensure parent directory (e.g. /var/lib/clouddeck) has traversal permission so the service user can reach stateDir
+	if parent := filepath.Dir(stateDir); parent != "" && parent != "/" {
+		_ = os.Chmod(parent, 0o755)
+	}
 	for _, sub := range []string{"tmp", "sessions"} {
-		if err := os.MkdirAll(filepath.Join(stateDir, sub), 0o750); err != nil {
-			return installFailed(fmt.Sprintf("create %s: %v", filepath.Join(stateDir, sub), err))
+		subDir := filepath.Join(stateDir, sub)
+		if err := os.MkdirAll(subDir, 0o775); err != nil {
+			return installFailed(fmt.Sprintf("create %s: %v", subDir, err))
 		}
+		_ = os.Chmod(subDir, 0o775)
 	}
 	if err := chownTree(stateDir, s.cfg.PHPMYADMINRunAs); err != nil {
 		return installFailed(err.Error())

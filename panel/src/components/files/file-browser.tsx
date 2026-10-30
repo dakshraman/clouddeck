@@ -11,17 +11,21 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { FileEntry, FileListResponse, FileUploadResponse } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { FileEditor } from "@/components/files/file-editor";
 import { FileGlyph } from "@/components/files/file-icons";
 import { FolderTree } from "@/components/files/folder-tree";
+import { ChmodDialog } from "@/components/files/chmod-dialog";
+import { CompressDialog } from "@/components/files/compress-dialog";
+import { ExtractDialog } from "@/components/files/extract-dialog";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
@@ -42,6 +46,7 @@ import {
   LayoutGrid,
   Link2,
   List,
+  MoreVertical,
   PackageOpen,
   Pencil,
   RefreshCw,
@@ -49,19 +54,13 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 
 interface EditorState {
   path: string;
   name: string;
   isNew: boolean;
-}
-
-type ActionKind = "chmod" | "copy" | "compress" | "extract";
-
-interface ActionState {
-  kind: ActionKind;
-  entry: FileEntry;
 }
 
 interface ErrorBody {
@@ -95,13 +94,8 @@ function copyName(name: string): string {
   return `${name}-copy`;
 }
 
-const ARCHIVE_EXTENSION: Record<"tar.gz" | "zip", string> = {
-  "tar.gz": ".tar.gz",
-  zip: ".zip",
-};
-
 function isExtractable(name: string): boolean {
-  return /\.(zip|tar\.gz|tgz)$/i.test(name);
+  return /\.(zip|tar\.gz|tgz|tar)$/i.test(name);
 }
 
 export function FileBrowser({ domain, embedded = false }: { domain: string; embedded?: boolean }) {
@@ -118,26 +112,36 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
 
-  const [action, setAction] = useState<ActionState | null>(null);
-  const [actionBusy, setActionBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [chmodMode, setChmodMode] = useState("");
+  // Modern modal dialog states
+  const [chmodEntry, setChmodEntry] = useState<FileEntry | null>(null);
+  const [chmodOpen, setChmodOpen] = useState(false);
+
+  const [compressItems, setCompressItems] = useState<FileEntry[]>([]);
+  const [compressOpen, setCompressOpen] = useState(false);
+
+  const [extractEntry, setExtractEntry] = useState<FileEntry | null>(null);
+  const [extractOpen, setExtractOpen] = useState(false);
+
+  // Copy modal state
+  const [copyEntry, setCopyEntry] = useState<FileEntry | null>(null);
   const [copyTarget, setCopyTarget] = useState("");
   const [copyOverwrite, setCopyOverwrite] = useState(false);
-  const [compressFormat, setCompressFormat] = useState<"tar.gz" | "zip">("tar.gz");
-  const [compressTarget, setCompressTarget] = useState("");
-  const [compressTargetEdited, setCompressTargetEdited] = useState(false);
-  const [extractDest, setExtractDest] = useState("");
+  const [copyBusy, setCopyBusy] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
-  // Hostinger-style browsing upgrades.
+  // Move inline state
+  const [moveEntry, setMoveEntry] = useState<FileEntry | null>(null);
+  const [moveDest, setMoveDest] = useState("");
+  const [moveBusy, setMoveBusy] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+
+  // Browsing UI state
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
-  const [moveEntry, setMoveEntry] = useState<FileEntry | null>(null);
-  const [moveDest, setMoveDest] = useState("");
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -178,6 +182,37 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
     void load(path);
     setTreeRefreshKey((key) => key + 1);
   }, [load, path]);
+
+  // Dialog openers
+  function openChmod(entry: FileEntry) {
+    setChmodEntry(entry);
+    setChmodOpen(true);
+  }
+
+  function openCompress(items: FileEntry[]) {
+    setCompressItems(items);
+    setCompressOpen(true);
+  }
+
+  function openExtract(entry: FileEntry) {
+    setExtractEntry(entry);
+    setExtractOpen(true);
+  }
+
+  function openCopy(entry: FileEntry) {
+    setCopyEntry(entry);
+    setCopyTarget(joinPath(path, copyName(entry.name)));
+    setCopyOverwrite(false);
+    setCopyError(null);
+  }
+
+  function openMove(entry: FileEntry) {
+    setMoveEntry(entry);
+    setMoveDest(path);
+    setMoveError(null);
+    setError(null);
+    setNotice(null);
+  }
 
   async function onCreateFolder() {
     const name = window.prompt("New folder name:");
@@ -237,6 +272,57 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
       setError(err instanceof Error ? err.message : "Failed to rename");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onSubmitCopy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!copyEntry) return;
+    const from = joinPath(path, copyEntry.name);
+    const to = copyTarget.trim();
+    if (to === "" || !isValidWebrootPath(to)) {
+      setCopyError("Enter a destination path inside the site webroot.");
+      return;
+    }
+    if (to === from) {
+      setCopyError("Choose a destination that differs from the source.");
+      return;
+    }
+    setCopyBusy(true);
+    setCopyError(null);
+    try {
+      const body = copyOverwrite ? { from, to, overwrite: true } : { from, to };
+      await apiPost<{ from: string; to: string }>(`${filesBase}/copy`, body);
+      setNotice(`Copied "${copyEntry.name}" to "${to}".`);
+      setCopyEntry(null);
+      refresh();
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : "Failed to copy");
+    } finally {
+      setCopyBusy(false);
+    }
+  }
+
+  async function onSubmitMove(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!moveEntry) return;
+    const from = joinPath(path, moveEntry.name);
+    const to = joinPath(moveDest, moveEntry.name);
+    if (to === from) {
+      setMoveError("Pick a different folder — the item is already there.");
+      return;
+    }
+    setMoveBusy(true);
+    setMoveError(null);
+    try {
+      await apiPost<{ from: string; to: string }>(`${filesBase}/rename`, { from, to });
+      setNotice(`Moved "${moveEntry.name}" to "${moveDest || "the web root"}".`);
+      setMoveEntry(null);
+      refresh();
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : "Failed to move");
+    } finally {
+      setMoveBusy(false);
     }
   }
 
@@ -328,12 +414,10 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
     event.target.value = "";
   }
 
-  // Folders dropped from the desktop surface as empty File objects and are
-  // rejected server-side; only real file drops are supported.
   function onDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setDragOver(false);
-    if (busy || uploading || actionBusy) return;
+    if (busy || uploading) return;
     void uploadFiles(Array.from(event.dataTransfer.files));
   }
 
@@ -347,166 +431,6 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
       }
       return next;
     });
-  }
-
-  function openAction(kind: ActionKind, entry: FileEntry) {
-    setAction({ kind, entry });
-    setActionError(null);
-    setError(null);
-    setNotice(null);
-    if (kind === "chmod") {
-      setChmodMode("");
-    } else if (kind === "copy") {
-      setCopyTarget(joinPath(path, copyName(entry.name)));
-      setCopyOverwrite(false);
-    } else if (kind === "compress") {
-      setCompressFormat("tar.gz");
-      setCompressTarget(joinPath(path, entry.name + ARCHIVE_EXTENSION["tar.gz"]));
-      setCompressTargetEdited(false);
-    } else {
-      setExtractDest(path);
-    }
-  }
-
-  function openMove(entry: FileEntry) {
-    setMoveEntry(entry);
-    setMoveDest(path);
-    setActionError(null);
-    setError(null);
-    setNotice(null);
-  }
-
-  function closeAction() {
-    setAction(null);
-    setActionError(null);
-  }
-
-  function onCompressFormatChange(next: "tar.gz" | "zip") {
-    if (!action) return;
-    setCompressFormat(next);
-    if (!compressTargetEdited) {
-      setCompressTarget(joinPath(path, action.entry.name + ARCHIVE_EXTENSION[next]));
-    }
-  }
-
-  /** Runs a file-manager mutation, then refreshes the listing. Returns success. */
-  async function runAction(
-    request: () => Promise<unknown>,
-    successMessage: () => string,
-    fallbackError: string,
-  ): Promise<boolean> {
-    setActionBusy(true);
-    setActionError(null);
-    setError(null);
-    setNotice(null);
-    try {
-      await request();
-      setNotice(successMessage());
-      setAction(null);
-      refresh();
-      return true;
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : fallbackError);
-      return false;
-    } finally {
-      setActionBusy(false);
-    }
-  }
-
-  function onSubmitChmod(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!action || action.kind !== "chmod") return;
-    const entry = action.entry;
-    const mode = chmodMode.trim();
-    if (!/^0?[0-7]{3}$/.test(mode)) {
-      setActionError("Enter an octal mode like 644 or 0755.");
-      return;
-    }
-    void runAction(
-      () => apiPost<{ path: string }>(`${filesBase}/chmod`, { path: joinPath(path, entry.name), mode }),
-      () => `Permissions updated for "${entry.name}".`,
-      "Failed to change permissions",
-    );
-  }
-
-  function onSubmitCopy(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!action || action.kind !== "copy") return;
-    const entry = action.entry;
-    const from = joinPath(path, entry.name);
-    const to = copyTarget.trim();
-    if (to === "" || !isValidWebrootPath(to)) {
-      setActionError("Enter a destination path inside the site webroot.");
-      return;
-    }
-    if (to === from) {
-      setActionError("Choose a destination that differs from the source.");
-      return;
-    }
-    const body = copyOverwrite ? { from, to, overwrite: true } : { from, to };
-    void runAction(
-      () => apiPost<{ from: string; to: string }>(`${filesBase}/copy`, body),
-      () => `Copied "${entry.name}" to "${to}".`,
-      "Failed to copy",
-    );
-  }
-
-  function onSubmitMove(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!moveEntry) return;
-    const from = joinPath(path, moveEntry.name);
-    const to = joinPath(moveDest, moveEntry.name);
-    if (to === from) {
-      setActionError("Pick a different folder — the item is already there.");
-      return;
-    }
-    void runAction(
-      () => apiPost<{ from: string; to: string }>(`${filesBase}/rename`, { from, to }),
-      () => `Moved "${moveEntry.name}" to "${moveDest || "the web root"}".`,
-      "Failed to move",
-    ).then((ok) => {
-      if (ok) setMoveEntry(null);
-    });
-  }
-
-  function onSubmitCompress(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!action || action.kind !== "compress") return;
-    const entry = action.entry;
-    const target = compressTarget.trim();
-    if (target === "" || !isValidWebrootPath(target)) {
-      setActionError("Enter an archive name inside the site webroot.");
-      return;
-    }
-    void runAction(
-      () =>
-        apiPost<{ path: string }>(`${filesBase}/compress`, {
-          paths: [joinPath(path, entry.name)],
-          format: compressFormat,
-          target,
-        }),
-      () => `Created archive "${target}".`,
-      "Failed to create the archive",
-    );
-  }
-
-  function onSubmitExtract(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!action || action.kind !== "extract") return;
-    const entry = action.entry;
-    const dest = extractDest.trim();
-    if (!isValidWebrootPath(dest)) {
-      setActionError("Enter a relative destination path without '..' segments.");
-      return;
-    }
-    void runAction(
-      () => apiPost<{ path: string }>(`${filesBase}/extract`, { archive: joinPath(path, entry.name), dest }),
-      () =>
-        dest === ""
-          ? `Extracted "${entry.name}" into the site root.`
-          : `Extracted "${entry.name}" into "${dest}".`,
-      "Failed to extract the archive",
-    );
   }
 
   async function onDeleteBulk() {
@@ -553,42 +477,25 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
     }
   }
 
-  async function onCompressBulk() {
-    if (selected.size === 0) return;
-    const target = window.prompt(
-      `Archive ${selected.size} item${selected.size === 1 ? "" : "s"} as:`,
-      "archive.tar.gz",
-    );
-    if (target === null) return;
-    const trimmed = target.trim();
-    if (trimmed === "" || !isValidWebrootPath(trimmed)) {
-      setError("Enter an archive name inside the site webroot.");
-      return;
-    }
-    setBulkBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      await apiPost<{ path: string }>(`${filesBase}/compress`, {
-        paths: [...selected].map((name) => joinPath(path, name)),
-        format: trimmed.endsWith(".zip") ? "zip" : "tar.gz",
-        target: trimmed,
-      });
-      setNotice(`Created archive "${trimmed}".`);
-      setSelected(new Set());
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create the archive");
-    } finally {
-      setBulkBusy(false);
-    }
-  }
-
   const segments = path === "" ? [] : path.split("/");
   const needle = query.trim().toLowerCase();
-  const visible = entries === null ? [] : needle === "" ? entries : entries.filter((entry) => entry.name.toLowerCase().includes(needle));
-  const allVisibleSelected = visible !== null && visible.length > 0 && visible.every((entry) => selected.has(entry.name));
-  const rowBusy = busy || uploading || actionBusy || bulkBusy;
+  const visible =
+    entries === null
+      ? []
+      : needle === ""
+        ? entries
+        : entries.filter((entry) => entry.name.toLowerCase().includes(needle));
+  const allVisibleSelected =
+    visible !== null && visible.length > 0 && visible.every((entry) => selected.has(entry.name));
+  const rowBusy = busy || uploading || bulkBusy;
+
+  // Selected entries list for action bar
+  const selectedEntries = entries ? entries.filter((entry) => selected.has(entry.name)) : [];
+  const singleSelected = selectedEntries.length === 1 ? selectedEntries[0] : null;
+  const isArchiveSelected =
+    singleSelected !== null &&
+    singleSelected.type === "file" &&
+    isExtractable(singleSelected.name);
 
   return (
     <>
@@ -606,12 +513,12 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         </>
       )}
 
+      {/* Main Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button
           variant="ghost"
           size="sm"
           aria-pressed={treeOpen}
-          disabled={action !== null}
           onClick={() => setTreeOpen((open) => !open)}
         >
           <FolderTreeIcon size={14} aria-hidden="true" />
@@ -681,7 +588,11 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
             type="button"
             aria-pressed={view === "list"}
             aria-label="List view"
-            className={`cursor-pointer px-2.5 py-1.5 ${view === "list" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:text-foreground"}`}
+            className={`cursor-pointer px-2.5 py-1.5 ${
+              view === "list"
+                ? "bg-brand/10 text-brand"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
             onClick={() => setView("list")}
           >
             <List size={14} aria-hidden="true" />
@@ -690,7 +601,11 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
             type="button"
             aria-pressed={view === "grid"}
             aria-label="Grid view"
-            className={`cursor-pointer px-2.5 py-1.5 ${view === "grid" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:text-foreground"}`}
+            className={`cursor-pointer px-2.5 py-1.5 ${
+              view === "grid"
+                ? "bg-brand/10 text-brand"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
             onClick={() => setView("grid")}
           >
             <LayoutGrid size={14} aria-hidden="true" />
@@ -714,6 +629,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         ) : null}
 
         <div className="min-w-0 flex-1">
+          {/* Breadcrumb Navigation */}
           <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
             {path === "" ? (
               <span className="font-mono text-foreground">root</span>
@@ -766,31 +682,73 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
             </Alert>
           ) : null}
 
+          {/* Action Bar for Selected Items (Hostinger / cPanel style) */}
           {selected.size > 0 ? (
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background/40 px-4 py-2.5">
-              <span className="text-sm text-foreground">
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/80 px-4 py-2.5 shadow-sm">
+              <span className="text-xs font-semibold text-foreground">
                 {selected.size} selected
               </span>
-              <Button variant="secondary" size="sm" loading={bulkBusy} onClick={() => void onCompressBulk()}>
+
+              {/* Compress action button - visible when 1 or more items are selected */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => openCompress(selectedEntries)}
+                disabled={rowBusy}
+              >
                 <FileArchive size={14} aria-hidden="true" />
                 Compress
               </Button>
+
+              {/* Permissions action button - visible for single selected file/folder */}
+              {singleSelected && singleSelected.type !== "symlink" ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => openChmod(singleSelected)}
+                  disabled={rowBusy}
+                >
+                  <ShieldCheck size={14} aria-hidden="true" />
+                  Permissions
+                </Button>
+              ) : null}
+
+              {/* Extract action button - visible when an archive is selected */}
+              {isArchiveSelected ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => openExtract(singleSelected)}
+                  disabled={rowBusy}
+                >
+                  <PackageOpen size={14} aria-hidden="true" />
+                  Extract
+                </Button>
+              ) : null}
+
               <Button
                 variant="secondary"
                 size="sm"
                 loading={bulkBusy}
-                className="text-red-400"
+                className="text-red-400 hover:text-red-300"
                 onClick={() => void onDeleteBulk()}
               >
                 <Trash2 size={14} aria-hidden="true" />
                 Delete
               </Button>
-              <Button variant="ghost" size="sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => setSelected(new Set())}
+              >
                 Clear
               </Button>
             </div>
           ) : null}
 
+          {/* File Editor Modal */}
           {editor ? (
             <FileEditor
               domain={domain}
@@ -801,6 +759,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
               onSaved={refresh}
             />
           ) : moveEntry ? (
+            /* Move Inline Card */
             <Card>
               <form onSubmit={onSubmitMove} className="grid gap-4 p-5">
                 <div>
@@ -812,9 +771,9 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                     the left, then move it there.
                   </p>
                 </div>
-                {actionError ? <Alert variant="error">{actionError}</Alert> : null}
+                {moveError ? <Alert variant="error">{moveError}</Alert> : null}
                 <div className="flex items-center gap-2">
-                  <Button type="submit" size="sm" loading={actionBusy}>
+                  <Button type="submit" size="sm" loading={moveBusy}>
                     <FolderInput size={14} aria-hidden="true" />
                     Move here
                   </Button>
@@ -822,7 +781,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                     type="button"
                     variant="ghost"
                     size="sm"
-                    disabled={actionBusy}
+                    disabled={moveBusy}
                     onClick={() => setMoveEntry(null)}
                   >
                     Cancel
@@ -856,6 +815,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
               />
             )
           ) : view === "grid" ? (
+            /* Grid View */
             <Card
               className={`overflow-hidden ${dragOver ? "ring-2 ring-brand" : undefined}`}
               onDragOver={(event) => {
@@ -882,6 +842,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                         }
                       }}
                     >
+                      {/* Checkbox */}
                       <label
                         className="absolute left-2 top-2"
                         onClick={(event) => event.stopPropagation()}
@@ -895,6 +856,117 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                           className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
                         />
                       </label>
+
+                      {/* Context Menu Dropdown */}
+                      <div
+                        className="absolute right-2 top-2 opacity-70 group-hover:opacity-100"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <DropdownMenu.Root>
+                          <DropdownMenu.Trigger asChild>
+                            <button
+                              type="button"
+                              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              aria-label={`Actions for ${entry.name}`}
+                            >
+                              <MoreVertical size={14} aria-hidden="true" />
+                            </button>
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                              align="end"
+                              className="z-50 min-w-[10rem] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95"
+                            >
+                              {entry.type === "file" ? (
+                                <DropdownMenu.Item
+                                  className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                  onClick={() =>
+                                    setEditor({ path: childPath, name: entry.name, isNew: false })
+                                  }
+                                >
+                                  <Pencil size={13} className="text-muted-foreground" />
+                                  Edit
+                                </DropdownMenu.Item>
+                              ) : null}
+
+                              {entry.type === "file" ? (
+                                <a
+                                  href={`${filesBase}/download?path=${encodeURIComponent(childPath)}`}
+                                  className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                >
+                                  <Download size={13} className="text-muted-foreground" />
+                                  Download
+                                </a>
+                              ) : null}
+
+                              {entry.type !== "symlink" ? (
+                                <>
+                                  <DropdownMenu.Item
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                    onClick={() => openChmod(entry)}
+                                  >
+                                    <ShieldCheck size={13} className="text-muted-foreground" />
+                                    Permissions
+                                  </DropdownMenu.Item>
+
+                                  <DropdownMenu.Item
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                    onClick={() => openCopy(entry)}
+                                  >
+                                    <Copy size={13} className="text-muted-foreground" />
+                                    Copy
+                                  </DropdownMenu.Item>
+
+                                  <DropdownMenu.Item
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                    onClick={() => openMove(entry)}
+                                  >
+                                    <FolderInput size={13} className="text-muted-foreground" />
+                                    Move
+                                  </DropdownMenu.Item>
+
+                                  <DropdownMenu.Item
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                    onClick={() => openCompress([entry])}
+                                  >
+                                    <FileArchive size={13} className="text-muted-foreground" />
+                                    Compress
+                                  </DropdownMenu.Item>
+
+                                  {entry.type === "file" && isExtractable(entry.name) ? (
+                                    <DropdownMenu.Item
+                                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                      onClick={() => openExtract(entry)}
+                                    >
+                                      <PackageOpen size={13} className="text-muted-foreground" />
+                                      Extract
+                                    </DropdownMenu.Item>
+                                  ) : null}
+
+                                  <DropdownMenu.Item
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                    onClick={() => void onRename(entry)}
+                                  >
+                                    <Pencil size={13} className="text-muted-foreground" />
+                                    Rename
+                                  </DropdownMenu.Item>
+                                </>
+                              ) : null}
+
+                              <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border" />
+
+                              <DropdownMenu.Item
+                                className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-red-400 outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                                onClick={() => void onDelete(entry)}
+                              >
+                                <Trash2 size={13} />
+                                Delete
+                              </DropdownMenu.Item>
+                            </DropdownMenu.Content>
+                          </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
+                      </div>
+
                       {entry.type === "dir" ? (
                         <Folder size={28} className="text-brand/80" aria-hidden="true" />
                       ) : entry.type === "symlink" ? (
@@ -917,6 +989,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
               </div>
             </Card>
           ) : (
+            /* List / Table View */
             <Card
               className="overflow-hidden"
               onDragOver={(event) => {
@@ -955,372 +1028,245 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                   <tbody>
                     {visible.map((entry) => {
                       const childPath = joinPath(path, entry.name);
-                      const activeAction =
-                        action && action.entry.name === entry.name ? action.kind : null;
                       return (
-                        <Fragment key={entry.name}>
-                          <tr className="border-t border-border hover:bg-muted/40">
-                            <td className="px-3 py-3">
-                              <input
-                                type="checkbox"
-                                aria-label={`Select ${entry.name}`}
-                                checked={selected.has(entry.name)}
-                                onChange={() => toggleSelected(entry.name)}
-                                disabled={rowBusy}
-                                className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
-                              />
-                            </td>
-                            <td className="px-3 py-3">
-                              {entry.type === "dir" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setPath(childPath)}
-                                  className="flex items-center gap-2 text-left text-foreground transition-colors hover:text-brand"
-                                >
-                                  <Folder
-                                    size={15}
-                                    className="shrink-0 text-brand/80"
-                                    aria-hidden="true"
-                                  />
-                                  <span className="break-all font-mono text-sm">{entry.name}</span>
-                                </button>
-                              ) : entry.type === "symlink" ? (
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                  <Link2
-                                    size={15}
-                                    className="shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                  />
-                                  <span className="break-all font-mono text-sm">{entry.name}</span>
-                                  <Badge variant="neutral">symlink</Badge>
+                        <tr key={entry.name} className="border-t border-border hover:bg-muted/40">
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${entry.name}`}
+                              checked={selected.has(entry.name)}
+                              onChange={() => toggleSelected(entry.name)}
+                              disabled={rowBusy}
+                              className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            {entry.type === "dir" ? (
+                              <button
+                                type="button"
+                                onClick={() => setPath(childPath)}
+                                className="flex items-center gap-2 text-left text-foreground transition-colors hover:text-brand"
+                              >
+                                <Folder
+                                  size={15}
+                                  className="shrink-0 text-brand/80"
+                                  aria-hidden="true"
+                                />
+                                <span className="break-all font-mono text-sm">{entry.name}</span>
+                              </button>
+                            ) : entry.type === "symlink" ? (
+                              <span className="flex items-center gap-2 text-muted-foreground">
+                                <Link2
+                                  size={15}
+                                  className="shrink-0 text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                                <span className="break-all font-mono text-sm">{entry.name}</span>
+                                <Badge variant="neutral">symlink</Badge>
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2 text-foreground">
+                                <FileGlyph name={entry.name} />
+                                <span className="break-all font-mono text-sm">{entry.name}</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
+                            {entry.type === "dir" ? "—" : formatBytes(entry.sizeBytes)}
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            {shortDateTime(entry.modifiedAt)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              {deleting === entry.name ? (
+                                <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                                  <Spinner size={14} className="text-muted-foreground" />
+                                  deleting…
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-2 text-foreground">
-                                  <FileGlyph name={entry.name} />
-                                  <span className="break-all font-mono text-sm">{entry.name}</span>
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
-                              {entry.type === "dir" ? "—" : formatBytes(entry.sizeBytes)}
-                            </td>
-                            <td className="px-3 py-3 text-muted-foreground">
-                              {shortDateTime(entry.modifiedAt)}
-                            </td>
-                            <td className="px-3 py-3">
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                {deleting === entry.name ? (
-                                  <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-                                    <Spinner size={14} className="text-muted-foreground" />
-                                    deleting…
-                                  </span>
-                                ) : (
-                                  <>
-                                    {entry.type === "file" ? (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() =>
-                                            setEditor({
-                                              path: childPath,
-                                              name: entry.name,
-                                              isNew: false,
-                                            })
-                                          }
-                                        >
-                                          <Pencil size={14} aria-hidden="true" />
-                                          Edit
-                                        </Button>
-                                        <a
-                                          href={`${filesBase}/download?path=${encodeURIComponent(childPath)}`}
-                                          className={buttonClass("ghost", "sm")}
-                                        >
-                                          <Download size={14} aria-hidden="true" />
-                                          Download
-                                        </a>
-                                      </>
-                                    ) : null}
-                                    {entry.type === "symlink" ? null : (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() => openAction("chmod", entry)}
-                                        >
-                                          <ShieldCheck size={14} aria-hidden="true" />
-                                          Permissions
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() => openAction("copy", entry)}
-                                        >
-                                          <Copy size={14} aria-hidden="true" />
-                                          Copy
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() => openMove(entry)}
-                                        >
-                                          <FolderInput size={14} aria-hidden="true" />
-                                          Move
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() => openAction("compress", entry)}
-                                        >
-                                          <FileArchive size={14} aria-hidden="true" />
-                                          Compress
-                                        </Button>
-                                        {entry.type === "file" && isExtractable(entry.name) ? (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={rowBusy}
-                                            onClick={() => openAction("extract", entry)}
-                                          >
-                                            <PackageOpen size={14} aria-hidden="true" />
-                                            Extract
-                                          </Button>
-                                        ) : null}
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={rowBusy}
-                                          onClick={() => void onRename(entry)}
-                                        >
-                                          Rename
-                                        </Button>
-                                      </>
-                                    )}
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-muted-foreground hover:text-red-400"
-                                      disabled={rowBusy}
-                                      onClick={() => void onDelete(entry)}
-                                    >
-                                      <Trash2 size={14} aria-hidden="true" />
-                                      Delete
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {activeAction ? (
-                            <tr className="border-t border-border">
-                              <td colSpan={5} className="px-5 py-4">
-                                {activeAction === "chmod" ? (
-                                  <form
-                                    onSubmit={onSubmitChmod}
-                                    className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
-                                  >
-                                    <div className="grid gap-1.5">
-                                      <Label htmlFor="chmod-mode">
-                                        Mode for{" "}
-                                        <span className="font-mono text-foreground/80">{entry.name}</span>
-                                      </Label>
-                                      <Input
-                                        id="chmod-mode"
-                                        value={chmodMode}
-                                        onChange={(event) => setChmodMode(event.target.value)}
-                                        placeholder="644"
-                                        inputMode="numeric"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        autoFocus
-                                        disabled={actionBusy}
-                                        className="w-32 font-mono"
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Octal permissions, three or four digits (644, 0755).
-                                      </p>
-                                    </div>
-                                    {actionError ? <Alert variant="error">{actionError}</Alert> : null}
-                                    <div className="flex items-center gap-2">
-                                      <Button type="submit" size="sm" loading={actionBusy}>
-                                        Set permissions
-                                      </Button>
+                                <>
+                                  {/* Direct Quick Action Buttons */}
+                                  {entry.type === "file" ? (
+                                    <>
                                       <Button
-                                        type="button"
                                         variant="ghost"
                                         size="sm"
-                                        onClick={closeAction}
-                                        disabled={actionBusy}
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </form>
-                                ) : activeAction === "copy" ? (
-                                  <form
-                                    onSubmit={onSubmitCopy}
-                                    className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
-                                  >
-                                    <div className="grid gap-1.5">
-                                      <Label htmlFor="copy-target">
-                                        Copy{" "}
-                                        <span className="font-mono text-foreground/80">{entry.name}</span>{" "}
-                                        to
-                                      </Label>
-                                      <Input
-                                        id="copy-target"
-                                        value={copyTarget}
-                                        onChange={(event) => setCopyTarget(event.target.value)}
-                                        placeholder="assets/copy-of-file"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        autoFocus
-                                        disabled={actionBusy}
-                                        className="font-mono"
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Destination path relative to the webroot.
-                                      </p>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm text-foreground/80">
-                                      <input
-                                        type="checkbox"
-                                        checked={copyOverwrite}
-                                        onChange={(event) => setCopyOverwrite(event.target.checked)}
-                                        disabled={actionBusy}
-                                        className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
-                                      />
-                                      Overwrite the destination if it already exists
-                                    </label>
-                                    {actionError ? <Alert variant="error">{actionError}</Alert> : null}
-                                    <div className="flex items-center gap-2">
-                                      <Button type="submit" size="sm" loading={actionBusy}>
-                                        Copy
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={closeAction}
-                                        disabled={actionBusy}
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </form>
-                                ) : activeAction === "compress" ? (
-                                  <form
-                                    onSubmit={onSubmitCompress}
-                                    className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
-                                  >
-                                    <p className="text-sm font-medium text-foreground">
-                                      Compress{" "}
-                                      <span className="font-mono text-foreground/80">{entry.name}</span>
-                                    </p>
-                                    <div className="grid gap-1.5">
-                                      <Label htmlFor="compress-format">Format</Label>
-                                      <Select
-                                        id="compress-format"
-                                        value={compressFormat}
-                                        onChange={(event) =>
-                                          onCompressFormatChange(
-                                            event.target.value === "zip" ? "zip" : "tar.gz",
-                                          )
+                                        disabled={rowBusy}
+                                        onClick={() =>
+                                          setEditor({
+                                            path: childPath,
+                                            name: entry.name,
+                                            isNew: false,
+                                          })
                                         }
-                                        disabled={actionBusy}
-                                        className="w-40"
                                       >
-                                        <option value="tar.gz">tar.gz</option>
-                                        <option value="zip">zip</option>
-                                      </Select>
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                      <Label htmlFor="compress-target">Archive name</Label>
-                                      <Input
-                                        id="compress-target"
-                                        value={compressTarget}
-                                        onChange={(event) => {
-                                          setCompressTarget(event.target.value);
-                                          setCompressTargetEdited(true);
-                                        }}
-                                        placeholder="archive.tar.gz"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        disabled={actionBusy}
-                                        className="font-mono"
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Relative to the site root. An existing target is not replaced.
-                                      </p>
-                                    </div>
-                                    {actionError ? <Alert variant="error">{actionError}</Alert> : null}
-                                    <div className="flex items-center gap-2">
-                                      <Button type="submit" size="sm" loading={actionBusy}>
+                                        <Pencil size={13} aria-hidden="true" />
+                                        Edit
+                                      </Button>
+                                      <a
+                                        href={`${filesBase}/download?path=${encodeURIComponent(childPath)}`}
+                                        className={buttonClass("ghost", "sm")}
+                                      >
+                                        <Download size={13} aria-hidden="true" />
+                                        Download
+                                      </a>
+                                    </>
+                                  ) : null}
+
+                                  {entry.type !== "symlink" ? (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={rowBusy}
+                                        onClick={() => openChmod(entry)}
+                                      >
+                                        <ShieldCheck size={13} aria-hidden="true" />
+                                        Permissions
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={rowBusy}
+                                        onClick={() => openCompress([entry])}
+                                      >
+                                        <FileArchive size={13} aria-hidden="true" />
                                         Compress
                                       </Button>
+                                      {entry.type === "file" && isExtractable(entry.name) ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          disabled={rowBusy}
+                                          onClick={() => openExtract(entry)}
+                                        >
+                                          <PackageOpen size={13} aria-hidden="true" />
+                                          Extract
+                                        </Button>
+                                      ) : null}
+                                    </>
+                                  ) : null}
+
+                                  {/* Dropdown Menu for More Actions */}
+                                  <DropdownMenu.Root>
+                                    <DropdownMenu.Trigger asChild>
                                       <Button
-                                        type="button"
                                         variant="ghost"
-                                        size="sm"
-                                        onClick={closeAction}
-                                        disabled={actionBusy}
+                                        size="icon-sm"
+                                        disabled={rowBusy}
+                                        aria-label={`More actions for ${entry.name}`}
                                       >
-                                        Cancel
+                                        <MoreVertical size={14} aria-hidden="true" />
                                       </Button>
-                                    </div>
-                                  </form>
-                                ) : (
-                                  <form
-                                    onSubmit={onSubmitExtract}
-                                    className="grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
-                                  >
-                                    <div className="grid gap-1.5">
-                                      <Label htmlFor="extract-dest">
-                                        Extract{" "}
-                                        <span className="font-mono text-foreground/80">{entry.name}</span>{" "}
-                                        into
-                                      </Label>
-                                      <Input
-                                        id="extract-dest"
-                                        value={extractDest}
-                                        onChange={(event) => setExtractDest(event.target.value)}
-                                        placeholder="site root"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        autoFocus
-                                        disabled={actionBusy}
-                                        className="font-mono"
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Relative to the site root; empty extracts into the site root.
-                                      </p>
-                                    </div>
-                                    {actionError ? <Alert variant="error">{actionError}</Alert> : null}
-                                    <div className="flex items-center gap-2">
-                                      <Button type="submit" size="sm" loading={actionBusy}>
-                                        Extract
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={closeAction}
-                                        disabled={actionBusy}
+                                    </DropdownMenu.Trigger>
+                                    <DropdownMenu.Portal>
+                                      <DropdownMenu.Content
+                                        align="end"
+                                        className="z-50 min-w-[10rem] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95"
                                       >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </form>
-                                )}
-                              </td>
-                            </tr>
-                          ) : null}
-                        </Fragment>
+                                        {entry.type === "file" ? (
+                                          <DropdownMenu.Item
+                                            className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                            onClick={() =>
+                                              setEditor({
+                                                path: childPath,
+                                                name: entry.name,
+                                                isNew: false,
+                                              })
+                                            }
+                                          >
+                                            <Pencil size={13} className="text-muted-foreground" />
+                                            Edit
+                                          </DropdownMenu.Item>
+                                        ) : null}
+
+                                        {entry.type !== "symlink" ? (
+                                          <>
+                                            <DropdownMenu.Item
+                                              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                              onClick={() => openChmod(entry)}
+                                            >
+                                              <ShieldCheck
+                                                size={13}
+                                                className="text-muted-foreground"
+                                              />
+                                              Permissions
+                                            </DropdownMenu.Item>
+
+                                            <DropdownMenu.Item
+                                              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                              onClick={() => openCopy(entry)}
+                                            >
+                                              <Copy size={13} className="text-muted-foreground" />
+                                              Copy
+                                            </DropdownMenu.Item>
+
+                                            <DropdownMenu.Item
+                                              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                              onClick={() => openMove(entry)}
+                                            >
+                                              <FolderInput
+                                                size={13}
+                                                className="text-muted-foreground"
+                                              />
+                                              Move
+                                            </DropdownMenu.Item>
+
+                                            <DropdownMenu.Item
+                                              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                              onClick={() => openCompress([entry])}
+                                            >
+                                              <FileArchive
+                                                size={13}
+                                                className="text-muted-foreground"
+                                              />
+                                              Compress
+                                            </DropdownMenu.Item>
+
+                                            {entry.type === "file" && isExtractable(entry.name) ? (
+                                              <DropdownMenu.Item
+                                                className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                                onClick={() => openExtract(entry)}
+                                              >
+                                                <PackageOpen
+                                                  size={13}
+                                                  className="text-muted-foreground"
+                                                />
+                                                Extract
+                                              </DropdownMenu.Item>
+                                            ) : null}
+
+                                            <DropdownMenu.Item
+                                              className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                              onClick={() => void onRename(entry)}
+                                            >
+                                              <Pencil
+                                                size={13}
+                                                className="text-muted-foreground"
+                                              />
+                                              Rename
+                                            </DropdownMenu.Item>
+                                          </>
+                                        ) : null}
+
+                                        <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border" />
+
+                                        <DropdownMenu.Item
+                                          className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-red-400 outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                                          onClick={() => void onDelete(entry)}
+                                        >
+                                          <Trash2 size={13} />
+                                          Delete
+                                        </DropdownMenu.Item>
+                                      </DropdownMenu.Content>
+                                    </DropdownMenu.Portal>
+                                  </DropdownMenu.Root>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
@@ -1330,6 +1276,132 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
           )}
         </div>
       </div>
+
+      {/* Permissions (chmod) Dialog */}
+      <ChmodDialog
+        open={chmodOpen}
+        onOpenChange={setChmodOpen}
+        domain={domain}
+        entry={chmodEntry}
+        currentPath={path}
+        onSuccess={() => {
+          setNotice(`Permissions updated for "${chmodEntry?.name}".`);
+          refresh();
+        }}
+      />
+
+      {/* Compress Dialog */}
+      <CompressDialog
+        open={compressOpen}
+        onOpenChange={setCompressOpen}
+        domain={domain}
+        items={compressItems}
+        currentPath={path}
+        onSuccess={() => {
+          setSelected(new Set());
+          setNotice("Archive created successfully.");
+          refresh();
+        }}
+      />
+
+      {/* Extract Dialog */}
+      <ExtractDialog
+        open={extractOpen}
+        onOpenChange={setExtractOpen}
+        domain={domain}
+        entry={extractEntry}
+        currentPath={path}
+        onSuccess={() => {
+          setSelected(new Set());
+          setNotice(`Archive "${extractEntry?.name}" extracted.`);
+          refresh();
+        }}
+      />
+
+      {/* Copy Modal Dialog */}
+      {copyEntry ? (
+        <Dialog.Root open={Boolean(copyEntry)} onOpenChange={(open) => !open && setCopyEntry(null)}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+            <Dialog.Content
+              className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover p-6 shadow-2xl focus:outline-none"
+              aria-describedby="copy-desc"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                    <Copy size={18} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <Dialog.Title className="text-base font-semibold text-foreground">
+                      Copy {copyEntry.name}
+                    </Dialog.Title>
+                    <p id="copy-desc" className="text-xs text-muted-foreground">
+                      Duplicate this item to a new destination inside the site webroot.
+                    </p>
+                  </div>
+                </div>
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Close"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </Dialog.Close>
+              </div>
+
+              <form onSubmit={onSubmitCopy} className="mt-4 space-y-4">
+                {copyError ? <Alert variant="error">{copyError}</Alert> : null}
+                <div className="space-y-1.5">
+                  <Label htmlFor="copy-target">Destination Path</Label>
+                  <Input
+                    id="copy-target"
+                    value={copyTarget}
+                    onChange={(e) => setCopyTarget(e.target.value)}
+                    placeholder="assets/my-copy"
+                    disabled={copyBusy}
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Relative to site root.
+                  </p>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs text-foreground/80">
+                  <input
+                    type="checkbox"
+                    checked={copyOverwrite}
+                    onChange={(e) => setCopyOverwrite(e.target.checked)}
+                    disabled={copyBusy}
+                    className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
+                  />
+                  Overwrite destination if it already exists
+                </label>
+
+                <div className="flex justify-end gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCopyEntry(null)}
+                    disabled={copyBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" loading={copyBusy}>
+                    <Copy size={14} aria-hidden="true" />
+                    Copy Item
+                  </Button>
+                </div>
+              </form>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      ) : null}
     </>
   );
 }

@@ -39,7 +39,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.23"
+const Version = "0.6.24"
 
 const maxBodyBytes = 1 << 20
 
@@ -97,6 +97,8 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/mysql/databases", s.handleMySQLListDatabases)
 	mux.HandleFunc("POST /v1/mysql/databases", s.handleMySQLCreateDatabase)
 	mux.HandleFunc("DELETE /v1/mysql/databases/{name}", s.handleMySQLDeleteDatabase)
+	mux.HandleFunc("GET /v1/mysql/databases/{name}/export", s.handleMySQLExportDatabase)
+	mux.HandleFunc("POST /v1/mysql/databases/{name}/import", s.handleMySQLImportDatabase)
 	mux.HandleFunc("GET /v1/mysql/users", s.handleMySQLListUsers)
 	mux.HandleFunc("POST /v1/mysql/users", s.handleMySQLCreateUser)
 	mux.HandleFunc("DELETE /v1/mysql/users/{user}", s.handleMySQLDeleteUser)

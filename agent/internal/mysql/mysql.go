@@ -302,6 +302,9 @@ func (s *Service) userExists(ctx context.Context, user, host string) (bool, erro
 // fails the mutation itself may already be applied, so that is logged loudly
 // and surfaced as a 500; callers treat the operation as failed.
 func (s *Service) record(action string, params map[string]any) error {
+	if s.audit == nil {
+		return nil
+	}
 	if err := s.audit.Append(audit.Record{Action: action, Params: params, Result: audit.ResultAccepted}); err != nil {
 		stdlog.Printf("mysql: WARNING: %s %v already applied to the server but writing the audit log failed: %v", action, params, err)
 		return apierr.Internal(fmt.Sprintf("write audit log: %v (the change may already be applied)", err))

@@ -1,7 +1,14 @@
 package server
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	stdlog "log"
 	"net/http"
+	"strings"
+
+	"clouddeck/agent/internal/apierr"
 )
 
 // MySQL handlers for the endpoints in docs/api.md section 1.2. All SQL is
@@ -44,6 +51,82 @@ func (s *Server) handleMySQLDeleteDatabase(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"name": name, "deleted": true})
+}
+
+func (s *Server) handleMySQLExportDatabase(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	ew := &exportStreamWriter{w: w, name: name}
+	if err := s.mysql.Export(r.Context(), name, ew); err != nil {
+		if !ew.headerSent {
+			writeError(w, err)
+			return
+		}
+		stdlog.Printf("server: mysql export error mid-stream for %q: %v", name, err)
+		return
+	}
+	if !ew.headerSent {
+		w.Header().Set("Content-Type", "application/sql")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.sql"`, name))
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+type exportStreamWriter struct {
+	w          http.ResponseWriter
+	name       string
+	headerSent bool
+}
+
+func (e *exportStreamWriter) Write(p []byte) (int, error) {
+	if !e.headerSent {
+		e.w.Header().Set("Content-Type", "application/sql")
+		e.w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.sql"`, e.name))
+		e.headerSent = true
+	}
+	return e.w.Write(p)
+}
+
+func (s *Server) handleMySQLImportDatabase(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var reader io.Reader = r.Body
+	defer r.Body.Close()
+
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		mr, err := r.MultipartReader()
+		if err != nil {
+			writeError(w, apierr.BadRequest("invalid_multipart", fmt.Sprintf("invalid multipart body: %v", err)))
+			return
+		}
+		var filePart io.Reader
+		for {
+			part, err := mr.NextPart()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				writeError(w, apierr.BadRequest("invalid_multipart", fmt.Sprintf("read multipart body: %v", err)))
+				return
+			}
+			if part.FileName() != "" || part.FormName() == "file" || part.FormName() == "dump" {
+				defer part.Close()
+				filePart = part
+				break
+			}
+			part.Close()
+		}
+		if filePart == nil {
+			writeError(w, apierr.BadRequest("invalid_multipart", "no file parts in multipart body"))
+			return
+		}
+		reader = filePart
+	}
+
+	if err := s.mysql.Import(r.Context(), name, reader); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": name, "imported": true})
 }
 
 func (s *Server) handleMySQLListUsers(w http.ResponseWriter, r *http.Request) {

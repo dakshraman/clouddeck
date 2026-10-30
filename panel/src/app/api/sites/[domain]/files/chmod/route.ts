@@ -21,7 +21,13 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
 
     const body = await parseJsonBody(req);
     const path = resolvePath(body.path);
-    const mode = typeof body.mode === "string" ? body.mode.trim() : "";
+    const rawMode = body.mode;
+    const mode =
+      typeof rawMode === "string"
+        ? rawMode.trim()
+        : typeof rawMode === "number"
+          ? String(rawMode)
+          : "";
     if (!MODE_REGEX.test(mode)) {
       throw new HttpError(
         400,
