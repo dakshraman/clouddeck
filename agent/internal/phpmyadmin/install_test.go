@@ -136,6 +136,13 @@ func TestConfigPHPEscapesValues(t *testing.T) {
 		`$cfg['Servers'][$i]['AllowNoPassword'] = false;`,
 		`$cfg['TempDir'] = '/var/lib/clouddeck/phpmyadmin/tmp';`,
 		`'a\'b\\c'`,
+		`$cfg['Servers'][$i]['hide_db'] = '^(information_schema|performance_schema|mysql|sys)$';`,
+		`$targetDb = '';`,
+		`$_COOKIE['pma_single_db']`,
+		`$_GET['pma_single_db']`,
+		`$_GET['db']`,
+		`$systemDbs = ['information_schema', 'performance_schema', 'mysql', 'sys'];`,
+		`$cfg['Servers'][$i]['only_db'] = [$targetDb];`,
 	} {
 		if !strings.Contains(conf, want) {
 			t.Errorf("config.inc.php is missing %q\n%s", want, conf)

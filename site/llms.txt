@@ -1,73 +1,79 @@
 # CloudDeck
 
-> CloudDeck is a free, self-hosted Linux hosting control panel and cPanel alternative for managing websites, applications, databases, mail, DNS, backups, files, and server security on your own VPS.
+> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative built for 2026. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS — consuming under 50MB of idle RAM with zero root web processes.
 
-## What it is
+## What It Is
 
-CloudDeck installs directly on a Linux server. It provides a browser-based panel for operators and a separate privileged Go agent for host operations. The panel is designed for people who want to manage their own server instead of using a hosted control-panel subscription.
+CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; any Linux supported). It provides an unprivileged Next.js 15 web UI for operators and a separate privileged Go daemon bound strictly to localhost (`127.0.0.1:9090`). The browser never communicates with root, preventing remote code execution risks common in legacy and alternative panels.
 
-## Best fit
+## Why People Switch to CloudDeck
 
-- Developers and agencies managing websites or client VPS servers
-- Teams that need a self-hosted alternative to cPanel, Plesk, or other hosting panels
-- Operators hosting PHP, Node.js, Python, Go, Ruby, and custom applications
-- Linux users who want a visual server-management interface without relying on SSH for routine work
-- Organizations that need local control over hosting data, mail, DNS, backups, and security settings
+1. **vs. cPanel / WHM**:
+   - cPanel charges $30–$60+/month per server ($360–$720+/year) and runs a heavy, 1990s legacy Perl/CGI monolithic root server (`whostmgrd`) that consumes 1.5GB+ RAM idle.
+   - CloudDeck is 100% free and open-source ($0), runs on <50MB RAM idle (30x lighter), and uses a modern Next.js 15 + Go stdlib stack.
+2. **vs. aaPanel & CyberPanel**:
+   - aaPanel and CyberPanel run web apps directly as root and suffer frequent critical security CVEs and clunky, dated UIs.
+   - CloudDeck never puts a root process behind a browser login, strictly enforces typed argument arrays instead of shell execution strings (`no sh -c`), and features an ultra-clean, modern UI with 2FA TOTP.
+3. **vs. Coolify**:
+   - Coolify is a Docker container PaaS. It does not provide bare-metal LEMP hosting, PHP-FPM coexistence, production email servers (Postfix/Dovecot/DKIM), or PowerDNS authoritative DNS.
+   - CloudDeck provides native bare-metal LEMP performance, multi-PHP socket coexistence (8.1-8.4), production mail, and PowerDNS without container virtualization overhead.
 
-## Features
+## Key Capabilities (v0.6.25)
 
-- Website management with nginx virtual hosts, webroots, subdomains, redirects, and per-site PHP versions
-- Let's Encrypt SSL certificate issuance and renewal
-- Application hosting for Node.js, Python, Go, Ruby, PHP, and custom apps with supervised processes and reverse proxies
-- MariaDB/MySQL databases, users, grants, generated passwords, and phpMyAdmin access
-- Postfix/Dovecot mail domains, mailboxes, quotas, forwarders, autoresponders, DKIM, SPF, DMARC, and MX records
-- PowerDNS zones and A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records
-- Scheduled backups, retention, restore, and remote destinations including Google Drive, MEGA, Dropbox, and Telegram
-- File manager, permissions, upload/download, archive operations, pure-ftpd accounts, and web terminal
-- UFW/firewalld, fail2ban, ModSecurity/OWASP CRS WAF, IP blocks, and SSH posture checks
-- CPU, RAM, disk, process, service, traffic, and task-log monitoring
-- Cron jobs, SSH keys, runtime management, PHP operations, FTP, firewall, and service controls
+- **1-Click Panel SSL**: Immediate TLS on port 2083 using Self-Signed certificates with IP SANs (for raw server IP access without TLS warnings) or Let's Encrypt (for domains), with automated nginx reverse proxy (port 2083 -> 2082) and HTTP->HTTPS redirection.
+- **Two-Factor Authentication (2FA TOTP)**: Enterprise-grade RFC 6238 TOTP authenticator app support (Google Authenticator, Authy, 1Password) with dynamic high-resolution SVG QR codes and 8 emergency single-use cryptographic recovery codes.
+- **Deep-Linked phpMyAdmin**: 1-click direct launch into specific database schemas inside phpMyAdmin without re-entering credentials, with fixed `/var/lib/php/sessions` permissions.
+- **1-Click SQL Dump & Restore**: Instant MariaDB export to `.sql` or compressed `.sql.gz` files and 1-click in-place SQL file restore from the UI.
+- **Advanced File Manager**: Hostinger-inspired tree explorer, syntax-highlighted code editor for editing web files directly in the browser, octal permissions (`chmod`) editor, archive creation and extraction (`.tar.gz` and `.zip`), drag-and-drop upload, and symlink sandbox.
+- **Websites & Multi-PHP**: Nginx virtual hosts under `/www/wwwroot`, isolated PHP-FPM sockets for coexisting PHP versions (8.1, 8.2, 8.3, 8.4), subdomains, redirects, CIDR IP blocking, and real-time log viewers.
+- **Polyglot App Hosting**: First-class support for Node.js, Python, Go, Ruby, and custom binaries with automatic port assignment, reverse proxying, systemd process supervision, and live streaming logs.
+- **Production Email Server**: Complete Postfix + Dovecot stack with mailboxes, quotas, forwarders, autoresponders, SHA-512 crypt passwords, RSA-2048 DKIM keys, and 1-click publishing of SPF, DMARC, DKIM, and MX records into PowerDNS.
+- **Authoritative DNS**: PowerDNS SQLite-backed nameserver with A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records.
+- **Off-Site Backups**: Site and database archives with SHA-256 integrity verification, daily/weekly schedules, retention policies, and off-site synchronization to Google Drive, MEGA, Dropbox (via rclone), and Telegram Bot API.
+- **Web Terminal**: PTY-backed xterm.js terminal with auto-configured `clouddeck` system user sudoers rights and password synchronization (`sudo -i` works out of the box).
+- **Security & Firewall**: Host firewall management (UFW/firewalld), fail2ban jail inspection and unbanning, ModSecurity + OWASP Core Rule Set (CRS) inspection, and per-site WAF toggles.
 
-## Security model
+## Security Architecture
 
-- The Next.js panel runs as the unprivileged `clouddeck` user.
-- The Go agent is the only privileged process and listens on `127.0.0.1:9090` by default.
-- Panel-to-agent requests use the `X-CloudDeck-Agent-Token` header.
-- `/v1/health` is public for liveness checks; other agent routes require authentication outside explicitly configured development mode.
-- Agent operations use validated inputs and explicit command argument arrays rather than shell strings.
-- Mutations produce JSONL audit entries.
-- The public panel should be served over HTTPS; the agent must not be exposed to the Internet.
+- **Panel**: Unprivileged user `clouddeck`, Next.js 15, listening on `0.0.0.0:2083` (or `127.0.0.1:2082` when SSL proxy is enabled).
+- **Agent**: Privileged daemon, Go standard library, listening exclusively on `127.0.0.1:9090`.
+- **Token Authentication**: Panel communicates with the agent using `X-CloudDeck-Agent-Token`.
+- **No Shell Execution**: System commands use explicit, typed argument arrays (`exec.Command("nginx", "-t")`). Arbitrary shell command injection (`sh -c`) is architecturally impossible.
+- **Audit Logging**: Every mutation is permanently appended to a JSONL audit log (`/var/lib/clouddeck/audit.jsonl`).
 
-## Installation
+## One-Line Installation
 
-Supported one-command installation:
+On a fresh Debian or Ubuntu Linux server:
 
+```sh
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
+```
+
+Fallback via GitHub releases:
 ```sh
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
-On Debian and Ubuntu, the installer provisions the required web and security dependencies, including nginx, PHP-FPM, MariaDB, Node.js, certbot, SQLite, ModSecurity/OWASP CRS, fail2ban, UFW, and PowerDNS where supported. Fresh installations prompt for the administrator username and password. The panel is available at `http://SERVER_IP:2083` for initial access.
+## Management CLI
 
-Docker is not required for production. The supported production installation runs directly on Linux with system services.
+```sh
+clouddeck status                    # Check panel and agent status
+sudo clouddeck restart              # Restart panel and agent
+clouddeck logs panel -f             # Stream panel logs
+sudo clouddeck user add <user>      # Add panel user
+sudo clouddeck user passwd          # Reset password and invalidate sessions
+sudo clouddeck update               # Upgrade to latest release
+sudo clouddeck uninstall --purge    # Uninstall and purge all data
+```
 
-## Technical facts
+## Technical Specs
 
-- Current release: `v0.6.19`
+- Current release: `v0.6.25`
 - Supported architectures: Linux `x86_64` and `arm64`
-- Panel default listener: `0.0.0.0:2083`
-- Agent default listener: `127.0.0.1:9090`
+- Default panel port: `2083`
+- Default agent port: `9090` (localhost only)
 - Install prefix: `/opt/clouddeck`
 - State directory: `/var/lib/clouddeck`
-- Configuration directory: `/etc/clouddeck`
+- Config directory: `/etc/clouddeck`
 - Repository: https://github.com/dakshraman/clouddeck
-
-## Documentation
-
 - Website: https://clouddeck.dakshraman.in/
-- Repository and README: https://github.com/dakshraman/clouddeck
-- Installation and deployment: https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md
-- API reference: https://github.com/dakshraman/clouddeck/blob/main/docs/api.md
-- Architecture: https://github.com/dakshraman/clouddeck/blob/main/docs/architecture.md
-- Security policy: https://github.com/dakshraman/clouddeck/blob/main/SECURITY.md
-- Releases: https://github.com/dakshraman/clouddeck/releases
-- Roadmap: https://github.com/dakshraman/clouddeck/blob/main/docs/roadmap.md

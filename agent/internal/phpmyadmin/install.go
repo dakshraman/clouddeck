@@ -389,6 +389,23 @@ $cfg['Servers'][$i]['port'] = '%s';
 $cfg['Servers'][$i]['compress'] = false;
 $cfg['Servers'][$i]['AllowNoPassword'] = false;
 $cfg['TempDir'] = '%s';
+$cfg['Servers'][$i]['hide_db'] = '^(information_schema|performance_schema|mysql|sys)$';
+
+$targetDb = '';
+if (!empty($_COOKIE['pma_single_db'])) {
+    $targetDb = rawurldecode($_COOKIE['pma_single_db']);
+}
+if (!empty($_GET['pma_single_db'])) {
+    $targetDb = rawurldecode($_GET['pma_single_db']);
+}
+if (!empty($_GET['db'])) {
+    $targetDb = rawurldecode($_GET['db']);
+}
+
+$systemDbs = ['information_schema', 'performance_schema', 'mysql', 'sys'];
+if ($targetDb !== '' && !in_array(strtolower($targetDb), $systemDbs, true)) {
+    $cfg['Servers'][$i]['only_db'] = [$targetDb];
+}
 `, phpQuote(secret), phpQuote(host), phpQuote(port), phpQuote(filepath.Join(s.cfg.PHPMYADMINStateDir, "tmp")))
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"clouddeck/agent/internal/config"
@@ -243,6 +244,61 @@ func TestLoginSessionFromCookieFallback(t *testing.T) {
 	}
 	if posted.Get("set_session") != "cookie-session-id" {
 		t.Fatalf("posted set_session=%q; want cookie-session-id", posted.Get("set_session"))
+	}
+}
+
+func TestLoginWithGeneratedConfig(t *testing.T) {
+	var posted url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/phpmyadmin_abc123/" && r.Method == http.MethodGet:
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodGet:
+			http.SetCookie(w, &http.Cookie{
+				Name:     "phpMyAdmin",
+				Value:    "session-iso",
+				Path:     "/phpmyadmin_abc123/",
+				HttpOnly: true,
+			})
+			fmt.Fprint(w, `<form method="post"><input type="hidden" name="set_session" value="session-iso"><input type="hidden" name="token" value="token-iso"></form>`)
+		case r.URL.Path == "/phpmyadmin_abc123/index.php" && r.Method == http.MethodPost:
+			_ = r.ParseForm()
+			posted = r.PostForm
+			http.SetCookie(w, &http.Cookie{
+				Name:  "pmaAuth-1",
+				Value: "auth-iso",
+				Path:  "/phpmyadmin_abc123/",
+			})
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer srv.Close()
+
+	dir := installDir(t, serverPort(t, srv))
+	svc := New(config.Config{
+		PHPMYADMINDir:      dir,
+		PHPMYADMINStateDir: dir,
+		MySQLRootUser:      "root",
+		MySQLRootPass:      "s3cret",
+	})
+	conf := svc.configPHP("blowfish_test_secret_32bytes_long!")
+	writeTestFile(t, filepath.Join(dir, "phpmyadmin_abc123", "config.inc.php"), conf)
+
+	login, err := svc.Login(context.Background())
+	if err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+	if login.Port != serverPort(t, srv) {
+		t.Errorf("Port = %d, want %d", login.Port, serverPort(t, srv))
+	}
+	if posted.Get("pma_username") != "root" || posted.Get("pma_password") != "s3cret" {
+		t.Fatalf("posted credentials mismatch: user=%q, pass=%q", posted.Get("pma_username"), posted.Get("pma_password"))
+	}
+	if !strings.Contains(conf, "$cfg['Servers'][$i]['hide_db'] = '^(information_schema|performance_schema|mysql|sys)$';") {
+		t.Errorf("generated config missing hide_db")
+	}
+	if !strings.Contains(conf, "$cfg['Servers'][$i]['only_db'] = [$targetDb];") {
+		t.Errorf("generated config missing only_db")
 	}
 }
 

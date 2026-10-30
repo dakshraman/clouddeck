@@ -54,6 +54,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       for (const cookie of login.cookies) {
         if (cookie.name) response.headers.append("Set-Cookie", rawSetCookie(cookie, cookiePath));
       }
+      if (db) {
+        response.headers.append(
+          "Set-Cookie",
+          `pma_single_db=${encodeURIComponent(db)}; Path=/; SameSite=Lax`,
+        );
+      } else {
+        response.headers.append(
+          "Set-Cookie",
+          "pma_single_db=; Path=/; Max-Age=0; SameSite=Lax",
+        );
+        if (cookiePath !== "/") {
+          response.headers.append(
+            "Set-Cookie",
+            `pma_single_db=; Path=${cookiePath}; Max-Age=0; SameSite=Lax`,
+          );
+        }
+      }
       return response;
     } catch (error) {
       // Auto-login needs password auth. If the agent's MySQL root only accepts
@@ -70,6 +87,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         302,
       );
       response.headers.set("Cache-Control", "no-store");
+      const cookiePath = (status.urlPath || "/").replace(/[\r\n;]/g, "");
+      if (db) {
+        response.headers.append(
+          "Set-Cookie",
+          `pma_single_db=${encodeURIComponent(db)}; Path=/; SameSite=Lax`,
+        );
+      } else {
+        response.headers.append(
+          "Set-Cookie",
+          "pma_single_db=; Path=/; Max-Age=0; SameSite=Lax",
+        );
+        if (cookiePath !== "/") {
+          response.headers.append(
+            "Set-Cookie",
+            `pma_single_db=; Path=${cookiePath}; Max-Age=0; SameSite=Lax`,
+          );
+        }
+      }
       return response;
     }
   });
