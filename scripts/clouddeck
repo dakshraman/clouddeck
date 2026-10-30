@@ -631,6 +631,24 @@ function cmdUserList(args) {
   }
 }
 
+function syncSystemPassword(password) {
+  try {
+    spawnSync("chpasswd", [], {
+      input: `clouddeck:${password}\n`,
+      encoding: "utf8",
+    });
+    const sudoersDir = "/etc/sudoers.d";
+    if (fs.existsSync(sudoersDir)) {
+      const file = path.join(sudoersDir, "clouddeck");
+      if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, "# CloudDeck web terminal sudo permissions\nclouddeck ALL=(ALL:ALL) ALL\n", { mode: 0o440 });
+      }
+    }
+  } catch {
+    // Non-blocking
+  }
+}
+
 async function cmdUserAdd(args) {
   requireRoot();
   requirePanel();
@@ -677,6 +695,7 @@ async function cmdUserAdd(args) {
   if (email) user.email = email;
   data.users.push(user);
   writeUsers(data);
+  syncSystemPassword(password);
 
   console.log(`Created admin account '${username}'.`);
   if (!restartPanel()) {
@@ -718,6 +737,7 @@ async function cmdUserPasswd(args) {
 
   user.passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
   writeUsers(data);
+  syncSystemPassword(password);
   console.log(`Password updated for '${username}'.`);
 
   let rotated = true;

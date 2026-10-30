@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { agentFetch } from "@/lib/agent";
 import { HttpError, handleRoute, json, parseJsonBody } from "@/lib/http";
 import { createSession } from "@/lib/session";
 import {
@@ -43,6 +44,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       password,
       ...(trimmedEmail ? { email: trimmedEmail } : {}),
     });
+    // Sync password to the clouddeck system user so sudo works in the terminal
+    try {
+      await agentFetch<{ updated: boolean }>("/v1/ssh/password", {
+        method: "POST",
+        body: { user: "clouddeck", password },
+      });
+    } catch {
+      // Non-blocking sync (e.g. agent down or during mock tests)
+    }
     await createSession({ username: user.username });
     return json({ user: { username: user.username } }, 201);
   });

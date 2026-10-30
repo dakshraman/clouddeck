@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { agentFetch } from "@/lib/agent";
 import { config } from "@/lib/config";
 import {
   HttpError,
@@ -85,6 +86,14 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       }
       if (!setUserPassword(session.username, newPassword)) {
         throw new HttpError(401, "unauthorized");
+      }
+      try {
+        await agentFetch<{ updated: boolean }>("/v1/ssh/password", {
+          method: "POST",
+          body: { user: "clouddeck", password: newPassword },
+        });
+      } catch {
+        // Non-blocking sync
       }
     }
 

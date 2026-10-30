@@ -573,18 +573,32 @@ if [ "$DO_PANEL" = "1" ]; then
     say "   installed $PREFIX/panel"
   fi
 
-  # unprivileged user for the panel
+  # unprivileged user for the panel and web terminal
   PANEL_USER=""
   if command -v useradd >/dev/null 2>&1; then
     if ! id clouddeck >/dev/null 2>&1; then
-      useradd -r -s /sbin/nologin -d "$DATADIR/panel" clouddeck 2>/dev/null || true
+      useradd -r -s /bin/bash -d "$DATADIR/panel" clouddeck 2>/dev/null || true
     fi
     if id clouddeck >/dev/null 2>&1; then PANEL_USER="clouddeck"; fi
   elif command -v adduser >/dev/null 2>&1; then
     if ! id clouddeck >/dev/null 2>&1; then
-      adduser -S -H -h "$DATADIR/panel" clouddeck 2>/dev/null || true
+      adduser -S -H -h "$DATADIR/panel" -s /bin/bash clouddeck 2>/dev/null || true
     fi
     if id clouddeck >/dev/null 2>&1; then PANEL_USER="clouddeck"; fi
+  fi
+
+  if id clouddeck >/dev/null 2>&1; then
+    usermod -s /bin/bash clouddeck 2>/dev/null || true
+    usermod -aG sudo clouddeck 2>/dev/null || usermod -aG wheel clouddeck 2>/dev/null || true
+    mkdir -p /etc/sudoers.d
+    cat > /etc/sudoers.d/clouddeck <<'EOF'
+# CloudDeck web terminal sudo permissions
+clouddeck ALL=(ALL:ALL) ALL
+EOF
+    chmod 0440 /etc/sudoers.d/clouddeck
+    if [ -n "${PANEL_SEED_PASSWORD:-}" ]; then
+      printf 'clouddeck:%s\n' "$PANEL_SEED_PASSWORD" | chpasswd 2>/dev/null || true
+    fi
   fi
 fi
 

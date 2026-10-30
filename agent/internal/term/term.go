@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,6 +116,7 @@ func (s *Service) Start(cols, rows int) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
+	ensureSudoers(owner.Username)
 	switchUser := true
 	if cur, curErr := user.Current(); curErr == nil && cur.Uid == owner.Uid {
 		switchUser = false
@@ -619,4 +622,20 @@ func (r *ringBuffer) snapshot() []byte {
 	n := copy(out, r.buf[r.pos:])
 	copy(out[n:], r.buf[:r.pos])
 	return out
+}
+
+// ensureSudoers ensures the terminal user has sudo privileges on the host.
+func ensureSudoers(username string) {
+	if username == "" || username == "root" {
+		return
+	}
+	dir := "/etc/sudoers.d"
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		return
+	}
+	file := filepath.Join(dir, username)
+	if data, err := os.ReadFile(file); err != nil || !strings.Contains(string(data), username) {
+		content := fmt.Sprintf("# CloudDeck web terminal sudo permissions\n%s ALL=(ALL:ALL) ALL\n", username)
+		_ = os.WriteFile(file, []byte(content), 0o440)
+	}
 }
