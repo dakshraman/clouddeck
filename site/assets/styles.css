@@ -4957,6 +4957,141 @@ details[open] .faq-plus::after {
   color: #c3d3d7;
 }
 
+/* Card 7: Dual-Mode .zip Backups */
+.backup-archive-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.backup-archive-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.backup-archive-info .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.backup-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.backup-zip-badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(61, 220, 151, 0.15);
+  border: 1px solid rgba(61, 220, 151, 0.35);
+  color: #3ddc97;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.backup-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.backup-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.backup-btn:hover {
+  border-color: rgba(28, 200, 232, 0.4);
+  color: #fff;
+  background: rgba(28, 200, 232, 0.1);
+}
+
+.backup-btn.restore:hover {
+  border-color: rgba(61, 220, 151, 0.4);
+  color: #3ddc97;
+  background: rgba(61, 220, 151, 0.1);
+}
+
+.backup-btn .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.backup-dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed rgba(28, 200, 232, 0.3);
+  border-radius: 8px;
+  background: rgba(28, 200, 232, 0.03);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.backup-dropzone .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+.backup-modes-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.backup-modes-pill span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.backup-modes-pill span.active {
+  color: #67e8f9;
+}
+
+.backup-modes-pill .icon {
+  width: 11px;
+  height: 11px;
+}
+
 /* Secondary Features Matrix */
 .features-secondary {
   margin-top: 56px;

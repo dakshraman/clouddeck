@@ -30,7 +30,7 @@ CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; a
 - **Polyglot App Hosting**: First-class support for Node.js, Python, Go, Ruby, and custom binaries with automatic port assignment, reverse proxying, systemd process supervision, and live streaming logs.
 - **Production Email Server**: Complete Postfix + Dovecot stack with mailboxes, quotas, forwarders, autoresponders, SHA-512 crypt passwords, RSA-2048 DKIM keys, and 1-click publishing of SPF, DMARC, DKIM, and MX records into PowerDNS.
 - **Authoritative DNS**: PowerDNS SQLite-backed nameserver with A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records.
-- **Off-Site Backups**: Site and database archives with SHA-256 integrity verification, daily/weekly schedules, retention policies, and off-site synchronization to Google Drive, MEGA, Dropbox (via rclone), and Telegram Bot API.
+- **Dual-Mode .zip Backups**: Standard cross-platform `.zip` archives for websites and MariaDB databases. Download locally to PC for off-site cold storage or keep on server for 1-click in-place restoration; includes drag-and-drop web restore dropzone, automatic download option, and legacy `.tar.gz`/`.sql.gz` compatibility. Off-site sync to Google Drive, MEGA, Dropbox (via rclone), and Telegram.
 - **Web Terminal**: PTY-backed xterm.js terminal with auto-configured `clouddeck` system user sudoers rights and password synchronization (`sudo -i` works out of the box).
 - **Security & Firewall**: Host firewall management (UFW/firewalld), fail2ban jail inspection and unbanning, ModSecurity + OWASP Core Rule Set (CRS) inspection, and per-site WAF toggles.
 

@@ -154,7 +154,20 @@ How does CloudDeck compare against traditional and modern control panels?
 
 ---
 
-## 🌟 What's New in v0.6.25 & v0.6.26
+## 🌟 What's New in v0.6.26 & v0.6.27
+
+### 📦 Native Dual-Mode `.zip` Backups & In-Browser Restore (v0.6.27)
+- **Universal `.zip` Archives**: Backups for both entire site webroots and MariaDB databases are now packaged as standard, cross-platform `.zip` archives using Go stdlib Deflate compression (zero external dependencies).
+- **Mode 1 — Local PC Cold Storage & Restore**: Download `.zip` backups directly to your personal workstation upon creation or from the archives table. Restore anytime with the new drag-and-drop **"Upload & Restore Backup"** dropzone.
+- **Mode 2 — Server Storage & 1-Click Restore**: Keep backups securely stored on the server under `/var/lib/clouddeck/agent/backups/` and perform instant, 1-click in-place restores without downloading.
+- **Full Backward Compatibility**: Automatically recognizes and restores legacy `.tar.gz` and `.sql.gz` archives with zero breaking changes.
+- **Auto-Download Option**: Check "Download to PC upon completion" during backup creation to keep a copy on the server while triggering a browser download to your local machine as soon as the archive is ready.
+
+### ⚡ 50%+ Faster & Low-RAM Resilient Installer (v0.6.27)
+- **Automated Swapfile Generation**: Detects systems with <2GB RAM and automatically provisions a safe 1GB swapfile, preventing memory crashes during Node.js compilation and apt dependency resolution.
+- **Debconf Non-Interactive Pre-seeding**: Bypasses `man-db` cache regenerations and service prompt locks to prevent terminal hangs.
+- **Parallel Asset Downloads**: Fast parallel fetching of static dashboard bundles and precompiled binaries.
+- **Existing Node.js Reuse**: Use `--system-node` flag to skip Node.js reinstallation if already installed on the host.
 
 ### 🗄️ Isolated phpMyAdmin & Unified Brand Icon (v0.6.26)
 - **Strict Database Tree Isolation**: Opening phpMyAdmin from a database row now dynamically restricts phpMyAdmin's navigation sidebar strictly to that chosen database via `only_db` and session cookie.
