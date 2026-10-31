@@ -101,4 +101,4 @@ jobs:
           else
             gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
           fi
-          gh release upload "$TAG" dist/* scripts/install.sh scripts/install-windows.ps1 scripts/install-macos.sh --clobber
+          gh release upload "$TAG" dist/* scripts/install.sh scripts/install-windows.ps1 scripts/install-macos.sh scripts/clouddeck.ps1 --clobber
