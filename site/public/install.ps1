@@ -688,5 +688,5 @@ Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrRe
 Write-Host "  ${tcSky}$gRailMid${clrReset}"
 Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
 Write-Host ""
-$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.32" }
+$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.33" }
 Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."

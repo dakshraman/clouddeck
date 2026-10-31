@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { BackupSchedule, BackupUploadTarget } from "@/lib/types";
+import type { BackupSchedule } from "@/lib/types";
 import { apiFetch } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +11,6 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { shortDateTime } from "@/components/format";
-
-/** Mirrors the agent's rclone remote rule: "name:path". */
-const RCLONE_REMOTE_PATTERN = /^[A-Za-z0-9_.-]+:.+$/;
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -30,9 +27,6 @@ export function BackupScheduleCard() {
   const [weekday, setWeekday] = useState(0);
   const [keep, setKeep] = useState("7");
   const [includeDatabases, setIncludeDatabases] = useState(false);
-  const [telegram, setTelegram] = useState(false);
-  const [rclone, setRclone] = useState(false);
-  const [remote, setRemote] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -47,11 +41,6 @@ export function BackupScheduleCard() {
     setWeekday(typeof data.weekday === "number" ? data.weekday : 0);
     setKeep(Number.isFinite(data.keep) ? String(data.keep) : "7");
     setIncludeDatabases(data.includeDatabases === true);
-    const uploads = data.uploads ?? [];
-    setTelegram(uploads.some((upload) => upload.type === "telegram"));
-    const remoteUpload = uploads.find((upload) => upload.type === "rclone");
-    setRclone(Boolean(remoteUpload));
-    setRemote(remoteUpload?.remote ?? "");
   }, []);
 
   const load = useCallback(async () => {
@@ -79,16 +68,6 @@ export function BackupScheduleCard() {
       setFormError("Keep must be a whole number between 1 and 365.");
       return;
     }
-    const uploads: BackupUploadTarget[] = [];
-    if (telegram) uploads.push({ type: "telegram" });
-    if (rclone) {
-      const trimmedRemote = remote.trim();
-      if (!RCLONE_REMOTE_PATTERN.test(trimmedRemote)) {
-        setFormError('Enter an rclone remote like gdrive:clouddeck/backups (format "name:path").');
-        return;
-      }
-      uploads.push({ type: "rclone", remote: trimmedRemote });
-    }
 
     setSaving(true);
     setFormError(null);
@@ -104,7 +83,7 @@ export function BackupScheduleCard() {
           weekday,
           keep: keepValue,
           includeDatabases,
-          uploads,
+          uploads: [],
         }),
       });
       applySchedule(updated);
@@ -265,43 +244,6 @@ export function BackupScheduleCard() {
               />
               Include databases
             </label>
-
-            <fieldset className="grid gap-3" disabled={busy}>
-              <legend className="text-xs font-medium text-muted-foreground">Upload every archive to</legend>
-              <label className="flex items-center gap-2 text-sm text-foreground/80">
-                <input
-                  type="checkbox"
-                  checked={telegram}
-                  onChange={(event) => setTelegram(event.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
-                />
-                Telegram
-              </label>
-              <label className="flex items-center gap-2 text-sm text-foreground/80">
-                <input
-                  type="checkbox"
-                  checked={rclone}
-                  onChange={(event) => setRclone(event.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
-                />
-                rclone remote
-              </label>
-              {rclone ? (
-                <div className="grid gap-1.5 sm:max-w-md">
-                  <Label htmlFor="schedule-remote">Remote</Label>
-                  <Input
-                    id="schedule-remote"
-                    value={remote}
-                    onChange={(event) => setRemote(event.target.value)}
-                    placeholder="gdrive:clouddeck/backups"
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={busy}
-                    className="font-mono"
-                  />
-                </div>
-              ) : null}
-            </fieldset>
 
             {formError ? <Alert variant="error">{formError}</Alert> : null}
             {notice ? <Alert variant="success">{notice}</Alert> : null}

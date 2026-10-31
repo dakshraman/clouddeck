@@ -99,7 +99,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
           <EmptyState
             icon={Archive}
             title="No backups yet"
-            description="Backup archives are stored on the server. Creating one can also send it to Telegram or an rclone remote (Google Drive, MEGA, Dropbox)."
+            description="Backup archives are stored securely on the server. You can download archives locally, inspect checksums, or restore them with one click."
           />
         </CardBody>
       ) : (
