@@ -652,7 +652,7 @@ export default function SshPage() {
                               </div>
                               {rowError ? (
                                 <p
-                                  className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                                  className="mt-1 max-w-64 truncate text-right text-xs text-red-600 dark:text-red-400"
                                   title={rowError}
                                 >
                                   {rowError}
@@ -768,14 +768,14 @@ export default function SshPage() {
                   <div className="flex items-start gap-2.5">
                     <TriangleAlert
                       size={16}
-                      className="mt-0.5 shrink-0 text-amber-400"
+                      className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-400"
                       aria-hidden="true"
                     />
                     <div>
-                      <p className="text-sm font-medium text-amber-300">
+                      <p className="text-sm font-medium text-amber-950 dark:text-amber-300">
                         Private key for {freshKey.name}
                       </p>
-                      <p className="mt-0.5 text-xs text-amber-200/70">
+                      <p className="mt-0.5 text-xs text-amber-900/80 dark:text-amber-200/70">
                         Download or copy it now and store it safely. The keypair stays listed below,
                         where the private half can be downloaded again.
                       </p>
@@ -949,7 +949,7 @@ export default function SshPage() {
                               </div>
                               {rowError ? (
                                 <p
-                                  className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                                  className="mt-1 max-w-64 truncate text-right text-xs text-red-600 dark:text-red-400"
                                   title={rowError}
                                 >
                                   {rowError}

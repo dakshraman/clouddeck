@@ -400,8 +400,8 @@ export function ChmodDialog({
             </div>
 
             {isFullAccess ? (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
-                <ShieldAlert size={16} className="shrink-0 text-amber-400" />
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-950 dark:text-amber-300">
+                <ShieldAlert size={16} className="shrink-0 text-amber-700 dark:text-amber-400" />
                 <span>
                   <strong>Caution:</strong> 0777 grants write access to everyone on the system and is
                   a security risk.

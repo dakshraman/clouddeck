@@ -313,7 +313,7 @@ export default function NewSitePage() {
                   ) : null}
                 </Select>
                 {versionsError ? (
-                  <p className="flex flex-wrap items-center gap-2 text-xs text-red-400">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400">
                     {versionsError}
                     <button
                       type="button"

@@ -10,8 +10,8 @@ import { shortTime, taskStatusVariant, taskTypeLabel, titleCase } from "@/compon
 
 const levelClass: Record<TaskLogLevel, string> = {
   info: "text-foreground/80",
-  warn: "text-amber-400",
-  error: "text-red-400",
+  warn: "text-amber-800 dark:text-amber-400 font-medium",
+  error: "text-red-700 dark:text-red-400 font-medium",
 };
 
 interface TaskLogProps {
@@ -125,7 +125,7 @@ export function TaskLog({ initial = null, taskId, onComplete }: TaskLogProps) {
         ) : null}
 
         {pollError ? (
-          <p className="mt-2 text-amber-400">Lost connection to the panel, retrying… ({pollError})</p>
+          <p className="mt-2 text-amber-800 dark:text-amber-400">Lost connection to the panel, retrying… ({pollError})</p>
         ) : null}
       </div>
     </div>

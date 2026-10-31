@@ -35,7 +35,14 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         storedTheme = "daylight";
         window.localStorage.setItem(THEME_STORAGE_KEY, "daylight");
       }
-      if (isThemeId(storedTheme)) setThemeState(storedTheme as ThemeId);
+      if (isThemeId(storedTheme)) {
+        setThemeState(storedTheme as ThemeId);
+        if (storedTheme === "daylight") {
+          document.documentElement.classList.remove("dark");
+        } else {
+          document.documentElement.classList.add("dark");
+        }
+      }
       setReduceMotionState(window.localStorage.getItem(MOTION_STORAGE_KEY) === "true");
     } catch {
       // Storage can be blocked; keep the defaults (Daylight, follow the OS setting).
@@ -45,6 +52,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((value: ThemeId) => {
     setThemeState(value);
     document.documentElement.dataset.theme = value;
+    if (value === "daylight") {
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+    }
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, value);
     } catch {

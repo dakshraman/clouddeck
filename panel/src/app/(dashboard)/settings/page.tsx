@@ -648,7 +648,7 @@ export default function SettingsPage() {
             ) : sslStatus?.enabled ? (
               <div className="mt-4 flex flex-col gap-3 rounded-lg border border-success/30 bg-success/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                     <ShieldCheck size={20} aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
@@ -698,7 +698,7 @@ export default function SettingsPage() {
             ) : (
               <div className="mt-4 flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
                     <ShieldAlert size={20} aria-hidden="true" />
                   </div>
                   <div className="min-w-0">

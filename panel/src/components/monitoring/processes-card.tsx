@@ -21,8 +21,8 @@ interface ProcessesCardProps {
 }
 
 function toneClass(percent: number): string {
-  if (percent >= 90) return "text-red-400";
-  if (percent >= 70) return "text-amber-400";
+  if (percent >= 90) return "text-red-700 dark:text-red-400 font-semibold";
+  if (percent >= 70) return "text-amber-800 dark:text-amber-400 font-semibold";
   return "text-foreground";
 }
 

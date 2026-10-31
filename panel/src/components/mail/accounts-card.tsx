@@ -572,7 +572,7 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                             </div>
                             {rowError ? (
                               <p
-                                className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                                className="mt-1 max-w-64 truncate text-right text-xs text-red-600 dark:text-red-400"
                                 title={rowError}
                               >
                                 {rowError}

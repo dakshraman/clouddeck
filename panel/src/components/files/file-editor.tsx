@@ -259,10 +259,10 @@ export function FileEditor({ domain, path, name, isNew, onClose, onSaved }: File
                 {/* Dirty indicator */}
                 {isDirty ? (
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:text-amber-300"
                     title="Unsaved changes"
                   >
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-600 dark:bg-amber-400" />
                     Unsaved
                   </span>
                 ) : null}
@@ -421,7 +421,7 @@ export function FileEditor({ domain, path, name, isNew, onClose, onSaved }: File
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border border-border bg-popover p-5 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
                 <CircleAlert size={20} aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1">

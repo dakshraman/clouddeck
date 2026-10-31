@@ -492,7 +492,7 @@ export default function FtpPage() {
                     </div>
                   </div>
                   {sitesError ? (
-                    <p className="flex flex-wrap items-center gap-2 text-xs text-red-400">
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400">
                       {sitesError}
                       <button
                         type="button"
@@ -653,7 +653,7 @@ export default function FtpPage() {
                                   </div>
                                   {rowError ? (
                                     <p
-                                      className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                                      className="mt-1 max-w-64 truncate text-right text-xs text-red-600 dark:text-red-400"
                                       title={rowError}
                                     >
                                       {rowError}

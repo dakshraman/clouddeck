@@ -320,8 +320,8 @@ export function UploadBackupCard({ onRefresh }: UploadBackupCardProps) {
             {confirmRestore ? (
               <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 grid gap-3">
                 <div>
-                  <h4 className="text-sm font-semibold text-amber-300">Confirm Restore</h4>
-                  <p className="text-xs text-amber-200/90 mt-1">
+                  <h4 className="text-sm font-semibold text-amber-950 dark:text-amber-300">Confirm Restore</h4>
+                  <p className="text-xs text-amber-900/90 dark:text-amber-200/90 mt-1">
                     Restoring will overwrite existing data for <strong>{uploadedArchive.source}</strong> on the server with
                     the contents of this archive.
                   </p>

@@ -7,10 +7,10 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "border-border bg-muted/60 text-muted-foreground",
-        green: "border-success/30 bg-success/10 text-emerald-400",
-        red: "border-destructive/40 bg-destructive/10 text-red-400",
-        amber: "border-warning/40 bg-warning/10 text-amber-400",
-        indigo: "border-brand/40 bg-brand/10 text-brand",
+        green: "border-success/30 bg-success/10 text-emerald-800 dark:text-emerald-400 font-semibold",
+        red: "border-destructive/40 bg-destructive/10 text-red-800 dark:text-red-400 font-semibold",
+        amber: "border-warning/40 bg-warning/10 text-amber-900 dark:text-amber-400 font-semibold",
+        indigo: "border-brand/40 bg-brand/10 text-brand font-semibold",
       },
     },
     defaultVariants: {
@@ -23,7 +23,7 @@ export type BadgeVariant = "neutral" | "green" | "red" | "amber" | "indigo";
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof badgeVariants> {}
+  VariantProps<typeof badgeVariants> { }
 
 export function Badge({ variant = "neutral", className, ...props }: BadgeProps) {
   return <span className={cn(badgeVariants({ variant }), className)} {...props} />;

@@ -296,13 +296,13 @@ export function RemoteMysqlCard() {
                             )}
                           </div>
                           {isConfirming ? (
-                            <p className="mt-1 text-right text-xs text-amber-400">
+                            <p className="mt-1 text-right text-xs text-amber-800 dark:text-amber-400">
                               Removes only the remote copy; the localhost account stays.
                             </p>
                           ) : null}
                           {rowError ? (
                             <p
-                              className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                              className="mt-1 max-w-64 truncate text-right text-xs text-red-700 dark:text-red-400"
                               title={rowError}
                             >
                               {rowError}

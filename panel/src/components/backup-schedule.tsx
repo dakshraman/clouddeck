@@ -337,7 +337,7 @@ export function BackupScheduleCard() {
                   : "disabled"}
               </span>
               {schedule?.lastError ? (
-                <span className="text-red-400">Last error: {schedule.lastError}</span>
+                <span className="text-red-600 dark:text-red-400">Last error: {schedule.lastError}</span>
               ) : null}
             </div>
           </form>

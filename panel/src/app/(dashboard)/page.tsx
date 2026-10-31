@@ -208,7 +208,7 @@ export default function DashboardPage() {
                 setTaskFilter("failed");
                 document.getElementById("recent-tasks")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="text-xs font-semibold text-amber-500 dark:text-amber-300 underline underline-offset-2 hover:opacity-80"
+              className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:opacity-80"
             >
               View failed tasks ({unacknowledgedFailedTasks.length})
             </button>
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                   onClick={() => setTaskFilter("failed")}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     taskFilter === "failed"
-                      ? "bg-red-500/20 text-red-500 dark:text-red-400 font-semibold shadow-sm"
+                      ? "bg-red-500/20 text-red-700 dark:text-red-400 font-semibold shadow-sm"
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   }`}
                 >

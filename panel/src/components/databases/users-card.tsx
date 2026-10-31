@@ -230,16 +230,16 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
       {created ? (
         <div className="mx-5 mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
           <div className="flex items-start gap-3">
-            <KeyRound size={18} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+            <KeyRound size={18} className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-amber-300">
+              <p className="text-sm font-medium text-amber-950 dark:text-amber-300">
                 User {created.user}@{created.host} created
                 {created.password ? " with a generated password" : ""}.
               </p>
               {created.password ? (
                 <>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <code className="select-all rounded-md border border-amber-500/30 bg-background/60 px-3 py-1.5 font-mono text-sm text-amber-200">
+                    <code className="select-all rounded-md border border-amber-500/30 bg-background/60 px-3 py-1.5 font-mono text-sm text-amber-950 dark:text-amber-200">
                       {created.password}
                     </code>
                     <Button variant="secondary" size="sm" onClick={() => void onCopyPassword()}>
@@ -251,10 +251,10 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
                       {copyState === "copied" ? "Copied" : "Copy"}
                     </Button>
                     {copyState === "failed" ? (
-                      <span className="text-xs text-red-400">Copy failed - select it manually.</span>
+                      <span className="text-xs text-red-600 dark:text-red-400">Copy failed - select it manually.</span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-xs text-amber-400/90">
+                  <p className="mt-2 text-xs text-amber-900/90 dark:text-amber-400/90">
                     This password will not be shown again. Copy it now and store it in a safe place.
                   </p>
                 </>

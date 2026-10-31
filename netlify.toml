@@ -27,6 +27,18 @@
     Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=300"
 
+[[headers]]
+  for = "/install.ps1"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/install-macos.sh"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
 [[redirects]]
   from = "/install"
   to = "/install.sh"

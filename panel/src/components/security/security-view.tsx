@@ -29,11 +29,11 @@ import {
 function checkIcon(status: string) {
   switch (status) {
     case "pass":
-      return <CircleCheck size={16} className="text-emerald-400" aria-hidden="true" />;
+      return <CircleCheck size={16} className="text-emerald-700 dark:text-emerald-400" aria-hidden="true" />;
     case "fail":
-      return <CircleX size={16} className="text-red-400" aria-hidden="true" />;
+      return <CircleX size={16} className="text-red-700 dark:text-red-400" aria-hidden="true" />;
     case "warn":
-      return <TriangleAlert size={16} className="text-amber-400" aria-hidden="true" />;
+      return <TriangleAlert size={16} className="text-amber-800 dark:text-amber-400" aria-hidden="true" />;
     default:
       return <Shield size={16} className="text-muted-foreground" aria-hidden="true" />;
   }

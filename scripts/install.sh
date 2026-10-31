@@ -107,23 +107,28 @@ init_colors() {
 init_colors
 
 # Logging helpers
+# Logging helpers (Claude Code / Antigravity CLI styling)
 say()   { printf '%b\n' "$*"; }
-step()  { printf "${TC_SKY}${CLR_BOLD}==>${CLR_RESET} %b\n" "$*"; }
-ok()    { printf "${CLR_GREEN}${CLR_BOLD}[OK]${CLR_RESET} %b\n" "$*"; }
-warn()  { printf "${CLR_YELLOW}${CLR_BOLD}[WARN]${CLR_RESET} %b\n" "$*" >&2; }
-die()   { printf "${CLR_RED}${CLR_BOLD}[ERROR]${CLR_RESET} %b\n" "$*" >&2; exit 1; }
+step()  { printf "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} %b\n" "$*"; }
+ok()    { printf "  ${CLR_GREEN}${CLR_BOLD}✔${CLR_RESET} %b\n" "$*"; }
+info()  { printf "  ${TC_STEEL}${CLR_BOLD}ℹ${CLR_RESET} %b\n" "$*"; }
+warn()  { printf "  ${CLR_YELLOW}${CLR_BOLD}▲${CLR_RESET} %b\n" "$*" >&2; }
+die()   { printf "  ${CLR_RED}${CLR_BOLD}✖ [ERROR]${CLR_RESET} %b\n" "$*" >&2; exit 1; }
 
 # --- Terminal Banner ---------------------------------------------------------
 print_banner() {
   cat << EOF
-${TC_SKY}${CLR_BOLD}   ____ _                 _ ____             _    
-  / ___| | ___  _   _  __| |  _ \  ___  ___| | __
- | |   | |/ _ \| | | |/ _\` | | | |/ _ \/ __| |/ /
- | |___| | (_) | |_| | (_| | |_| |  __/ (__|   < 
-  \____|_|\___/ \__,_|\__,_|____/ \___|\___|_|\_\
-${CLR_RESET}
-${TC_BG_MARINE}${TC_SKY}${CLR_BOLD}  CLOUDDECK  ${CLR_RESET} ${TC_PEACH}The Modern, Lightweight cPanel Alternative${CLR_RESET}
-${TC_STEEL}Unified Cross-Platform Installer • Uni Design Palette Edition${CLR_RESET}
+
+${TC_SKY}${CLR_BOLD}   ██████╗██╗      ██████╗ ██╗   ██╗██████╗ ██████╗ ███████╗ ██████╗██╗  ██╗
+  ██╔════╝██║     ██╔═══██╗██║   ██║██╔══██╗██╔══██╗██╔════╝██╔════╝██║ ██╔╝
+  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║█████╗  ██║     █████╔╝ 
+  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║██╔══╝  ██║     ██╔═██╗ 
+  ╚██████╗███████╗╚██████╔╝╚██████╔╝██████╔╝██████╔╝███████╗╚██████╗██║  ██╗
+   ╚═════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝${CLR_RESET}
+
+  ${TC_BG_MARINE}${TC_SKY}${CLR_BOLD}  CLOUDDECK  ${CLR_RESET} ${TC_PEACH}${CLR_BOLD}The Modern, Lightweight cPanel Alternative${CLR_RESET}
+  ${CLR_DIM}Unified Cross-Platform Installer • Uni 6-Color Design Edition${CLR_RESET}
+
 EOF
 }
 
@@ -303,7 +308,6 @@ download() {
 
 resolve_latest() {
   if [ "$VERSION" = "latest" ]; then
-    step "Resolving latest CloudDeck release..."
     _tag="$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || true)"
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
@@ -311,7 +315,6 @@ resolve_latest() {
       VERSION="v0.6.28"
     fi
   fi
-  say "   ${TC_MAUVE}Release version:${CLR_RESET} ${TC_SKY}${CLR_BOLD}$VERSION${CLR_RESET}"
 }
 
 cache_release_metadata() {
@@ -377,11 +380,12 @@ prompt_read() {
 }
 
 render_system_card() {
-  say "${TC_STEEL}┌─ System Detection ────────────────────────────────────────────────────────┐${CLR_RESET}"
-  printf "${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}Operating System:${CLR_RESET} %-57s${TC_STEEL}│${CLR_RESET}\n" "$DISTRO_NAME"
-  printf "${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}Architecture:${CLR_RESET}     %-57s${TC_STEEL}│${CLR_RESET}\n" "$MACHINE ($ARCH_GO)"
-  printf "${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}Target Ports:${CLR_RESET}     Panel: %-4s | Agent: %-33s${TC_STEEL}│${CLR_RESET}\n" "$PANEL_PORT" "$AGENT_PORT"
-  say "${TC_STEEL}└───────────────────────────────────────────────────────────────────────────┘${CLR_RESET}"
+  say "  ${TC_STEEL}╭─ System Environment ──────────────────────────────────────────────${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}● Release Version:${CLR_RESET}   ${CLR_BOLD}$VERSION${CLR_RESET} ${CLR_DIM}(latest stable)${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}● Operating System:${CLR_RESET}  $DISTRO_NAME"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}● Architecture:${CLR_RESET}      $MACHINE ($ARCH_GO)"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}● Target Ports:${CLR_RESET}      Web Panel: ${TC_PEACH}${PANEL_PORT}${CLR_RESET}  ${CLR_DIM}│${CLR_RESET}  Agent Daemon: ${TC_PEACH}${AGENT_PORT}${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
 }
 
 prompt_component_selection() {
@@ -404,36 +408,34 @@ prompt_component_selection() {
   fi
 
   render_system_card
-  say ""
-  say "${TC_STEEL}┌─ Choose Installation Profile ─────────────────────────────────────────────┐${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}                                                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[1] Recommended Full LEMP Stack${CLR_RESET} ${TC_SKY}(Default)${CLR_RESET}                                ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Next.js 15 Panel, Go Agent & CloudDeck CLI                         ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Nginx Web Server + MariaDB Database                                ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)                         ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Node.js 22 LTS Runtime & npm                                       ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}├─ Choose Installation Profile ─────────────────────────────────────${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● [1] Recommended Full LEMP Stack${CLR_RESET} ${TC_SKY}(Default)${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 15 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Nginx Web Server + MariaDB Database${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Node.js 22 LTS Runtime & npm${CLR_RESET}"
   if [ "$OS_TYPE" = "linux" ]; then
-    say "${TC_STEEL}│${CLR_RESET}      • Postfix/Dovecot Email Stack & PowerDNS Nameserver                  ${TC_STEEL}│${CLR_RESET}"
-    say "${TC_STEEL}│${CLR_RESET}      • ModSecurity WAF + OWASP Core Rule Set & Fail2ban                   ${TC_STEEL}│${CLR_RESET}"
+    say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Postfix + Dovecot Mail & PowerDNS Nameserver${CLR_RESET}"
+    say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• ModSecurity WAF + OWASP Core Rule Set & Fail2ban${CLR_RESET}"
   else
-    say "${TC_STEEL}│${CLR_RESET}      • Local Root CA Trust in Keychain for Green Padlocks (*.local)       ${TC_STEEL}│${CLR_RESET}"
+    say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Local Root CA in Keychain for Green Padlocks (*.local)${CLR_RESET}"
   fi
-  say "${TC_STEEL}│${CLR_RESET}                                                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[2] Fast Core Development Suite${CLR_RESET}                                          ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Next.js 15 Panel, Go Agent & CloudDeck CLI                         ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Nginx Web Server + MariaDB Database                                ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • PHP 8.4 & Node.js 22 LTS                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Skips heavy mail, DNS and WAF setup                                ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}                                                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[3] Custom Component Selection${CLR_RESET} ${TC_MAUVE}(Interactive Checklist)${CLR_RESET}                   ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Pick and choose individual services                                ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}                                                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[4] Minimal Deck Only${CLR_RESET}                                                  ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}      • Panel, Agent and CLI only (Bring your own hosting stack)           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}│${CLR_RESET}                                                                           ${TC_STEEL}│${CLR_RESET}"
-  say "${TC_STEEL}└───────────────────────────────────────────────────────────────────────────┘${CLR_RESET}"
-
-  printf "${TC_SKY}${CLR_BOLD}Enter choice [1-4] (default: 1): ${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}○ [2] Fast Core Development Suite${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 15 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Nginx Web Server + MariaDB + PHP 8.4 + Node.js 22 LTS${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Skips heavy mail, DNS, and WAF setup${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}○ [3] Custom Component Selection${CLR_RESET} ${TC_MAUVE}(Interactive Checklist)${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Pick and choose individual services & runtimes${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}○ [4] Minimal Deck Only${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Panel, Agent and CLI only (Bring your own hosting stack)${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}"
+  say "  ${TC_STEEL}╰───────────────────────────────────────────────────────────────────${CLR_RESET}"
+  say ""
+  printf "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter choice [1-4] (default: 1): ${CLR_RESET}"
   _choice=""
   prompt_read _choice "1"
   case "$_choice" in
@@ -441,32 +443,32 @@ prompt_component_selection() {
       INSTALL_PROFILE="fast"
       FAST=1
       DO_EMAIL=0; DO_DNS=0; DO_SECURITY=0; DO_PHP_MULTI=0
-      ok "Selected Fast Core Development Suite"
+      ok "Selected: ${TC_PEACH}${CLR_BOLD}Fast Core Development Suite${CLR_RESET}"
       ;;
     3)
       INSTALL_PROFILE="custom"
       say ""
-      say "${TC_SKY}${CLR_BOLD}Customize Components:${CLR_RESET}"
+      say "  ${TC_SKY}${CLR_BOLD}❯ Customize Components:${CLR_RESET}"
       
       _ans=""
-      printf "${TC_MAUVE}Install Nginx Web Server? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NGINX=0
-      printf "${TC_MAUVE}Install MariaDB Database? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_MARIADB=0
-      printf "${TC_MAUVE}Install PHP-FPM? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP=0
+      printf "    ${TC_MAUVE}• Install Nginx Web Server? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NGINX=0
+      printf "    ${TC_MAUVE}• Install MariaDB Database? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_MARIADB=0
+      printf "    ${TC_MAUVE}• Install PHP-FPM? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP=0
       if [ "$DO_PHP" = "1" ] && [ "$OS_TYPE" = "linux" ]; then
-        printf "${TC_MAUVE}Enable Multi-PHP (8.1 - 8.4 coexistence)? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP_MULTI=0
+        printf "    ${TC_MAUVE}• Enable Multi-PHP (8.1 - 8.4)? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP_MULTI=0
       fi
-      printf "${TC_MAUVE}Install Node.js 22 LTS runtime? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NODE=0
+      printf "    ${TC_MAUVE}• Install Node.js 22 LTS runtime? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NODE=0
       if [ "$OS_TYPE" = "linux" ]; then
-        printf "${TC_MAUVE}Install Postfix/Dovecot Email Stack? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_EMAIL=1
-        printf "${TC_MAUVE}Install PowerDNS Authoritative Nameserver? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_DNS=1
-        printf "${TC_MAUVE}Install ModSecurity WAF & Fail2ban? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_SECURITY=1
+        printf "    ${TC_MAUVE}• Install Postfix/Dovecot Email Stack? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_EMAIL=1
+        printf "    ${TC_MAUVE}• Install PowerDNS Nameserver? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_DNS=1
+        printf "    ${TC_MAUVE}• Install ModSecurity WAF & Fail2ban? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_SECURITY=1
       else
-        printf "${TC_MAUVE}Trust Local Root CA in System Keychain? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_LOCAL_CA=0
+        printf "    ${TC_MAUVE}• Trust Local Root CA in System Keychain? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_LOCAL_CA=0
       fi
 
       # Custom port configuration prompt
       _port_in=""
-      printf "${TC_MAUVE}CloudDeck Web Panel Port [${PANEL_PORT}]: ${CLR_RESET}"
+      printf "    ${TC_MAUVE}• CloudDeck Web Panel Port [${PANEL_PORT}]: ${CLR_RESET}"
       prompt_read _port_in "${PANEL_PORT}"
       if [ -n "$_port_in" ] && [ "$_port_in" -eq "$_port_in" ] 2>/dev/null; then
         PANEL_PORT="$_port_in"
@@ -474,12 +476,12 @@ prompt_component_selection() {
 
       # Custom admin credentials prompt
       _admin_ans=""
-      printf "${TC_SKY}${CLR_BOLD}Configure Initial Admin Account? [y/N]: ${CLR_RESET}"
+      printf "    ${TC_SKY}${CLR_BOLD}• Configure Initial Admin Account? [y/N]: ${CLR_RESET}"
       prompt_read _admin_ans "n"
       if [ "$_admin_ans" = "y" ] || [ "$_admin_ans" = "Y" ]; then
-        printf "${TC_MAUVE}Admin Username [admin]: ${CLR_RESET}"
+        printf "      ${TC_MAUVE}Admin Username [admin]: ${CLR_RESET}"
         prompt_read PANEL_SEED_ADMIN "admin"
-        printf "${TC_MAUVE}Admin Password (leave blank to auto-generate): ${CLR_RESET}"
+        printf "      ${TC_MAUVE}Admin Password (leave blank to auto-generate): ${CLR_RESET}"
         prompt_read PANEL_SEED_PASSWORD ""
       fi
       ok "Custom component selection configured."
@@ -487,14 +489,14 @@ prompt_component_selection() {
     4)
       INSTALL_PROFILE="minimal"
       DO_NGINX=0; DO_MARIADB=0; DO_PHP=0; DO_EMAIL=0; DO_DNS=0; DO_SECURITY=0
-      ok "Selected Minimal Deck Only"
+      ok "Selected: ${TC_PEACH}${CLR_BOLD}Minimal Deck Only${CLR_RESET}"
       ;;
     1|"")
       INSTALL_PROFILE="recommended"
       if [ "$OS_TYPE" = "linux" ]; then
         DO_EMAIL=1; DO_DNS=1; DO_SECURITY=1; DO_PHP_MULTI=1
       fi
-      ok "Selected Recommended Full LEMP Stack"
+      ok "Selected: ${TC_PEACH}${CLR_BOLD}Recommended Full LEMP Stack${CLR_RESET}"
       ;;
     *)
       INSTALL_PROFILE="recommended"
@@ -1276,33 +1278,34 @@ fi
 
 # --- Final Completion Card Styled in Uni Palette -----------------------------
 say ""
-say "${TC_SKY}${CLR_BOLD}┌─ CloudDeck Installation Complete ─────────────────────────────────────────┐${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}                                                                           ${TC_SKY}│${CLR_RESET}"
-printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}%-21s${CLR_RESET} ${CLR_BOLD}%-49s${TC_SKY}│${CLR_RESET}\n" "Control Panel URL:" "$PANEL_URL"
+say "  ${TC_SKY}${CLR_BOLD}╭─ CloudDeck Installation Complete ─────────────────────────────────${CLR_RESET}"
+say "  ${TC_SKY}│${CLR_RESET}"
+say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● Control Panel URL:${CLR_RESET}   ${CLR_BOLD}$PANEL_URL${CLR_RESET}"
 if [ "$OS_TYPE" = "linux" ] && [ "$IS_WSL" = "0" ]; then
-  printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Public Network URL:" "http://<server-ip>:$PANEL_PORT"
+  say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Public Network URL:${CLR_RESET}  http://<server-ip>:$PANEL_PORT"
 fi
 if [ -n "$PANEL_SEED_ADMIN" ]; then
-  printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Admin Username:" "$PANEL_SEED_ADMIN"
+  say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Admin Username:${CLR_RESET}      $PANEL_SEED_ADMIN"
   if [ -n "$PANEL_SEED_PASSWORD" ]; then
-    printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Admin Password:" "$PANEL_SEED_PASSWORD"
+    say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Admin Password:${CLR_RESET}      $PANEL_SEED_PASSWORD"
   else
-    printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Admin Setup:" "Initial password configured via CLI"
+    say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Admin Setup:${CLR_RESET}         Initial password configured via CLI"
   fi
 else
-  printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Initial Setup:" "Open panel URL to create your admin account"
+  say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Initial Setup:${CLR_RESET}       Open panel URL to create your admin account"
 fi
-printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Installed Profile:" "$INSTALL_PROFILE"
-printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Configuration Dir:" "$ETCDIR"
-printf "${TC_SKY}│${CLR_RESET}  ${TC_PEACH}%-21s${CLR_RESET} %-49s${TC_SKY}│${CLR_RESET}\n" "Data & Webroot Dir:" "$DATADIR"
-say "${TC_SKY}│${CLR_RESET}                                                                           ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}Quick CLI Management Commands:${CLR_RESET}                                           ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck status${CLR_RESET}          Check services health & resource metrics     ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck restart${CLR_RESET}         Restart panel & agent services               ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck logs -f${CLR_RESET}         Stream live panel and agent logs             ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck site create${CLR_RESET}     Deploy WordPress, Laravel, Next.js or PHP    ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}│${CLR_RESET}                                                                           ${TC_SKY}│${CLR_RESET}"
-say "${TC_SKY}└───────────────────────────────────────────────────────────────────────────┘${CLR_RESET}"
+say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Installed Profile:${CLR_RESET}   $INSTALL_PROFILE"
+say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Configuration Dir:${CLR_RESET}   $ETCDIR"
+say "  ${TC_SKY}│${CLR_RESET}  ${TC_PEACH}● Data & Webroot Dir:${CLR_RESET}  $DATADIR"
+say "  ${TC_SKY}│${CLR_RESET}"
+say "  ${TC_SKY}├─ Quick CLI Management Commands ───────────────────────────────────${CLR_RESET}"
+say "  ${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck status${CLR_RESET}          Check services health & resource metrics"
+say "  ${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck restart${CLR_RESET}         Restart panel & agent services"
+say "  ${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck logs -f${CLR_RESET}         Stream live panel and agent logs"
+say "  ${TC_SKY}│${CLR_RESET}    ${TC_STEEL}clouddeck site create${CLR_RESET}     Deploy WordPress, Laravel, Next.js or PHP"
+say "  ${TC_SKY}│${CLR_RESET}"
+say "  ${TC_SKY}╰───────────────────────────────────────────────────────────────────${CLR_RESET}"
 say ""
-ok "CloudDeck v$VERSION is ready! Welcome to the modern hosting deck."
+_clean_version="${VERSION#v}"
+ok "CloudDeck v${_clean_version} is ready! Welcome to the modern hosting deck."
 exit 0

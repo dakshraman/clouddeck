@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           // Applies stored appearance preferences before first paint.
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("clouddeck.theme");if(t==="clouddeck"){t="daylight";localStorage.setItem("clouddeck.theme","daylight")}if(${themeIds}.indexOf(t)>-1){document.documentElement.dataset.theme=t}if(localStorage.getItem("clouddeck.reduce-motion")==="true"){document.documentElement.dataset.reduceMotion="true"}}catch(e){}`,
+            __html: `try{var t=localStorage.getItem("clouddeck.theme");if(t==="clouddeck"){t="daylight";localStorage.setItem("clouddeck.theme","daylight")}var current=(${themeIds}.indexOf(t)>-1)?t:"daylight";document.documentElement.dataset.theme=current;if(current==="daylight"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}if(localStorage.getItem("clouddeck.reduce-motion")==="true"){document.documentElement.dataset.reduceMotion="true"}}catch(e){}`,
           }}
         />
         {children}

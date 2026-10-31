@@ -237,13 +237,13 @@ export function DomainsCard({ domains, error, onRefresh }: DomainsCardProps) {
                             )}
                           </div>
                           {isConfirming ? (
-                            <p className="mt-1 text-right text-xs text-amber-400">
+                            <p className="mt-1 text-right text-xs text-amber-800 dark:text-amber-400">
                               Also removes the domain&apos;s mailboxes, forwarders and autoresponders.
                             </p>
                           ) : null}
                           {rowError ? (
                             <p
-                              className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                              className="mt-1 max-w-64 truncate text-right text-xs text-red-700 dark:text-red-400"
                               title={rowError}
                             >
                               {rowError}

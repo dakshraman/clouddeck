@@ -281,7 +281,7 @@ export default function SitesPage() {
                         </div>
                         {deleteError ? (
                           <p
-                            className="mt-1 max-w-56 truncate text-right text-xs text-red-400"
+                            className="mt-1 max-w-56 truncate text-right text-xs text-red-600 dark:text-red-400"
                             title={deleteError}
                           >
                             {deleteError}
@@ -296,7 +296,7 @@ export default function SitesPage() {
                             <div className="grid gap-1.5">
                               <Label htmlFor={`php-version-${site.domain}`}>PHP runtime</Label>
                               {versionsError ? (
-                                <div className="flex items-center gap-2 text-xs text-red-400">
+                                <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
                                   {versionsError}
                                   <Button
                                     variant="secondary"
@@ -339,7 +339,7 @@ export default function SitesPage() {
                               Cancel
                             </Button>
                             {runtimeError ? (
-                              <span className="text-xs text-red-400">{runtimeError}</span>
+                              <span className="text-xs text-red-600 dark:text-red-400">{runtimeError}</span>
                             ) : null}
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
