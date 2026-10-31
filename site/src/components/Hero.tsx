@@ -169,11 +169,10 @@ export function Hero() {
             <button
               type="button"
               onClick={() => setActiveTab("deck")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "deck"
+              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "deck"
                   ? "border-[#74B8CC] text-[#74B8CC]"
                   : "border-transparent text-[#9BB2BA] hover:text-white"
-              }`}
+                }`}
             >
               <Server className="h-3.5 w-3.5" />
               <span>Overview Deck</span>
@@ -181,11 +180,10 @@ export function Hero() {
             <button
               type="button"
               onClick={() => setActiveTab("php")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "php"
+              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "php"
                   ? "border-[#74B8CC] text-[#74B8CC]"
                   : "border-transparent text-[#9BB2BA] hover:text-white"
-              }`}
+                }`}
             >
               <Zap className="h-3.5 w-3.5" />
               <span>Multi-PHP (8.1–8.4)</span>
@@ -193,11 +191,10 @@ export function Hero() {
             <button
               type="button"
               onClick={() => setActiveTab("apps")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "apps"
+              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "apps"
                   ? "border-[#74B8CC] text-[#74B8CC]"
                   : "border-transparent text-[#9BB2BA] hover:text-white"
-              }`}
+                }`}
             >
               <Layers className="h-3.5 w-3.5" />
               <span>Polyglot Supervisor</span>
@@ -205,11 +202,10 @@ export function Hero() {
             <button
               type="button"
               onClick={() => setActiveTab("term")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "term"
+              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "term"
                   ? "border-[#74B8CC] text-[#74B8CC]"
                   : "border-transparent text-[#9BB2BA] hover:text-white"
-              }`}
+                }`}
             >
               <Terminal className="h-3.5 w-3.5" />
               <span>Web Terminal PTY</span>
