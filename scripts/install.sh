@@ -68,7 +68,7 @@ PANEL_SEED_PASSWORD=""
 
 # --- ANSI Theme Colors (Uni 6-Color Palette) ---------------------------------
 init_colors() {
-  if [ "$NO_COLOR" = "1" ] || [ ! -t 1 ] && [ "${FORCE_COLOR:-0}" != "1" ]; then
+  if [ "$NO_COLOR" = "1" ] || { [ ! -t 1 ] && [ "${FORCE_COLOR:-0}" != "1" ]; }; then
     CLR_RESET=""
     CLR_BOLD=""
     CLR_DIM=""
@@ -85,22 +85,23 @@ init_colors() {
     CLR_RED=""
     CLR_YELLOW=""
   else
-    CLR_RESET="\033[0m"
-    CLR_BOLD="\033[1m"
-    CLR_DIM="\033[2m"
+    ESC="$(printf '\033')"
+    CLR_RESET="${ESC}[0m"
+    CLR_BOLD="${ESC}[1m"
+    CLR_DIM="${ESC}[2m"
     # Uni 24-bit TrueColor
-    TC_SKY="\033[38;2;116;184;204m"       # #74B8CC
-    TC_MARINE="\033[38;2;35;83;97m"       # #235361
-    TC_PEACH="\033[38;2;250;170;147m"     # #FAAA93
-    TC_STEEL="\033[38;2;100;148;172m"     # #6494AC
-    TC_CHESTNUT="\033[38;2;136;99;81m"   # #886351
-    TC_MAUVE="\033[38;2;210;173;172m"     # #D2ADAC
-    TC_BG_MARINE="\033[48;2;35;83;97m"
-    TC_BG_SKY="\033[48;2;116;184;204m"
-    TC_BG_PEACH="\033[48;2;250;170;147m"
-    CLR_GREEN="\033[38;2;52;199;89m"
-    CLR_RED="\033[38;2;255;59;48m"
-    CLR_YELLOW="\033[38;2;255;204;0m"
+    TC_SKY="${ESC}[38;2;116;184;204m"       # #74B8CC
+    TC_MARINE="${ESC}[38;2;35;83;97m"       # #235361
+    TC_PEACH="${ESC}[38;2;250;170;147m"     # #FAAA93
+    TC_STEEL="${ESC}[38;2;100;148;172m"     # #6494AC
+    TC_CHESTNUT="${ESC}[38;2;136;99;81m"   # #886351
+    TC_MAUVE="${ESC}[38;2;210;173;172m"     # #D2ADAC
+    TC_BG_MARINE="${ESC}[48;2;35;83;97m"
+    TC_BG_SKY="${ESC}[48;2;116;184;204m"
+    TC_BG_PEACH="${ESC}[48;2;250;170;147m"
+    CLR_GREEN="${ESC}[38;2;52;199;89m"
+    CLR_RED="${ESC}[38;2;255;59;48m"
+    CLR_YELLOW="${ESC}[38;2;255;204;0m"
   fi
 }
 init_colors
@@ -148,6 +149,7 @@ while [ $# -gt 0 ]; do
     --skip-trust)      SKIP_TRUST=1; DO_LOCAL_CA=0; shift ;;
     --uninstall)       UNINSTALL=1; shift ;;
     --purge)           PURGE=1; shift ;;
+    --)                shift ;;
     -h|--help)
       cat <<'USAGE'
 CloudDeck Unified Cross-Platform Installer.
@@ -339,11 +341,39 @@ download_asset() {
 }
 
 # --- Interactive TTY Detection & Component Selector --------------------------
+HAS_TTY=0
+TTY_FD=0
+
 setup_interactive_tty() {
-  # If stdin is a pipe (e.g. curl ... | bash), redirect from /dev/tty if available
-  if [ ! -t 0 ] && [ -r /dev/tty ]; then
-    exec < /dev/tty
+  if [ -t 0 ]; then
+    HAS_TTY=1
+    TTY_FD=0
+  elif [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    if exec 3</dev/tty 2>/dev/null; then
+      if [ -t 3 ]; then
+        HAS_TTY=1
+        TTY_FD=3
+      fi
+    fi
   fi
+}
+
+prompt_read() {
+  # Usage: prompt_read <varname> [default_val]
+  local _target_var="$1"
+  local _default_val="${2:-}"
+  local _input=""
+  if [ "$HAS_TTY" = "1" ] && [ "$NON_INTERACTIVE" = "0" ]; then
+    if [ "$TTY_FD" = "3" ]; then
+      read -r _input <&3 2>/dev/null || _input=""
+    else
+      read -r _input 2>/dev/null || _input=""
+    fi
+  else
+    _input=""
+  fi
+  [ -z "$_input" ] && _input="$_default_val"
+  eval "$_target_var=\"\$_input\""
 }
 
 render_system_card() {
@@ -355,8 +385,8 @@ render_system_card() {
 }
 
 prompt_component_selection() {
-  # If non-interactive flag was explicitly passed, apply profile and return
-  if [ "$NON_INTERACTIVE" = "1" ] || [ ! -t 0 ]; then
+  # If non-interactive flag was explicitly passed or no tty attached, apply profile and return
+  if [ "$NON_INTERACTIVE" = "1" ] || [ "$HAS_TTY" = "0" ]; then
     case "$INSTALL_PROFILE" in
       fast)
         DO_EMAIL=0; DO_DNS=0; DO_SECURITY=0; DO_PHP_MULTI=0
@@ -404,7 +434,8 @@ prompt_component_selection() {
   say "${TC_STEEL}└───────────────────────────────────────────────────────────────────────────┘${CLR_RESET}"
 
   printf "${TC_SKY}${CLR_BOLD}Enter choice [1-4] (default: 1): ${CLR_RESET}"
-  read -r _choice || _choice=""
+  _choice=""
+  prompt_read _choice "1"
   case "$_choice" in
     2)
       INSTALL_PROFILE="fast"
@@ -417,19 +448,39 @@ prompt_component_selection() {
       say ""
       say "${TC_SKY}${CLR_BOLD}Customize Components:${CLR_RESET}"
       
-      printf "${TC_MAUVE}Install Nginx Web Server? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NGINX=0
-      printf "${TC_MAUVE}Install MariaDB Database? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_MARIADB=0
-      printf "${TC_MAUVE}Install PHP-FPM? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP=0
+      _ans=""
+      printf "${TC_MAUVE}Install Nginx Web Server? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NGINX=0
+      printf "${TC_MAUVE}Install MariaDB Database? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_MARIADB=0
+      printf "${TC_MAUVE}Install PHP-FPM? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP=0
       if [ "$DO_PHP" = "1" ] && [ "$OS_TYPE" = "linux" ]; then
-        printf "${TC_MAUVE}Enable Multi-PHP (8.1 - 8.4 coexistence)? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP_MULTI=0
+        printf "${TC_MAUVE}Enable Multi-PHP (8.1 - 8.4 coexistence)? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_PHP_MULTI=0
       fi
-      printf "${TC_MAUVE}Install Node.js 22 LTS runtime? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NODE=0
+      printf "${TC_MAUVE}Install Node.js 22 LTS runtime? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_NODE=0
       if [ "$OS_TYPE" = "linux" ]; then
-        printf "${TC_MAUVE}Install Postfix/Dovecot Email Stack? [y/N]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_EMAIL=1
-        printf "${TC_MAUVE}Install PowerDNS Authoritative Nameserver? [y/N]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_DNS=1
-        printf "${TC_MAUVE}Install ModSecurity WAF & Fail2ban? [y/N]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_SECURITY=1
+        printf "${TC_MAUVE}Install Postfix/Dovecot Email Stack? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_EMAIL=1
+        printf "${TC_MAUVE}Install PowerDNS Authoritative Nameserver? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_DNS=1
+        printf "${TC_MAUVE}Install ModSecurity WAF & Fail2ban? [y/N]: ${CLR_RESET}"; prompt_read _ans "n"; [ "$_ans" = "y" ] || [ "$_ans" = "Y" ] && DO_SECURITY=1
       else
-        printf "${TC_MAUVE}Trust Local Root CA in System Keychain? [Y/n]: ${CLR_RESET}"; read -r _ans; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_LOCAL_CA=0
+        printf "${TC_MAUVE}Trust Local Root CA in System Keychain? [Y/n]: ${CLR_RESET}"; prompt_read _ans "y"; [ "$_ans" = "n" ] || [ "$_ans" = "N" ] && DO_LOCAL_CA=0
+      fi
+
+      # Custom port configuration prompt
+      _port_in=""
+      printf "${TC_MAUVE}CloudDeck Web Panel Port [${PANEL_PORT}]: ${CLR_RESET}"
+      prompt_read _port_in "${PANEL_PORT}"
+      if [ -n "$_port_in" ] && [ "$_port_in" -eq "$_port_in" ] 2>/dev/null; then
+        PANEL_PORT="$_port_in"
+      fi
+
+      # Custom admin credentials prompt
+      _admin_ans=""
+      printf "${TC_SKY}${CLR_BOLD}Configure Initial Admin Account? [y/N]: ${CLR_RESET}"
+      prompt_read _admin_ans "n"
+      if [ "$_admin_ans" = "y" ] || [ "$_admin_ans" = "Y" ]; then
+        printf "${TC_MAUVE}Admin Username [admin]: ${CLR_RESET}"
+        prompt_read PANEL_SEED_ADMIN "admin"
+        printf "${TC_MAUVE}Admin Password (leave blank to auto-generate): ${CLR_RESET}"
+        prompt_read PANEL_SEED_PASSWORD ""
       fi
       ok "Custom component selection configured."
       ;;
@@ -438,33 +489,21 @@ prompt_component_selection() {
       DO_NGINX=0; DO_MARIADB=0; DO_PHP=0; DO_EMAIL=0; DO_DNS=0; DO_SECURITY=0
       ok "Selected Minimal Deck Only"
       ;;
-    *)
+    1|"")
       INSTALL_PROFILE="recommended"
       if [ "$OS_TYPE" = "linux" ]; then
         DO_EMAIL=1; DO_DNS=1; DO_SECURITY=1; DO_PHP_MULTI=1
       fi
       ok "Selected Recommended Full LEMP Stack"
       ;;
+    *)
+      INSTALL_PROFILE="recommended"
+      if [ "$OS_TYPE" = "linux" ]; then
+        DO_EMAIL=1; DO_DNS=1; DO_SECURITY=1; DO_PHP_MULTI=1
+      fi
+      warn "Unknown choice '$_choice', proceeding with Recommended Full LEMP Stack."
+      ;;
   esac
-
-  # Port configuration prompt
-  printf "${TC_MAUVE}CloudDeck Web Panel Port [${PANEL_PORT}]: ${CLR_RESET}"
-  read -r _port_in || _port_in=""
-  if [ -n "$_port_in" ] && [ "$_port_in" -eq "$_port_in" ] 2>/dev/null; then
-    PANEL_PORT="$_port_in"
-  fi
-
-  # Admin credentials prompt
-  say ""
-  printf "${TC_SKY}${CLR_BOLD}Configure Initial Admin Account? [y/N]: ${CLR_RESET}"
-  read -r _admin_ans || _admin_ans=""
-  if [ "$_admin_ans" = "y" ] || [ "$_admin_ans" = "Y" ]; then
-    printf "${TC_MAUVE}Admin Username [admin]: ${CLR_RESET}"
-    read -r PANEL_SEED_ADMIN || PANEL_SEED_ADMIN=""
-    [ -z "$PANEL_SEED_ADMIN" ] && PANEL_SEED_ADMIN="admin"
-    printf "${TC_MAUVE}Admin Password (leave blank to auto-generate): ${CLR_RESET}"
-    read -r PANEL_SEED_PASSWORD || PANEL_SEED_PASSWORD=""
-  fi
 }
 
 # --- Uninstall Logic ---------------------------------------------------------
