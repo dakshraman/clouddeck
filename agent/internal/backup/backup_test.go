@@ -2,6 +2,8 @@ package backup
 
 import (
 	"archive/tar"
+	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -210,6 +212,63 @@ func readGz(t *testing.T, path string) string {
 	return b.String()
 }
 
+// readZipEntry reads an entry from a zip archive.
+func readZipEntry(t *testing.T, path, entryName string) string {
+	t.Helper()
+	zr, err := zip.OpenReader(path)
+	if err != nil {
+		t.Fatalf("open zip %s: %v", path, err)
+	}
+	defer zr.Close()
+	for _, f := range zr.File {
+		if f.Name == entryName || strings.HasSuffix(f.Name, ".sql") {
+			rc, err := f.Open()
+			if err != nil {
+				t.Fatalf("open entry %s: %v", f.Name, err)
+			}
+			defer rc.Close()
+			var b strings.Builder
+			if _, err := io.Copy(&b, rc); err != nil {
+				t.Fatalf("read entry %s: %v", f.Name, err)
+			}
+			return b.String()
+		}
+	}
+	t.Fatalf("entry %s not found in %s", entryName, path)
+	return ""
+}
+
+// writeZip builds a zip archive with one regular-file entry per map key.
+func writeZip(t *testing.T, path string, entries map[string]string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create archive: %v", err)
+	}
+	zw := zip.NewWriter(f)
+	for name, content := range entries {
+		w, err := zw.CreateHeader(&zip.FileHeader{
+			Name:   name,
+			Method: zip.Deflate,
+		})
+		if err != nil {
+			t.Fatalf("write header %q: %v", name, err)
+		}
+		if _, err := w.Write([]byte(content)); err != nil {
+			t.Fatalf("write entry %q: %v", name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close archive: %v", err)
+	}
+}
+
 func TestParseName(t *testing.T) {
 	at := time.Unix(1700000000, 0).UTC()
 	valid := []struct {
@@ -222,6 +281,10 @@ func TestParseName(t *testing.T) {
 		{"site-a-b.example.com-1700000000.tar.gz", KindSite, "a-b.example.com"},
 		{"site-example.123-1700000000.tar.gz", KindSite, "example.123"},
 		{"database-shop_db-1700000000.sql.gz", KindDatabase, "shop_db"},
+		{"site-example.com-1700000000.zip", KindSite, "example.com"},
+		{"site-sub.example.co.uk-1700000000.zip", KindSite, "sub.example.co.uk"},
+		{"site-a-b.example.com-1700000000.zip", KindSite, "a-b.example.com"},
+		{"database-shop_db-1700000000.zip", KindDatabase, "shop_db"},
 	}
 	for _, tc := range valid {
 		got, ok := parseName(tc.name)
@@ -387,7 +450,7 @@ func TestSiteCreateRestoreRoundTrip(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(h.cfg.BackupDir, archive.ID+".sha256")); err != nil {
 		t.Fatalf("checksum sidecar missing: %v", err)
 	}
-	if !strings.HasPrefix(archive.ID, "site-example.com-") || !strings.HasSuffix(archive.ID, ".tar.gz") {
+	if !strings.HasPrefix(archive.ID, "site-example.com-") || !strings.HasSuffix(archive.ID, ".zip") {
 		t.Fatalf("archive id = %q", archive.ID)
 	}
 
@@ -551,7 +614,7 @@ func TestDatabaseCreateRestoreWithFakeClient(t *testing.T) {
 	if archive.Kind != KindDatabase || archive.Source != "mydb" {
 		t.Fatalf("archive = %+v", archive)
 	}
-	if !strings.HasPrefix(archive.ID, "database-mydb-") || !strings.HasSuffix(archive.ID, ".sql.gz") {
+	if !strings.HasPrefix(archive.ID, "database-mydb-") || !strings.HasSuffix(archive.ID, ".zip") {
 		t.Fatalf("archive id = %q", archive.ID)
 	}
 
@@ -559,7 +622,7 @@ func TestDatabaseCreateRestoreWithFakeClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	dump := readGz(t, path)
+	dump := readZipEntry(t, path, "MyDB.sql")
 	for _, want := range []string{"-u root", "MyDB", "MYSQL_PWD=secret", "SELECT 1;"} {
 		if !strings.Contains(dump, want) {
 			t.Errorf("dump misses %q:\n%s", want, dump)
@@ -732,4 +795,111 @@ func TestUploadsRclone(t *testing.T) {
 	if err != nil || len(list) != 1 {
 		t.Fatalf("List after failed upload = %v, %d archives, want the local archive kept", err, len(list))
 	}
+}
+
+func TestUploadAndRestoreSiteZip(t *testing.T) {
+	h := newHarness(t, nil)
+	root := h.addSite("uploaded.com")
+
+	tempDir := t.TempDir()
+	sourceZip := filepath.Join(tempDir, "site-uploaded.com-1700000000.zip")
+	writeZip(t, sourceZip, map[string]string{
+		"index.html":      "uploaded site content",
+		"sub/welcome.txt": "hello world",
+	})
+
+	zipData, err := os.ReadFile(sourceZip)
+	if err != nil {
+		t.Fatalf("read source zip: %v", err)
+	}
+
+	arch, err := h.svc.SaveUploaded("site-uploaded.com-1700000000.zip", bytes.NewReader(zipData))
+	if err != nil {
+		t.Fatalf("SaveUploaded: %v", err)
+	}
+	if arch.ID != "site-uploaded.com-1700000000.zip" || arch.Kind != KindSite || arch.Source != "uploaded.com" {
+		t.Fatalf("unexpected archive metadata: %+v", arch)
+	}
+	if len(arch.Checksum) != 64 {
+		t.Fatalf("missing checksum: %q", arch.Checksum)
+	}
+
+	sidecar := filepath.Join(h.cfg.BackupDir, arch.ID+".sha256")
+	if _, err := os.Stat(sidecar); err != nil {
+		t.Fatalf("checksum sidecar missing: %v", err)
+	}
+
+	restoreTask := h.runTask(h.mustRestore(arch.ID))
+	if restoreTask.Status != store.TaskSucceeded {
+		t.Fatalf("restore task failed: %v", restoreTask.Error)
+	}
+
+	if got := mustRead(t, filepath.Join(root, "index.html")); got != "uploaded site content" {
+		t.Errorf("index.html = %q, want 'uploaded site content'", got)
+	}
+	if got := mustRead(t, filepath.Join(root, "sub", "welcome.txt")); got != "hello world" {
+		t.Errorf("sub/welcome.txt = %q, want 'hello world'", got)
+	}
+}
+
+func TestLegacyTarGzAndSqlGzRestore(t *testing.T) {
+	h := newHarness(t, nil)
+	root := h.addSite("legacy.com")
+
+	// 1. Test legacy .tar.gz restore
+	tarID := "site-legacy.com-1600000000.tar.gz"
+	writeTarGz(t, filepath.Join(h.cfg.BackupDir, tarID), map[string]string{
+		"index.html": "legacy tar content",
+	})
+	restoreTask := h.runTask(h.mustRestore(tarID))
+	if restoreTask.Status != store.TaskSucceeded {
+		t.Fatalf("legacy tar.gz restore failed: %v", restoreTask.Error)
+	}
+	if got := mustRead(t, filepath.Join(root, "index.html")); got != "legacy tar content" {
+		t.Errorf("index.html = %q, want 'legacy tar content'", got)
+	}
+
+	// 2. Test legacy .sql.gz restore
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "restored_legacy.sql")
+	fakeMySQL := writeScript(t, dir, "mysql", "#! /bin/sh\n"+
+		"case \"$*\" in\n"+
+		"  *\"SHOW DATABASES\"*) echo information_schema; echo legacy_db ;;\n"+
+		"  *) cat > '"+capture+"' ;;\n"+
+		"esac\n")
+
+	h2 := newHarness(t, func(cfg *config.Config) {
+		cfg.MySQLBin = fakeMySQL
+	})
+	sqlGzID := "database-legacy_db-1600000000.sql.gz"
+	sqlGzPath := filepath.Join(h2.cfg.BackupDir, sqlGzID)
+	if err := os.MkdirAll(filepath.Dir(sqlGzPath), 0o755); err != nil {
+		t.Fatalf("create backup dir: %v", err)
+	}
+	f, err := os.Create(sqlGzPath)
+	if err != nil {
+		t.Fatalf("create sql.gz: %v", err)
+	}
+	gw := gzip.NewWriter(f)
+	gw.Write([]byte("SELECT 'legacy sql';"))
+	gw.Close()
+	f.Close()
+
+	dbRestoreTask := h2.runTask(h2.mustRestore(sqlGzID))
+	if dbRestoreTask.Status != store.TaskSucceeded {
+		t.Fatalf("legacy sql.gz restore failed: %v", dbRestoreTask.Error)
+	}
+	if got := mustRead(t, capture); got != "SELECT 'legacy sql';" {
+		t.Errorf("restored sql = %q, want \"SELECT 'legacy sql';\"", got)
+	}
+}
+
+func TestUploadRejectsInvalid(t *testing.T) {
+	h := newHarness(t, nil)
+
+	_, err := h.svc.SaveUploaded("invalid-backup.zip", strings.NewReader("dummy"))
+	wantAPIError(t, err, 400, "invalid_id")
+
+	_, err = h.svc.SaveUploaded("not_a_backup.tar.gz", strings.NewReader("dummy"))
+	wantAPIError(t, err, 400, "invalid_id")
 }

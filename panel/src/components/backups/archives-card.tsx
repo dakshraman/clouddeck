@@ -125,12 +125,23 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                 return (
                   <tr key={archive.id} className="border-t border-border hover:bg-muted/40">
                     <td className="px-5 py-3">
-                      <span
-                        className="block max-w-64 truncate font-mono text-sm text-foreground"
-                        title={archive.id}
-                      >
-                        {archive.id}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="block max-w-60 truncate font-mono text-sm text-foreground"
+                          title={archive.id}
+                        >
+                          {archive.id}
+                        </span>
+                        {archive.id.endsWith(".zip") ? (
+                          <Badge variant="green" className="text-[10px] font-semibold uppercase tracking-wider">
+                            ZIP
+                          </Badge>
+                        ) : (
+                          <Badge variant="neutral" className="text-[10px] uppercase tracking-wider">
+                            Legacy
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3">
                       <Badge variant={archive.kind === "site" ? "indigo" : "amber"}>
@@ -164,38 +175,42 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                             restoring…
                           </span>
                         ) : confirmingAction === "restore" ? (
-                          <>
-                            <span className="text-xs text-muted-foreground">Restore?</span>
+                          <div className="flex items-center gap-1.5 rounded-md border border-border bg-background/80 p-1">
+                            <span className="mr-1 text-xs text-muted-foreground">Restore to {archive.source}?</span>
                             <Button
                               variant="secondary"
                               size="sm"
+                              className="text-xs font-medium"
                               onClick={() => void onRestore(archive)}
                             >
-                              Confirm
+                              Confirm Restore
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
                               Cancel
                             </Button>
-                          </>
+                          </div>
                         ) : confirmingAction === "delete" ? (
-                          <>
-                            <span className="text-xs text-muted-foreground">Delete?</span>
+                          <div className="flex items-center gap-1.5 rounded-md border border-border bg-background/80 p-1">
+                            <span className="mr-1 text-xs text-muted-foreground">Delete {archive.id}?</span>
                             <Button
                               variant="danger"
                               size="sm"
+                              className="text-xs font-medium"
                               onClick={() => void onDelete(archive)}
                             >
-                              Confirm
+                              Confirm Delete
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
                               Cancel
                             </Button>
-                          </>
+                          </div>
                         ) : (
                           <>
                             <a
                               href={`/api/backups/${encodeURIComponent(archive.id)}/download`}
+                              download={archive.id}
                               className={buttonClass("ghost", "sm")}
+                              title="Download to PC"
                             >
                               <Download size={14} aria-hidden="true" />
                               Download
@@ -205,6 +220,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                               size="sm"
                               disabled={busyElsewhere}
                               onClick={() => setConfirming({ id: archive.id, action: "restore" })}
+                              title="Restore directly on server"
                             >
                               <RotateCcw size={14} aria-hidden="true" />
                               Restore
@@ -216,6 +232,7 @@ export function ArchivesCard({ backups, onRefresh }: ArchivesCardProps) {
                               disabled={busyElsewhere}
                               onClick={() => setConfirming({ id: archive.id, action: "delete" })}
                               aria-label={`Delete ${archive.id}`}
+                              title="Delete archive from server"
                             >
                               <Trash2 size={14} aria-hidden="true" />
                               Delete

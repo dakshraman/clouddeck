@@ -377,9 +377,9 @@ func TestRunScheduledNowAdmissionFailures(t *testing.T) {
 	h := newHarness(t, func(cfg *config.Config) { cfg.MySQLBin = failingMySQL })
 
 	h.addSite("example.com")
-	// Long enough that "site-<domain>-<unix>.tar.gz" breaks the 200-char id
+	// Long enough that "site-<domain>-<unix>.zip" breaks the 200-char id
 	// budget; the task can never be admitted.
-	longDomain := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 51)
+	longDomain := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 55)
 	h.addSite(longDomain)
 
 	if _, err := h.svc.SetSchedule(Schedule{

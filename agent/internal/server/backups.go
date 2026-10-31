@@ -1,11 +1,13 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	stdlog "log"
 	"net/http"
 	"os"
+	"strings"
 
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/backup"
@@ -61,12 +63,60 @@ func (s *Server) handleDownloadBackup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, apierr.Internal("stat backup archive: "+err.Error()))
 		return
 	}
-	w.Header().Set("Content-Type", "application/gzip")
+	if strings.HasSuffix(id, ".zip") {
+		w.Header().Set("Content-Type", "application/zip")
+	} else {
+		w.Header().Set("Content-Type", "application/gzip")
+	}
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", id))
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
 	if _, err := io.Copy(w, file); err != nil {
 		stdlog.Printf("server: stream backup %s: %v", id, err)
 	}
+}
+
+func (s *Server) handleUploadBackup(w http.ResponseWriter, r *http.Request) {
+	mr, err := r.MultipartReader()
+	if err != nil {
+		writeError(w, apierr.BadRequest("invalid_multipart", fmt.Sprintf("invalid multipart body: %v", err)))
+		return
+	}
+	var archive backup.Archive
+	found := false
+	for {
+		part, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			writeError(w, apierr.BadRequest("invalid_multipart", fmt.Sprintf("read multipart body: %v", err)))
+			return
+		}
+		if part.FormName() != "file" {
+			part.Close()
+			continue
+		}
+		filename := part.FileName()
+		if filename == "" {
+			part.Close()
+			writeError(w, apierr.BadRequest("invalid_request", "empty filename in multipart part"))
+			return
+		}
+		arch, err := s.backups.SaveUploaded(filename, part)
+		part.Close()
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		archive = arch
+		found = true
+		break
+	}
+	if !found {
+		writeError(w, apierr.BadRequest("invalid_request", "form field \"file\" is required"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"archive": archive, "uploaded": true})
 }
 
 func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {

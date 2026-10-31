@@ -118,6 +118,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 
 	mux.HandleFunc("GET /v1/backups", s.handleListBackups)
 	mux.HandleFunc("POST /v1/backups", s.handleCreateBackup)
+	mux.HandleFunc("POST /v1/backups/upload", s.handleUploadBackup)
 	mux.HandleFunc("GET /v1/backups/{id}", s.handleGetBackup)
 	mux.HandleFunc("GET /v1/backups/{id}/download", s.handleDownloadBackup)
 	mux.HandleFunc("POST /v1/backups/{id}/restore", s.handleRestoreBackup)

@@ -316,6 +316,11 @@ export interface BackupListResponse {
   backups: BackupArchive[];
 }
 
+export interface BackupUploadResponse {
+  archive: BackupArchive;
+  uploaded: boolean;
+}
+
 export interface BackupUploadTarget {
   type: "telegram" | "rclone";
   remote?: string;

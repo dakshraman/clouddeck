@@ -9,6 +9,8 @@ import type {
   MySQLListDatabasesResponse,
   Site,
   SiteListResponse,
+  Task,
+  TaskLogEntry,
 } from "@/lib/types";
 import { apiFetch, apiPost, HttpError } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
@@ -29,6 +31,7 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
   const [kind, setKind] = useState<BackupKind>("site");
   const [site, setSite] = useState("");
   const [database, setDatabase] = useState("");
+  const [downloadOnComplete, setDownloadOnComplete] = useState(false);
   const [telegram, setTelegram] = useState(false);
   const [rclone, setRclone] = useState(false);
   const [remote, setRemote] = useState("");
@@ -122,19 +125,30 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
     }
   }
 
-  function onTaskDone() {
+  function onTaskDone(task: Task) {
     setTaskRunning(false);
     onRefresh();
+    if (downloadOnComplete && task.status === "succeeded") {
+      const createdLog = task.logs?.find((l: TaskLogEntry) => /archive\s+([^\s]+)\s+created/.test(l.message));
+      const archiveId = createdLog?.message.match(/archive\s+([^\s]+)\s+created/)?.[1];
+      if (archiveId) {
+        const link = document.createElement("a");
+        link.href = `/api/backups/${encodeURIComponent(archiveId)}/download`;
+        link.download = archiveId;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
   }
 
   return (
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>New backup</CardTitle>
+          <CardTitle>Create native .zip backup</CardTitle>
           <CardDescription>
-            Create an archive of site files or a database dump, optionally uploading it to
-            Telegram or an rclone remote.
+            Creates a portable .zip archive stored on the server which you can restore anytime with 1 click or download to your computer.
           </CardDescription>
         </div>
       </CardHeader>
@@ -153,7 +167,7 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
                 <option value="database">Database</option>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Site archives the webroot files; Database dumps the schema.
+                Site compresses webroot into .zip; Database dumps SQL into .zip.
               </p>
             </div>
 
@@ -196,8 +210,26 @@ export function CreateBackupCard({ onRefresh }: CreateBackupCardProps) {
             </div>
           </div>
 
+          <div className="rounded-lg border border-border bg-muted/30 p-3.5">
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={downloadOnComplete}
+                onChange={(event) => setDownloadOnComplete(event.target.checked)}
+                disabled={busy}
+                className="mt-0.5 h-4 w-4 cursor-pointer rounded border-input bg-background/60 accent-brand"
+              />
+              <div>
+                <span className="font-medium text-foreground">Download to PC upon completion</span>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Keeps the backup safely on the server and automatically triggers a local .zip download to your computer when finished.
+                </p>
+              </div>
+            </label>
+          </div>
+
           <fieldset className="grid gap-3" disabled={busy}>
-            <legend className="text-xs font-medium text-muted-foreground">Upload after the backup</legend>
+            <legend className="text-xs font-medium text-muted-foreground">Optional cloud upload</legend>
             <label className="flex items-center gap-2 text-sm text-foreground/80">
               <input
                 type="checkbox"

@@ -6,6 +6,7 @@ package backup
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -51,6 +52,7 @@ const (
 	TaskCreate   = "backup.create"
 	TaskRestore  = "backup.restore"
 	ActionDelete = "backup.delete"
+	ActionUpload = "backup.upload"
 
 	// ActionScheduleSet audits a v0.4 backup schedule change
 	// (docs/api.md section 1.8).
@@ -72,8 +74,8 @@ const (
 // creation time (MariaDB database names may contain uppercase letters).
 var (
 	idRe       = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,199}$`)
-	siteFileRe = regexp.MustCompile(`^site-(.+)-([0-9]{1,10})\.tar\.gz$`)
-	dbFileRe   = regexp.MustCompile(`^database-([a-z0-9_]{1,64})-([0-9]{1,10})\.sql\.gz$`)
+	siteFileRe = regexp.MustCompile(`^site-(.+)-([0-9]{1,10})\.(zip|tar\.gz)$`)
+	dbFileRe   = regexp.MustCompile(`^database-([a-z0-9_]{1,64})-([0-9]{1,10})\.(zip|sql\.gz)$`)
 	remoteRe   = regexp.MustCompile(`^[A-Za-z0-9_.-]+:.+$`)
 )
 
@@ -211,11 +213,11 @@ func (s *Service) startTask(target backupTarget, uploads []UploadTarget, onSucce
 		log("info", fmt.Sprintf("creating %s backup of %s", target.kind, target.source))
 		switch target.kind {
 		case KindSite:
-			if err := writeSiteArchive(archivePath, target.webroot, log); err != nil {
+			if err := writeSiteZip(archivePath, target.webroot, log); err != nil {
 				return err
 			}
 		case KindDatabase:
-			if err := s.dumpDatabase(ctx, archivePath, target.database, log); err != nil {
+			if err := s.dumpDatabaseZip(ctx, archivePath, target.database, log); err != nil {
 				return err
 			}
 		}
@@ -337,6 +339,9 @@ func (s *Service) Restore(ctx context.Context, id string) (store.Task, error) {
 		}
 		run = func(ctx context.Context, log tasks.LogFunc) error {
 			log("info", fmt.Sprintf("restoring archive %s into %s", archive.ID, site.Root))
+			if strings.HasSuffix(archive.ID, ".zip") {
+				return restoreSiteZip(archivePath, site.Root, log)
+			}
 			return restoreSiteArchive(archivePath, site.Root, log)
 		}
 	case KindDatabase:
@@ -345,6 +350,9 @@ func (s *Service) Restore(ctx context.Context, id string) (store.Task, error) {
 			return store.Task{}, err
 		}
 		run = func(ctx context.Context, log tasks.LogFunc) error {
+			if strings.HasSuffix(archive.ID, ".zip") {
+				return s.restoreDatabaseZip(ctx, archivePath, name, log)
+			}
 			return s.restoreDatabase(ctx, archivePath, name, log)
 		}
 	default:
@@ -379,6 +387,83 @@ func (s *Service) Delete(id string) error {
 	}
 	_ = os.Remove(checksumPath(filepath.Join(s.cfg.BackupDir, id)))
 	return nil
+}
+
+// SaveUploaded stores an uploaded backup archive stream, validates its name
+// and integrity, generates the checksum sidecar, and audits the upload.
+func (s *Service) SaveUploaded(name string, r io.Reader) (Archive, error) {
+	if s.cfg.DryRun {
+		return Archive{}, dryRunErr()
+	}
+	name = strings.ToLower(filepath.Base(name))
+	if !idRe.MatchString(name) {
+		return Archive{}, apierr.BadRequest("invalid_id", fmt.Sprintf("invalid backup filename %q", name))
+	}
+	parsed, ok := parseName(name)
+	if !ok {
+		return Archive{}, apierr.BadRequest("invalid_id", fmt.Sprintf("invalid backup filename %q", name))
+	}
+
+	if err := os.MkdirAll(s.cfg.BackupDir, 0o755); err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("create backup dir: %v", err))
+	}
+
+	destPath := filepath.Join(s.cfg.BackupDir, name)
+	tmp, err := os.CreateTemp(s.cfg.BackupDir, ".upload-*.tmp")
+	if err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("create temp upload: %v", err))
+	}
+	tmpName := tmp.Name()
+	keep := false
+	defer func() {
+		if !keep {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+
+	if err := tmp.Chmod(0o600); err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("chmod temp upload: %v", err))
+	}
+
+	if _, err := io.Copy(tmp, r); err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("save upload: %v", err))
+	}
+	if err := tmp.Close(); err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("close upload: %v", err))
+	}
+
+	if err := os.Rename(tmpName, destPath); err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("store upload: %v", err))
+	}
+	keep = true
+
+	checksum, err := writeChecksum(destPath)
+	if err != nil {
+		return Archive{}, err
+	}
+
+	info, err := os.Stat(destPath)
+	if err != nil {
+		return Archive{}, apierr.Internal(fmt.Sprintf("stat uploaded archive: %v", err))
+	}
+
+	archive := Archive{
+		ID:        name,
+		Kind:      parsed.kind,
+		Source:    parsed.source,
+		SizeBytes: info.Size(),
+		CreatedAt: createdAt(parsed, info),
+		Checksum:  checksum,
+	}
+
+	_ = s.audit.Append(audit.Record{
+		Action: ActionUpload,
+		Params: map[string]any{"id": name, "size": archive.SizeBytes, "kind": archive.Kind},
+		Result: audit.ResultAccepted,
+	})
+
+	return archive, nil
 }
 
 func checksumPath(archivePath string) string { return archivePath + ".sha256" }
@@ -461,9 +546,9 @@ type parsedName struct {
 func archiveName(kind, source string, unix int64) string {
 	source = strings.ToLower(source)
 	if kind == KindSite {
-		return fmt.Sprintf("site-%s-%d.tar.gz", source, unix)
+		return fmt.Sprintf("site-%s-%d.zip", source, unix)
 	}
-	return fmt.Sprintf("database-%s-%d.sql.gz", source, unix)
+	return fmt.Sprintf("database-%s-%d.zip", source, unix)
 }
 
 // parseName decodes an archive file name against the two documented patterns.
@@ -532,6 +617,183 @@ func (s *Service) locate(id string) (parsedName, os.FileInfo, error) {
 
 // ---------------------------------------------------------------------------
 // Site archives
+
+// writeSiteZip writes the webroot at root as a standard Deflate-compressed zip
+// archive to archivePath. Symlinks and non-regular entries are skipped. The
+// archive is built under a temp name and atomically renamed into place.
+func writeSiteZip(archivePath, root string, log tasks.LogFunc) error {
+	tmp, err := os.CreateTemp(filepath.Dir(archivePath), ".backup-*.zip")
+	if err != nil {
+		return fmt.Errorf("create temp archive: %w", err)
+	}
+	tmpName := tmp.Name()
+	keep := false
+	defer func() {
+		if !keep {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+	if err := tmp.Chmod(0o600); err != nil {
+		return fmt.Errorf("chmod temp archive: %w", err)
+	}
+
+	zw := zip.NewWriter(tmp)
+	files, skipped := 0, 0
+	walkErr := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if p == root {
+			return nil
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if d.Type()&fs.ModeSymlink != 0 {
+			skipped++
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		switch {
+		case info.IsDir():
+			hdr, err := zip.FileInfoHeader(info)
+			if err != nil {
+				return err
+			}
+			hdr.Name = rel + "/"
+			hdr.Method = zip.Deflate
+			if _, err := zw.CreateHeader(hdr); err != nil {
+				return err
+			}
+			return nil
+		case info.Mode().IsRegular():
+			hdr, err := zip.FileInfoHeader(info)
+			if err != nil {
+				return err
+			}
+			hdr.Name = rel
+			hdr.Method = zip.Deflate
+			w, err := zw.CreateHeader(hdr)
+			if err != nil {
+				return err
+			}
+			f, err := os.Open(p)
+			if err != nil {
+				return err
+			}
+			_, copyErr := io.Copy(w, f)
+			closeErr := f.Close()
+			if copyErr != nil {
+				return copyErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			files++
+			return nil
+		default:
+			skipped++
+			return nil
+		}
+	})
+	if walkErr != nil {
+		return fmt.Errorf("archive webroot %s: %w", root, walkErr)
+	}
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("finish zip stream: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close archive: %w", err)
+	}
+	if err := os.Rename(tmpName, archivePath); err != nil {
+		return fmt.Errorf("store archive %s: %w", archivePath, err)
+	}
+	keep = true
+	log("info", fmt.Sprintf("archived %d files (skipped %d non-regular entries)", files, skipped))
+	return nil
+}
+
+// restoreSiteZip extracts the zip archive at archivePath into root. Every
+// entry is sanitized against path traversal ("..", absolute paths).
+// Existing files are overwritten.
+func restoreSiteZip(archivePath, root string, log tasks.LogFunc) error {
+	zr, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return fmt.Errorf("open zip archive: %w", err)
+	}
+	defer zr.Close()
+
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return fmt.Errorf("create webroot %s: %w", root, err)
+	}
+	root = filepath.Clean(root)
+
+	files, skipped := 0, 0
+	var written int64
+	for _, zf := range zr.File {
+		rel, err := safeEntryPath(zf.Name)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(root, filepath.FromSlash(rel))
+		if !withinRoot(root, target) {
+			return fmt.Errorf("zip entry %q escapes the webroot", zf.Name)
+		}
+		info := zf.FileInfo()
+		if info.IsDir() {
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return fmt.Errorf("create directory %s: %w", target, err)
+			}
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			log("warn", fmt.Sprintf("skipped unsupported zip entry %q", zf.Name))
+			skipped++
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return fmt.Errorf("create directory %s: %w", filepath.Dir(target), err)
+		}
+		mode := info.Mode().Perm()
+		if mode == 0 {
+			mode = 0o644
+		}
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+		if err != nil {
+			return fmt.Errorf("create file %s: %w", target, err)
+		}
+		rc, err := zf.Open()
+		if err != nil {
+			out.Close()
+			return fmt.Errorf("open zip entry %s: %w", zf.Name, err)
+		}
+		n, copyErr := io.Copy(out, rc)
+		rcCloseErr := rc.Close()
+		outCloseErr := out.Close()
+		if copyErr != nil {
+			return fmt.Errorf("write file %s: %w", target, copyErr)
+		}
+		if rcCloseErr != nil {
+			return fmt.Errorf("close zip entry %s: %w", zf.Name, rcCloseErr)
+		}
+		if outCloseErr != nil {
+			return fmt.Errorf("close file %s: %w", target, outCloseErr)
+		}
+		files++
+		written += n
+	}
+	log("info", fmt.Sprintf("restored %d files (%d bytes)", files, written))
+	if skipped > 0 {
+		log("warn", fmt.Sprintf("skipped %d unsupported entries", skipped))
+	}
+	return nil
+}
 
 // writeSiteArchive writes the webroot at root as a gzip tar to archivePath.
 // Symlinks and other non-regular entries are skipped, never followed, so a
@@ -739,6 +1001,157 @@ func withinRoot(root, target string) bool {
 
 // ---------------------------------------------------------------------------
 // Database archives
+
+// dumpDatabaseZip streams mysqldump output for name into a standard zip
+// archive with entry <name>.sql using Deflate compression.
+func (s *Service) dumpDatabaseZip(ctx context.Context, archivePath, name string, log tasks.LogFunc) error {
+	bin, err := exec.LookPath(s.cfg.MySQLDumpBin)
+	if err != nil {
+		return fmt.Errorf("mysqldump %q is not installed on this server", s.cfg.MySQLDumpBin)
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(archivePath), ".backup-*.zip")
+	if err != nil {
+		return fmt.Errorf("create temp archive: %w", err)
+	}
+	tmpName := tmp.Name()
+	keep := false
+	defer func() {
+		if !keep {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+	if err := tmp.Chmod(0o600); err != nil {
+		return fmt.Errorf("chmod temp archive: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, dumpTimeout)
+	defer cancel()
+
+	args := []string{"--skip-add-drop-table", "-u", s.cfg.MySQLRootUser}
+	if s.cfg.MySQLHost != "" {
+		args = append(args, "-h", s.cfg.MySQLHost)
+	}
+	if s.cfg.MySQLPort != "" {
+		args = append(args, "-P", s.cfg.MySQLPort)
+	}
+	args = append(args, name)
+
+	zw := zip.NewWriter(tmp)
+	entryWriter, err := zw.CreateHeader(&zip.FileHeader{
+		Name:   fmt.Sprintf("%s.sql", name),
+		Method: zip.Deflate,
+	})
+	if err != nil {
+		return fmt.Errorf("create zip entry: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, bin, args...)
+	if s.cfg.MySQLRootPass != "" {
+		cmd.Env = append(os.Environ(), "MYSQL_PWD="+s.cfg.MySQLRootPass)
+	}
+	cmd.Stdout = entryWriter
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	log("info", fmt.Sprintf("dumping database %q", name))
+	runErr := cmd.Run()
+	zwErr := zw.Close()
+	tmpErr := tmp.Close()
+	switch {
+	case runErr != nil:
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("mysqldump timed out after %s", dumpTimeout)
+		}
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return fmt.Errorf("mysqldump canceled")
+		}
+		if detail := tailText(stderr.String()); detail != "" {
+			return fmt.Errorf("mysqldump failed: %w: %s", runErr, detail)
+		}
+		return fmt.Errorf("mysqldump failed: %w", runErr)
+	case zwErr != nil:
+		return fmt.Errorf("finish zip stream: %w", zwErr)
+	case tmpErr != nil:
+		return fmt.Errorf("close archive: %w", tmpErr)
+	}
+	if err := os.Rename(tmpName, archivePath); err != nil {
+		return fmt.Errorf("store archive %s: %w", archivePath, err)
+	}
+	keep = true
+	return nil
+}
+
+// restoreDatabaseZip feeds the sql dump inside zip archive at archivePath into
+// the mysql client for name.
+func (s *Service) restoreDatabaseZip(ctx context.Context, archivePath, name string, log tasks.LogFunc) error {
+	bin, err := exec.LookPath(s.cfg.MySQLBin)
+	if err != nil {
+		return fmt.Errorf("mysql client %q is not installed on this server", s.cfg.MySQLBin)
+	}
+	zr, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return fmt.Errorf("open zip archive: %w", err)
+	}
+	defer zr.Close()
+
+	var sqlFile *zip.File
+	for _, f := range zr.File {
+		if strings.HasSuffix(strings.ToLower(f.Name), ".sql") {
+			sqlFile = f
+			break
+		}
+	}
+	if sqlFile == nil {
+		return fmt.Errorf("no .sql dump file found in backup archive %s", filepath.Base(archivePath))
+	}
+
+	rc, err := sqlFile.Open()
+	if err != nil {
+		return fmt.Errorf("open zip dump entry: %w", err)
+	}
+	defer rc.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, restoreTimeout)
+	defer cancel()
+
+	args := []string{"-u", s.cfg.MySQLRootUser}
+	if s.cfg.MySQLHost != "" {
+		args = append(args, "-h", s.cfg.MySQLHost)
+	}
+	if s.cfg.MySQLPort != "" {
+		args = append(args, "-P", s.cfg.MySQLPort)
+	}
+	args = append(args, name)
+
+	cmd := exec.CommandContext(ctx, bin, args...)
+	if s.cfg.MySQLRootPass != "" {
+		cmd.Env = append(os.Environ(), "MYSQL_PWD="+s.cfg.MySQLRootPass)
+	}
+	counter := &countReader{r: rc}
+	cmd.Stdin = counter
+	cmd.Stdout = io.Discard
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	log("info", fmt.Sprintf("feeding archive into database %q", name))
+	runErr := cmd.Run()
+	if runErr != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("mysql restore timed out after %s", restoreTimeout)
+		}
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return fmt.Errorf("mysql restore canceled")
+		}
+		if detail := tailText(stderr.String()); detail != "" {
+			return fmt.Errorf("mysql restore failed: %w: %s", runErr, detail)
+		}
+		return fmt.Errorf("mysql restore failed: %w", runErr)
+	}
+	log("info", fmt.Sprintf("restored %d bytes into database %q", counter.n, name))
+	return nil
+}
 
 // dumpDatabase streams mysqldump output for name through gzip into
 // archivePath. The root password travels via MYSQL_PWD, never in argv. The

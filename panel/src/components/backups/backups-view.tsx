@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { ArchivesCard } from "@/components/backups/archives-card";
 import { CreateBackupCard } from "@/components/backups/create-backup-card";
+import { UploadBackupCard } from "@/components/backups/upload-backup-card";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -61,6 +62,10 @@ export function BackupsView() {
       ) : null}
 
       <CreateBackupCard onRefresh={refresh} />
+
+      <div className="mt-6">
+        <UploadBackupCard onRefresh={refresh} />
+      </div>
 
       <div className="mt-6">
         {state === "loading" ? (
