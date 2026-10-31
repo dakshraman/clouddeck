@@ -32,8 +32,8 @@ import (
 // Installable lists the curated versions offered for one-click install.
 func Installable() map[string][]string {
 	return map[string][]string{
-		KindNode: {"20", "22", "24"},
-		KindPHP:  {"8.1", "8.2", "8.3", "8.4"},
+		KindNode: {"18", "20", "22", "24", "26"},
+		KindPHP:  {"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"},
 	}
 }
 
@@ -109,7 +109,7 @@ func (i *Installer) Validate(kind, version string) error {
 		return apierr.BadRequest("invalid_kind", "only node and php can be installed")
 	}
 	if kind == KindNode && !nodeMajorRe.MatchString(version) {
-		return apierr.BadRequest("invalid_version", "node version must be a major like 20, 22 or 24")
+		return apierr.BadRequest("invalid_version", "node version must be a major like 18, 20, 22, 24 or 26")
 	}
 	if kind == KindPHP && !phpVersionRe.MatchString(version) {
 		return apierr.BadRequest("invalid_version", "php version must look like 8.2")

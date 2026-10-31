@@ -18,7 +18,7 @@
 set -eu
 
 REPO="dakshraman/clouddeck"
-NODE_VERSION="22.11.0"
+NODE_VERSION="22.23.4"
 VERSION="latest"
 PREFIX=""
 DATADIR=""
@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.30"
+      VERSION="v0.6.31"
     fi
   fi
 }
