@@ -33,9 +33,6 @@ export function Navbar() {
             <span className="text-base font-bold tracking-tight text-[#14242B]">
               CloudDeck
             </span>
-            <span className="rounded-full bg-[#74B8CC]/15 px-2 py-0.5 text-[10px] font-semibold text-[#235361]">
-              Latest Stable
-            </span>
           </div>
         </a>
 
