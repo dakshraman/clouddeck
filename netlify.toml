@@ -1,6 +1,6 @@
 [build]
   publish = "site/out"
-  command = "cd site && npm run build"
+  command = "cd site && npm install && npm run build"
 
 [[headers]]
   for = "/*"
