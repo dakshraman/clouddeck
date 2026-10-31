@@ -12,6 +12,7 @@ The API contract is frozen in [`../../docs/api.md`](../../docs/api.md) (section 
 | Variable | Default | Purpose |
 |---|---|---|
 | `AGENT_LISTEN` | `127.0.0.1:9090` | HTTP listen address (keep it on localhost) |
+| `AGENT_AUTH_TOKEN` | (generated) | Required authentication token passed via `X-CloudDeck-Agent-Token` header |
 | `AGENT_STATE_DIR` | `./data` | `state.json`, `tasks.json`, `audit.log`, dry-run configs |
 | `AGENT_NGINX_SITES_DIR` | `/etc/nginx/conf.d` | Where site vhosts are written |
 | `AGENT_WEBROOT` | `/www/wwwroot` | Parent dir for site document roots |
@@ -45,8 +46,7 @@ Tests: `go test ./...`
 
 ## Security notes
 
-- **Localhost only.** Default bind is `127.0.0.1`; there is no auth in v0.1, so
-  never expose the port publicly.
+- **Localhost & Token Authentication.** Default bind is `127.0.0.1:9090`. All API endpoints (except `/v1/health`) require the secret `X-CloudDeck-Agent-Token` header. Never expose the port publicly without TLS and firewall isolation.
 - **No shell, ever.** Commands run via `exec.CommandContext` with explicit
   argument arrays (`internal/safeexec`); callers can never inject shell strings.
 - **Validated input.** Domains must match the frozen regex; filesystem paths are

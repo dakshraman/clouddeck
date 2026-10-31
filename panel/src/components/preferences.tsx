@@ -30,11 +30,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (isThemeId(storedTheme)) setThemeState(storedTheme);
+      let storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (storedTheme === "clouddeck") {
+        storedTheme = "daylight";
+        window.localStorage.setItem(THEME_STORAGE_KEY, "daylight");
+      }
+      if (isThemeId(storedTheme)) setThemeState(storedTheme as ThemeId);
       setReduceMotionState(window.localStorage.getItem(MOTION_STORAGE_KEY) === "true");
     } catch {
-      // Storage can be blocked; keep the defaults (Luma, follow the OS setting).
+      // Storage can be blocked; keep the defaults (Daylight, follow the OS setting).
     }
   }, []);
 

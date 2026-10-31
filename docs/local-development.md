@@ -27,18 +27,19 @@ irm https://clouddeck.dakshraman.in/install.ps1 | iex
 
 ### macOS (Apple Silicon M1/M2/M3/M4 & Intel)
 
-Open Terminal and run:
+Open Terminal and run the single universal installer:
 
 ```bash
-curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash
 ```
 
 > **What this does:**
 > 1. Automatically detects CPU architecture (`arm64` Apple Silicon or `x86_64` Intel) and provisions native binaries.
-> 2. Provisions the native web stack via Homebrew: **Nginx**, **MariaDB**, **PHP**, and **Node.js**.
-> 3. Configures background daemon management using macOS `launchctl` LaunchAgents and `brew services`.
-> 4. Installs the CloudDeck Local Root CA into the macOS System Keychain (`security add-trusted-cert`) for trusted HTTPS.
-> 5. Symlinks the native macOS CLI command `clouddeck` to `/usr/local/bin/clouddeck` or `~/.clouddeck/bin/clouddeck`.
+> 2. Boots the interactive Uni-themed terminal selector allowing you to choose your installation profile.
+> 3. Provisions the native web stack via Homebrew: **Nginx**, **MariaDB**, **PHP**, and **Node.js**.
+> 4. Configures background daemon management using macOS `launchctl` LaunchAgents and `brew services`.
+> 5. Installs the CloudDeck Local Root CA into the macOS System Keychain (`security add-trusted-cert`) for trusted HTTPS.
+> 6. Symlinks the native macOS CLI command `clouddeck` to `/usr/local/bin/clouddeck` or `~/.clouddeck/bin/clouddeck`.
 
 ---
 

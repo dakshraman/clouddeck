@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      data-theme="clouddeck"
+      data-theme="daylight"
       className={`${spaceGrotesk.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           // Applies stored appearance preferences before first paint.
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("clouddeck.theme");if(${themeIds}.indexOf(t)>-1){document.documentElement.dataset.theme=t}if(localStorage.getItem("clouddeck.reduce-motion")==="true"){document.documentElement.dataset.reduceMotion="true"}}catch(e){}`,
+            __html: `try{var t=localStorage.getItem("clouddeck.theme");if(t==="clouddeck"){t="daylight";localStorage.setItem("clouddeck.theme","daylight")}if(${themeIds}.indexOf(t)>-1){document.documentElement.dataset.theme=t}if(localStorage.getItem("clouddeck.reduce-motion")==="true"){document.documentElement.dataset.reduceMotion="true"}}catch(e){}`,
           }}
         />
         {children}

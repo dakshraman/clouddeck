@@ -8,10 +8,15 @@ Target: a fresh Ubuntu 24.04 VPS with root or sudo. Two components are deployed:
 ## 0. One-line install (recommended)
 
 ```sh
-curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
 ```
 
-Downloads release artifacts with curl — the agent static binary (amd64/arm64) and a self-contained panel bundle plus pinned Node.js runtime. On Debian/Ubuntu it also provisions the host web stack and shipped security/DNS integrations with `apt-get` in the same command: nginx, PHP-FPM + CLI and the common extensions (`php-mysql`, `php-curl`, `php-gd`, `php-mbstring`, `php-xml`, `php-zip`, `php-intl`, `php-bcmath`, `php-opcache`), MariaDB server/client, certbot (webroot mode), PowerDNS with SQLite, ModSecurity + OWASP CRS, fail2ban, UFW, git, unzip, and SQLite. It creates `/www/wwwroot`, configures the baseline fail2ban jails and PowerDNS database, enables and starts nginx, MariaDB, PowerDNS, fail2ban, the installed `php*-fpm` unit(s) and `certbot.timer`, and exposes the pinned Node 22 runtime as `/usr/local/bin/{node,npm,npx}` when those names are not already taken, so hosted Node apps and `npm` work. On hosts without `apt-get` the panel and agent still install, but package provisioning is skipped with a clear warning — install the stack from step 1 manually.
+> **Fallback via GitHub Releases:**
+> ```sh
+> curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+> ```
+
+The unified installer automatically detects your operating system, launches an interactive **Uni-themed terminal selector** (allowing you to pick Recommended Full LEMP, Fast Core, Custom, or Minimal), and downloads the latest stable release artifacts: the agent static binary (`amd64`/`arm64`) and the self-contained Next.js 15 panel bundle plus pinned Node.js runtime. On Debian/Ubuntu it provisions the host web stack and shipped security/DNS integrations with `apt-get`: nginx, PHP-FPM + CLI and common extensions (`php-mysql`, `php-curl`, `php-gd`, `php-mbstring`, `php-xml`, `php-zip`, `php-intl`, `php-bcmath`, `php-opcache`), MariaDB server/client, certbot (webroot mode), PowerDNS with SQLite, ModSecurity + OWASP CRS, fail2ban, UFW, git, unzip, and SQLite. It creates `/www/wwwroot`, configures the baseline fail2ban jails and PowerDNS database, enables and starts nginx, MariaDB, PowerDNS, fail2ban, the installed `php*-fpm` unit(s) and `certbot.timer`, and exposes the pinned Node 22 runtime as `/usr/local/bin/{node,npm,npx}` when those names are not already taken.
 
 Installs to `/opt/clouddeck`, state in `/var/lib/clouddeck`, config in `/etc/clouddeck` (generated secrets, mode 0600), and enables `clouddeck-agent` + `clouddeck-panel` systemd units (or `$PREFIX/run/start.sh` when systemd is unavailable). The admin account is created in the browser on first visit (first-run setup wizard). Re-running upgrades the binaries and keeps config; a same-version rerun refreshes config/services without re-downloading, and `--force` re-downloads the binaries. `--uninstall` removes binaries (add `--purge` for data too); distro packages are left in place. Private repo: add `-H "Authorization: token <t>"` to the curl and `--gh-token <t>` to the installer.
 

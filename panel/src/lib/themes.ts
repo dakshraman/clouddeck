@@ -1,15 +1,9 @@
 export const THEMES = [
   {
-    id: "clouddeck",
-    name: "CloudDeck Uni",
-    description: "Deep marine teal, sky powder cyan, and warm peach accent.",
-    preview: ["#235361", "#74B8CC", "#FAAA93"],
-  },
-  {
     id: "daylight",
     name: "Daylight",
-    description: "Clean light surfaces, cyan edge.",
-    preview: ["hsl(210 20% 98%)", "hsl(0 0% 100%)", "hsl(191 82% 32%)"],
+    description: "CloudDeck Uni palette — clean warm surfaces, marine teal, and peach accent.",
+    preview: ["#FAF7F5", "#235361", "#FAAA93"],
   },
   {
     id: "luma",
@@ -51,12 +45,13 @@ export const THEMES = [
 
 export type ThemeId = (typeof THEMES)[number]["id"];
 
-export const DEFAULT_THEME: ThemeId = "clouddeck";
+export const DEFAULT_THEME: ThemeId = "daylight";
 
 export function isThemeId(value: unknown): value is ThemeId {
-  return typeof value === "string" && THEMES.some((theme) => theme.id === value);
+  return typeof value === "string" && (THEMES.some((theme) => theme.id === value) || value === "clouddeck");
 }
 
-export function getTheme(id: ThemeId) {
-  return THEMES.find((theme) => theme.id === id) ?? THEMES[0];
+export function getTheme(id: ThemeId | "clouddeck") {
+  const targetId = id === "clouddeck" ? "daylight" : id;
+  return THEMES.find((theme) => theme.id === targetId) ?? THEMES[0];
 }

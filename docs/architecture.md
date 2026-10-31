@@ -62,16 +62,20 @@ Future (v0.5, multi-server): mutual TLS between panel and agents, agent tokens, 
 | `agent/data/tasks.json` | Last 200 tasks incl. logs |
 | `agent/data/audit.log` | JSONL audit trail |
 | `agent/data/dryrun/` | Rendered nginx configs in dry-run mode |
-| `panel/data/users.json` | Panel users (bcrypt hashes) |
+| `panel/data/users.json` | Panel users (bcrypt hashes, 2FA secrets) |
+| `panel/data/sessions/` | Encrypted session state |
+
+## Built-In Subsystems
+
+1. **Bare-Metal LEMP Stack**: Nginx virtual hosts under `/www/wwwroot`, isolated PHP-FPM Unix sockets for multi-PHP (8.1, 8.2, 8.3, 8.4) coexistence, and MariaDB.
+2. **Polyglot App Hosting**: Supervisor-backed processes (systemd, PM2, or Supervisord) supporting Node.js, Python, Go, Ruby, and Bun with automatic port routing.
+3. **Production Email Engine**: Postfix + Dovecot with mailboxes, aliases, quotas, SHA-512 crypt passwords, and automated DKIM/SPF/DMARC record publishing.
+4. **Authoritative DNS**: PowerDNS SQLite/MySQL backend for local and public authoritative nameserver zones.
+5. **Security & WAF**: Host firewall (UFW/firewalld), fail2ban jail management, and ModSecurity + OWASP Core Rule Set.
+6. **Unified Cross-Platform Installer**: Single universal installer (`install.sh`) detecting Linux, macOS, and Windows WSL 2 with interactive Uni-themed selection.
+7. **Primary Design Theme**: Uni 6-color palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) default across panel, site, and terminal.
 
 ## Deployment topologies
 
-- **Current:** single server — panel + agent + nginx on one machine. The panel
-  may listen publicly for initial setup, but production deployments should put
-  it behind TLS (Caddy/nginx); the authenticated agent stays on localhost.
-- **v0.5:** split — panel on its own host, managing many servers, one agent per server, mutual TLS.
-- **v1.0:** SaaS — the RunCloud/Ploi model (bring your own server) with billing and white-label.
-
-## Non-goals for v0.1
-
-Email hosting (deliverability and abuse are a support nightmare), DNS UI, file manager, billing, multi-server. See `docs/roadmap.md`.
+- **Current:** Single server or local dev workstation — panel + agent + nginx on one machine (Linux bare-metal VPS, macOS workstation via Homebrew/LaunchAgents, or Windows via WSL 2).
+- **Multi-Server:** Split panel managing remote servers via authenticated agent tokens over TLS.

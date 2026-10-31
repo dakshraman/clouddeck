@@ -10,21 +10,21 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/version-v0.6.27-1cc8e8?style=flat-square" alt="Version v0.6.27" /></a>
-  <img src="https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square" alt="Platform Linux" />
-  <img src="https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square" alt="Panel Next.js 15" />
-  <img src="https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square" alt="Agent Go stdlib" />
-  <a href="https://github.com/dakshraman/clouddeck/stargazers"><img src="https://img.shields.io/github/stars/dakshraman/clouddeck?style=flat-square&logo=github&color=1cc8e8" alt="GitHub Stars" /></a>
-  <a href="https://github.com/dakshraman/clouddeck/issues"><img src="https://img.shields.io/github/issues/dakshraman/clouddeck?style=flat-square&color=1cc8e8" alt="GitHub Issues" /></a>
-  <a href="#license"><img src="https://img.shields.io/badge/license-Open%20Source-1cc8e8?style=flat-square" alt="License Open Source" /></a>
+  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/release-latest%20stable-74b8cc?style=flat-square" alt="Latest Stable Release" /></a>
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20WSL-74b8cc?style=flat-square" alt="Platform Support" />
+  <img src="https://img.shields.io/badge/panel-Next.js%2015-74b8cc?style=flat-square" alt="Panel Next.js 15" />
+  <img src="https://img.shields.io/badge/agent-Go%20stdlib-74b8cc?style=flat-square" alt="Agent Go stdlib" />
+  <a href="https://github.com/dakshraman/clouddeck/stargazers"><img src="https://img.shields.io/github/stars/dakshraman/clouddeck?style=flat-square&logo=github&color=74b8cc" alt="GitHub Stars" /></a>
+  <a href="https://github.com/dakshraman/clouddeck/issues"><img src="https://img.shields.io/github/issues/dakshraman/clouddeck?style=flat-square&color=74b8cc" alt="GitHub Issues" /></a>
+  <a href="#license"><img src="https://img.shields.io/badge/license-Open%20Source-74b8cc?style=flat-square" alt="License Open Source" /></a>
 </p>
 
 <p align="center">
   <a href="https://clouddeck.dakshraman.in">Website</a> ·
-  <a href="#quick-install">Quick Install</a> ·
+  <a href="#-1-command-universal-installation">Quick Install</a> ·
   <a href="#-local-development-xampp--wamp--mamp-alternative">Local Dev Suite</a> ·
-  <a href="#why-clouddeck--comparison-matrix">Comparison Matrix</a> ·
-  <a href="#whats-new-in-v0624--v0625">What's New</a> ·
+  <a href="#-comparison-matrix">Comparison Matrix</a> ·
+  <a href="#-whats-new-in-recent-releases">What's New</a> ·
   <a href="docs/">Docs</a> ·
   <a href="docs/local-development.md">Local Dev Guide</a> ·
   <a href="docs/api.md">API Reference</a> ·
@@ -177,45 +177,55 @@ How does CloudDeck compare against traditional and modern control panels?
 
 ---
 
-## 🌟 What's New in v0.6.26 & v0.6.27
+## 🌟 What's New in Recent Releases
 
-### 📦 Native Dual-Mode `.zip` Backups & In-Browser Restore (v0.6.27)
-- **Universal `.zip` Archives**: Backups for both entire site webroots and MariaDB databases are now packaged as standard, cross-platform `.zip` archives using Go stdlib Deflate compression (zero external dependencies).
-- **Mode 1 — Local PC Cold Storage & Restore**: Download `.zip` backups directly to your personal workstation upon creation or from the archives table. Restore anytime with the new drag-and-drop **"Upload & Restore Backup"** dropzone.
+### 🚀 Single Unified Cross-Platform Installer with Interactive Uni UI
+- **One Script for Every Platform**: `install.sh` automatically detects Linux, macOS, and Windows WSL 2, query-resolving the latest stable release dynamically.
+- **Interactive Component Selector**: Replaces separate fast/standard scripts. Boots an interactive checklist where users choose from presets (**Recommended Full Stack**, **Fast Core Development**, **Custom Checklist**, or **Minimal Deck**) or toggle individual packages.
+- **Full Uni 6-Color Terminal Palette**: Styled with ANSI 24-bit TrueColor (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) featuring styled headers, system detection cards, and completion summaries.
+- **Unattended Mode**: Supports `--yes` (`-y`) for zero-prompt automated provisioning in CI/CD and scripted deployments.
+
+### 🎨 Uni 6-Color Primary Theme & Next.js 15 Marketing Site
+- **Primary Design Theme**: Established the 6-color Uni palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) as the default primary theme across the panel, marketing site, terminal, and brand assets.
+- **Modern Next.js 15 Site**: Migrated the marketing site to Next.js 15 App Router, React 19, and Tailwind CSS with unified responsive breakpoints, interactive deck preview, bento grid, and 1-click terminal copy.
+
+### 📦 Native Dual-Mode `.zip` Backups & In-Browser Restore
+- **Universal `.zip` Archives**: Backups for both entire site webroots and MariaDB databases are packaged as standard, cross-platform `.zip` archives using Go stdlib Deflate compression (zero external dependencies).
+- **Mode 1 — Local PC Cold Storage & Restore**: Download `.zip` backups directly to your personal workstation upon creation or from the archives table. Restore anytime with the drag-and-drop **"Upload & Restore Backup"** dropzone.
 - **Mode 2 — Server Storage & 1-Click Restore**: Keep backups securely stored on the server under `/var/lib/clouddeck/agent/backups/` and perform instant, 1-click in-place restores without downloading.
 - **Full Backward Compatibility**: Automatically recognizes and restores legacy `.tar.gz` and `.sql.gz` archives with zero breaking changes.
 - **Auto-Download Option**: Check "Download to PC upon completion" during backup creation to keep a copy on the server while triggering a browser download to your local machine as soon as the archive is ready.
 
-### ⚡ 50%+ Faster & Low-RAM Resilient Installer (v0.6.27)
+### ⚡ 50%+ Faster & Low-RAM Resilient Installer
 - **Automated Swapfile Generation**: Detects systems with <2GB RAM and automatically provisions a safe 1GB swapfile, preventing memory crashes during Node.js compilation and apt dependency resolution.
 - **Debconf Non-Interactive Pre-seeding**: Bypasses `man-db` cache regenerations and service prompt locks to prevent terminal hangs.
 - **Parallel Asset Downloads**: Fast parallel fetching of static dashboard bundles and precompiled binaries.
 - **Existing Node.js Reuse**: Use `--system-node` flag to skip Node.js reinstallation if already installed on the host.
 
-### 🗄️ Isolated phpMyAdmin & Unified Brand Icon (v0.6.26)
+### 🗄️ Isolated phpMyAdmin & Unified Brand Icon
 - **Strict Database Tree Isolation**: Opening phpMyAdmin from a database row now dynamically restricts phpMyAdmin's navigation sidebar strictly to that chosen database via `only_db` and session cookie.
 - **Hidden System Schemas**: `[information_schema]`, `[mysql]`, `[performance_schema]`, and `[sys]` are completely hidden from the user navigation panel.
-- **Unified Brand & App Icon**: Replaced generic icons across the entire panel (Sidebar, Login Form, Setup Form, Favicons, PWA icons, and Website) with the official 3-tier isometric layered deck in CloudDeck brand cyan (`#1cc8e8`).
+- **Unified Brand & App Icon**: Clean 3-tier isometric layered deck vector icon across the panel sidebar, login/setup authentication screens, favicons, PWA icons, and landing site.
 
-### 🛡️ 1-Click Panel SSL & Auto HTTPS Reverse Proxy (v0.6.25)
+### 🛡️ 1-Click Panel SSL & Auto HTTPS Reverse Proxy
 - **Instant Panel HTTPS on Port 2083**: Switch your control panel to encrypted TLS with one click.
 - **Self-Signed Certificates with IP SANs**: Directly accessing `https://<server-ip>:2083` automatically includes your server's public and private IP addresses in Subject Alternative Names (SANs) for valid TLS handshakes.
 - **Let's Encrypt & Custom TLS**: Issue automatic Let's Encrypt certificates for domain-based panel access, or install custom certificates.
 - **Automated Reverse Proxy**: Reconfigures nginx to terminate SSL on port 2083, forward to the internal panel listener (port 2082), enforce HTTP->HTTPS redirect, and automatically enable secure cookie flags.
 
-### 🗄️ Deep-Linked phpMyAdmin & 1-Click SQL Dump/Restore (v0.6.24 & v0.6.25)
-- **Direct Database Deep Links**: Every database row in the panel now features a 1-click **"phpMyAdmin"** action that opens phpMyAdmin focused directly on that database schema without re-authenticating.
+### 🗄️ Deep-Linked phpMyAdmin & 1-Click SQL Dump/Restore
+- **Direct Database Deep Links**: Every database row in the panel features a 1-click **"phpMyAdmin"** action that opens phpMyAdmin focused directly on that database schema without re-authenticating.
 - **1-Click SQL Export & Dump**: Export live MariaDB databases to `.sql` or compressed `.sql.gz` files instantly.
 - **In-Place SQL Restore**: Upload any SQL backup file directly from your browser to restore databases in place with safety confirmations.
 - **Fixed Session Permissions**: Guaranteed proper file ownership on `/var/lib/php/sessions` preventing aaPanel-style login crashes.
 
-### 🔐 Built-in 2FA TOTP Two-Factor Authentication (v0.6.24)
+### 🔐 Built-in 2FA TOTP Two-Factor Authentication
 - **RFC 6238 Standard**: Seamless compatibility with Google Authenticator, 1Password, Authy, Apple Passwords, and Microsoft Authenticator.
 - **Live SVG QR Codes**: Rendered dynamically in-browser for quick scanning.
 - **8 Cryptographic Recovery Codes**: Generates single-use emergency backup codes if your authenticator device is lost.
 - **Timing-Safe Verification**: Constant-time token comparisons (`timingSafeEqual`) with clock skew compensation.
 
-### ⚡ Advanced File Manager & Code Editor (v0.6.24)
+### ⚡ Advanced File Manager & Code Editor
 - **In-Browser Syntax-Highlighted Code Editor**: Edit PHP, JavaScript, TypeScript, HTML, CSS, JSON, and YAML files directly from the panel.
 - **File Permissions (`chmod`)**: Inspect and adjust octal permissions (`0755`, `0644`) with an intuitive visual dialog.
 - **Archive Creation & Extraction**: Compress files/folders into `.tar.gz` or `.zip` archives and extract uploaded archives on the server.
@@ -342,7 +352,7 @@ sudo clouddeck user passwd          # Reset password (invalidates all sessions)
 
 # Upgrades & Maintenance
 sudo clouddeck update               # Upgrade to latest release
-sudo clouddeck update v0.6.26       # Install a specific pinned release
+sudo clouddeck update [tag]         # Optionally pin to a specific release tag
 sudo clouddeck reinstall            # Refresh current version binaries
 sudo clouddeck uninstall            # Remove binaries/services (keeps data)
 sudo clouddeck uninstall --purge    # Remove CloudDeck and all configuration/data

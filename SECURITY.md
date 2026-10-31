@@ -20,9 +20,7 @@ CloudDeck separates the browser-facing panel from privileged host operations:
 - Mutations use validated operation inputs, explicit command argument arrays,
   atomic state writes, and JSONL audit entries.
 
-The public panel should be served over HTTPS. The installer binds the panel to
-`0.0.0.0:2083` for initial access, but production deployments should use an
-HTTPS reverse proxy on ports 80/443 and keep the agent on localhost.
+The public panel should be served over HTTPS. CloudDeck includes built-in **1-Click Panel SSL** (supporting Let's Encrypt for domain names or Self-Signed TLS certificates with IP SANs for raw server IP access without browser warnings) on port 2083 with automated HTTP-to-HTTPS redirection, while the privileged Go agent remains strictly isolated on `127.0.0.1:9090`.
 
 ## Reporting a vulnerability
 

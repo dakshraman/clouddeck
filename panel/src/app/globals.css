@@ -4,54 +4,56 @@
 
 @layer base {
   :root,
+  html[data-theme="daylight"],
   html[data-theme="clouddeck"] {
-    color-scheme: dark;
+    color-scheme: light;
 
-    /* CloudDeck Uni Primary 6-Color Theme:
-       #74B8CC (Sky Powder Teal), #235361 (Deep Marine Teal), #FAAA93 (Pastel Peach),
+    /* CloudDeck Uni Primary Palette merged into Daylight:
+       #FAF7F5 (Warm Canvas), #FFFFFF (Clean Card Surface), #14242B (Deep Marine Charcoal),
+       #235361 (Deep Marine Teal), #74B8CC (Sky Powder Teal), #FAAA93 (Pastel Peach),
        #6494AC (Dusty Steel Teal), #886351 (Warm Chestnut), #D2ADAC (Soft Mauve Rose) */
-    --background: 198 42% 7%;
-    --foreground: 195 25% 96%;
+    --background: 24 33% 97%;
+    --foreground: 198 36% 12%;
 
-    --card: 196 38% 11%;
-    --card-foreground: 195 25% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 198 36% 12%;
 
-    --popover: 196 40% 10%;
-    --popover-foreground: 195 25% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 198 36% 12%;
 
     --primary: 194 47% 26%;
-    --primary-foreground: 194 47% 96%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 198 32% 16%;
-    --secondary-foreground: 195 25% 96%;
+    --secondary: 28 32% 94%;
+    --secondary-foreground: 198 36% 14%;
 
-    --muted: 198 28% 15%;
-    --muted-foreground: 198 18% 64%;
+    --muted: 28 25% 95%;
+    --muted-foreground: 195 16% 40%;
 
-    --accent: 194 47% 63%;
-    --accent-foreground: 194 47% 12%;
+    --accent: 194 45% 92%;
+    --accent-foreground: 194 47% 18%;
 
-    --destructive: 358.7 100% 69.6%;
-    --destructive-foreground: 0 0% 9.1%;
+    --destructive: 358 72% 48%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 152 55% 45%;
-    --warning: 13 92% 78%;
+    --success: 152 55% 36%;
+    --warning: 18 85% 42%;
 
-    --border: 2 15% 24%;
-    --input: 198 28% 18%;
+    --border: 2 18% 86%;
+    --input: 200 16% 76%;
     --ring: 194 47% 63%;
     --radius: 0.625rem;
 
-    --sidebar: 198 44% 9%;
-    --sidebar-foreground: 195 25% 96%;
-    --sidebar-border: 198 28% 15%;
-    --sidebar-accent: 196 35% 15%;
-    --sidebar-accent-foreground: 194 47% 63%;
-    --sidebar-primary: 194 47% 63%;
-    --sidebar-primary-foreground: 194 47% 12%;
+    --sidebar: 24 30% 95.5%;
+    --sidebar-foreground: 198 36% 12%;
+    --sidebar-border: 2 18% 87%;
+    --sidebar-accent: 194 45% 91%;
+    --sidebar-accent-foreground: 194 47% 18%;
+    --sidebar-primary: 194 47% 26%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-ring: 194 47% 63%;
 
-    --brand: 194 47% 63%;
+    --brand: 194 58% 30%;
 
     --uni-sky: #74B8CC;
     --uni-marine: #235361;
@@ -107,52 +109,6 @@
     --sidebar-ring: 189.5 100% 42.9%;
 
     --brand: 189.5 100% 42.9%;
-  }
-
-  html[data-theme="daylight"] {
-    color-scheme: light;
-
-    --background: 210 20% 98%;
-    --foreground: 222 32% 12%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222 32% 12%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 32% 12%;
-
-    --primary: 191 82% 32%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 18% 93%;
-    --secondary-foreground: 222 32% 16%;
-
-    --muted: 210 18% 94%;
-    --muted-foreground: 215 16% 40%;
-
-    --accent: 191 38% 91%;
-    --accent-foreground: 191 82% 20%;
-
-    --destructive: 358 72% 48%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 142 62% 31%;
-    --warning: 32 86% 40%;
-
-    --border: 214 20% 86%;
-    --input: 214 20% 80%;
-    --ring: 191 82% 32%;
-
-    --sidebar: 216 24% 95%;
-    --sidebar-foreground: 222 32% 12%;
-    --sidebar-border: 214 20% 86%;
-    --sidebar-accent: 191 38% 91%;
-    --sidebar-accent-foreground: 191 82% 20%;
-    --sidebar-primary: 191 82% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-ring: 191 82% 32%;
-
-    --brand: 191 82% 32%;
   }
 
   /* Alternate dark palettes — set by the Appearance theme picker. */

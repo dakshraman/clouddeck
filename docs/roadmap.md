@@ -61,17 +61,22 @@ upgrade, not a reskin. Motion is curated (animated icons, counters, dialog/tab
 transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
 (v0.5.2)** on top of the v0.5.0 feature release.
 
-## v0.6 — app runtimes, firewall + security (shipped: v0.6.0; UI patch: v0.6.1)
+## v0.6 — app runtimes, firewall, local dev suite & primary theme
 
-**v0.6.1** replaces the placeholder Settings page with account profile/email, password change, reduced-motion preference, live server/agent details, session policy, sign out and a GitHub release checker.
-
-- **Application runtimes** — detects Node.js, Python, Go, Ruby, PHP and custom; version pickers in New Site; static sites unchanged
-- **App workloads** — one supervised process per app, automatic local port allocation, per-app env vars, auto-restart, live logs, start/stop/restart; a single app owns `/`, several apps are proxied under `/<name>/`
-- **Supervision backends** — systemd (default), PM2 and supervisord, selected with `AGENT_APP_SUPERVISOR`
-- **Firewall** — ufw/firewalld rule management (allow/deny, tcp/udp, source CIDR), enable/disable, state + audit trail
-- **Security surface** — ModSecurity + OWASP CRS detection, fail2ban jails (enable/disable, unban), SSH hardening posture and a host audit checklist
-- Honest caveats: ModSecurity is *detected and surfaced*, not compiled into a third-party nginx; on hosts without the module the per-site nginx-rule WAF (v0.5) remains the enforcement path.
-- Deferred: per-app custom domains, zero-downtime deploys, one-click app installers
+- **Application runtimes** — detects Node.js, Python, Go, Ruby, PHP and custom; version pickers in New Site; static sites unchanged.
+- **App workloads** — one supervised process per app, automatic local port allocation, per-app env vars, auto-restart, live logs, start/stop/restart; a single app owns `/`, several apps are proxied under `/<name>/`.
+- **Supervision backends** — systemd (default), PM2 and supervisord, selected with `AGENT_APP_SUPERVISOR`.
+- **Firewall** — ufw/firewalld rule management (allow/deny, tcp/udp, source CIDR), enable/disable, state + audit trail.
+- **Security surface** — ModSecurity + OWASP CRS detection, fail2ban jails (enable/disable, unban), SSH hardening posture and a host audit checklist.
+- **1-Click Panel SSL** — immediate TLS on port 2083 using Self-Signed certificates with IP SANs or Let's Encrypt with automated nginx proxy and HTTP->HTTPS redirection.
+- **Two-Factor Authentication (2FA TOTP)** — RFC 6238 TOTP authenticator app support with SVG QR codes and 8 emergency single-use cryptographic recovery codes.
+- **Deep-Linked Isolated phpMyAdmin** — direct 1-click launch into specific database schemas; hides system schemas and restricts navigation to selected DB.
+- **1-Click SQL Dump & Restore** — instant MariaDB export to `.sql` or compressed `.sql.gz` files and 1-click in-place SQL file restore.
+- **Dual-Mode .zip Backups** — standard cross-platform `.zip` archives for websites and databases with drag-and-drop restore and remote sync to Google Drive, MEGA, Dropbox (via rclone), and Telegram.
+- **Local Development Suite** — transforms Windows (WSL 2) and macOS into production-identical LEMP workstations with automated Local Root CA trust in Windows Certificate Store and macOS Keychain (`*.local` green padlocks).
+- **Single Unified Installer** — universal `install.sh` automatically detecting Linux, macOS, and Windows WSL 2 with interactive component selection and Uni theme ANSI styling.
+- **Primary Design Theme** — Uni 6-color palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) set as the default primary theme across panel, marketing site, terminal, and brand assets.
+- **Next.js 15 Static Marketing Site** — modern marketing site built with Next.js 15, React 19, and Tailwind CSS.
 
 ## v0.7 — multi-server / SaaS
 
