@@ -117,7 +117,7 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-        try_files $uri $uri/ =404;
+{{if .PHP}}        try_files $uri $uri/ /index.php?$args;{{else}}        try_files $uri $uri/ =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}
@@ -180,7 +180,7 @@ server {
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-        try_files $uri $uri/ =404;
+{{if .PHP}}        try_files $uri $uri/ /index.php?$args;{{else}}        try_files $uri $uri/ =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}

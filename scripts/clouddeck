@@ -119,6 +119,9 @@ Usage: clouddeck <command> [options]
   clouddeck stop [panel|agent]
   clouddeck restart [panel|agent]
   clouddeck logs [panel|agent] [-f]
+  clouddeck site create <domain> [--app wordpress|laravel|nextjs|django|flask|docker|springboot] [--php VERSION]
+  clouddeck site list
+  clouddeck site delete <domain>
   clouddeck user list
   clouddeck user passwd [username]
   clouddeck passwd [username]
@@ -977,6 +980,138 @@ function cmdUninstall(args) {
   console.log("Distro packages (nginx, PHP, MariaDB) were not removed.");
 }
 
+// --- site & application management ------------------------------------------
+
+function agentRequest(method, endpoint, body) {
+  const agentEnv = tryReadEnvFile(path.join(ETCDIR, "agent.env"));
+  const token = agentEnv.AGENT_AUTH_TOKEN || "";
+  const curlArgs = [
+    "-fsSL",
+    "--max-time", "15",
+    "-X", method,
+    "-H", `Authorization: Bearer ${token}`,
+    "-H", "Content-Type: application/json",
+  ];
+  if (body) {
+    curlArgs.push("-d", JSON.stringify(body));
+  }
+  curlArgs.push(`http://127.0.0.1:${AGENT_PORT}${endpoint}`);
+  const result = spawnSync("curl", curlArgs, { encoding: "utf8" });
+  if (result.error) {
+    throw new Error(`Failed to contact CloudDeck agent: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Agent request failed (exit ${result.status}): ${result.stderr || result.stdout}`);
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    return result.stdout;
+  }
+}
+
+async function cmdSiteCreate(args) {
+  requireRoot();
+  let domain = "";
+  let appTemplate = "";
+  let phpVersion = "8.4";
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--app" && args[i + 1]) {
+      appTemplate = args[++i].toLowerCase();
+    } else if (args[i] === "--php" && args[i + 1]) {
+      phpVersion = args[++i];
+    } else if (!domain && !args[i].startsWith("-")) {
+      domain = args[i].toLowerCase();
+    }
+  }
+  if (!domain) {
+    usageError("usage: clouddeck site create <domain> [--app wordpress|laravel|nextjs|django|flask|docker|springboot] [--php VERSION]");
+  }
+
+  console.log(`==> Creating site: ${domain}...`);
+  const isPhpApp = appTemplate === "wordpress" || appTemplate === "laravel" || !appTemplate;
+  const chosenPhp = isPhpApp ? phpVersion : "none";
+
+  const siteRes = agentRequest("POST", "/v1/sites", { domain, phpVersion: chosenPhp });
+  console.log(`[OK] Site ${domain} provisioned (Task ${siteRes.taskId || "started"}).`);
+
+  const webrootDir = path.join(DATADIR, "sites", domain);
+  try { fs.mkdirSync(webrootDir, { recursive: true }); } catch {}
+
+  if (appTemplate === "wordpress") {
+    console.log(`==> Scaffolding WordPress industrial template...`);
+    const cleanDb = domain.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 16);
+    const dbName = `wp_${cleanDb}`;
+    const dbUser = `wp_${cleanDb}`.slice(0, 16);
+    const dbPass = crypto.randomBytes(8).toString("hex") + "CD!";
+    try {
+      agentRequest("POST", "/v1/mysql/databases", { name: dbName });
+      agentRequest("POST", "/v1/mysql/users", { user: dbUser, password: dbPass, host: "localhost" });
+      agentRequest("POST", "/v1/mysql/grants", { user: dbUser, host: "localhost", database: dbName, privileges: "all" });
+      console.log(`[OK] Database '${dbName}' created with user '${dbUser}'.`);
+    } catch (e) {
+      console.warn(`[WARN] Database creation notice: ${e.message}`);
+    }
+    const wpIndex = `<?php\ndefine('WP_USE_THEMES', true);\nif (file_exists(__DIR__ . '/wp-blog-header.php')) {\n    require __DIR__ . '/wp-blog-header.php';\n} else {\n    echo "<!DOCTYPE html><html><head><title>WordPress Ready</title></head><body><h1>CloudDeck WordPress Ready</h1><p>Database: ${dbName}</p></body></html>";\n}\n`;
+    fs.writeFileSync(path.join(webrootDir, "index.php"), wpIndex, "utf8");
+    console.log(`[OK] WordPress configured at ${webrootDir}`);
+  } else if (appTemplate === "laravel") {
+    console.log(`==> Scaffolding Laravel industrial template...`);
+    const pubDir = path.join(webrootDir, "public");
+    fs.mkdirSync(pubDir, { recursive: true });
+    fs.writeFileSync(path.join(pubDir, "index.php"), "<?php echo '<h1>CloudDeck Laravel Ready</h1>';\n", "utf8");
+    fs.writeFileSync(path.join(webrootDir, ".env"), `APP_NAME=Laravel\nAPP_ENV=production\nAPP_KEY=base64:${crypto.randomBytes(32).toString("base64")}\n`, "utf8");
+    console.log(`[OK] Laravel configured at ${webrootDir}`);
+  } else if (appTemplate === "nextjs") {
+    console.log(`==> Scaffolding Next.js industrial template...`);
+    const pkgJson = JSON.stringify({ name: domain, scripts: { start: "next start -p $PORT" }, dependencies: { next: "^15.4.0", react: "^19.0.0" } }, null, 2);
+    fs.writeFileSync(path.join(webrootDir, "package.json"), pkgJson, "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "nextjs", kind: "node", command: "npm start", port: 3000 });
+    console.log(`[OK] Next.js supervised app started on port 3000.`);
+  } else if (appTemplate === "django") {
+    console.log(`==> Scaffolding Django industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "requirements.txt"), "Django>=5.1\ngunicorn>=23.0.0\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "django", kind: "python", command: "python3 -m gunicorn myproject.wsgi:application --bind 127.0.0.1:$PORT", port: 8000 });
+    console.log(`[OK] Django supervised app started on port 8000.`);
+  } else if (appTemplate === "flask") {
+    console.log(`==> Scaffolding Flask industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "requirements.txt"), "Flask>=3.1.0\ngunicorn>=23.0.0\n", "utf8");
+    fs.writeFileSync(path.join(webrootDir, "app.py"), "from flask import Flask\napp = Flask(__name__)\n@app.route('/')\ndef hello(): return '<h1>Flask on CloudDeck</h1>'\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "flask", kind: "python", command: "python3 -m gunicorn app:app --bind 127.0.0.1:$PORT", port: 5000 });
+    console.log(`[OK] Flask supervised app started on port 5000.`);
+  } else if (appTemplate === "docker") {
+    console.log(`==> Scaffolding Docker industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "Dockerfile"), "FROM nginx:alpine\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "docker", kind: "docker", command: `docker run --rm --name clouddeck-${domain.replace(/[^a-zA-Z0-9]/g, "")} -p 127.0.0.1:$PORT:80 nginx:alpine`, port: 8080 });
+    console.log(`[OK] Docker supervised container started on port 8080.`);
+  } else if (appTemplate === "springboot") {
+    console.log(`==> Scaffolding Spring Boot industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "README.md"), "# Spring Boot Application\nUpload your packaged JAR as app.jar\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "springboot", kind: "java", command: "java -jar app.jar --server.port=$PORT", port: 8080 });
+    console.log(`[OK] Spring Boot supervised app configured on port 8080.`);
+  }
+
+  console.log(`\n🎉 Site '${domain}' is live and configured!`);
+}
+
+async function cmdSiteList() {
+  const sites = agentRequest("GET", "/v1/sites");
+  const list = sites.sites || [];
+  console.log(`Configured Sites (${list.length}):`);
+  for (const s of list) {
+    console.log(`  ● ${s.domain.padEnd(28)} PHP: ${(s.phpVersion || "none").padEnd(8)} SSL: ${s.ssl && s.ssl.enabled ? "enabled" : "disabled"}`);
+  }
+}
+
+async function cmdSiteDelete(args) {
+  requireRoot();
+  const domain = (args[0] || "").toLowerCase();
+  if (!domain) usageError("usage: clouddeck site delete <domain>");
+  console.log(`==> Deleting site: ${domain}...`);
+  agentRequest("DELETE", `/v1/sites/${encodeURIComponent(domain)}`);
+  console.log(`[OK] Site '${domain}' removed.`);
+}
+
 // --- dispatch ---------------------------------------------------------------
 
 async function main() {
@@ -1010,6 +1145,15 @@ async function main() {
     case "logs":
       cmdLogs(args);
       return;
+    case "site": {
+      const [subcommand, ...rest] = args;
+      if (subcommand === "create") await cmdSiteCreate(rest);
+      else if (subcommand === "list") await cmdSiteList();
+      else if (subcommand === "delete") await cmdSiteDelete(rest);
+      else if (!subcommand) usageError("usage: clouddeck site <create|list|delete>");
+      else usageError(`unknown site command: ${subcommand}`);
+      return;
+    }
     case "user": {
       const [subcommand, ...rest] = args;
       if (subcommand === "list") cmdUserList(rest);

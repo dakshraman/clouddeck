@@ -1,0 +1,1187 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+const os = require("node:os");
+const crypto = require("node:crypto");
+const readline = require("node:readline");
+const { spawnSync } = require("node:child_process");
+
+const USERNAME_RE = /^[a-zA-Z0-9._-]{3,32}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BCRYPT_ROUNDS = 10;
+
+// --- install layout ---------------------------------------------------------
+
+function readEnvFile(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") return {};
+    throw err;
+  }
+  const values = {};
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    values[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+  }
+  return values;
+}
+
+function tryReadEnvFile(file) {
+  try {
+    return readEnvFile(file);
+  } catch {
+    return {};
+  }
+}
+
+function derivePrefix() {
+  const script = process.argv[1] || __filename;
+  try {
+    return path.resolve(path.dirname(fs.realpathSync(script)), "..");
+  } catch {
+    return path.resolve(__dirname, "..");
+  }
+}
+
+const ENV_PREFIX = process.env.CLOUDDECK_PREFIX
+  ? path.resolve(process.env.CLOUDDECK_PREFIX)
+  : null;
+let PREFIX = ENV_PREFIX || derivePrefix();
+
+let installConfig = {};
+let configError = null;
+try {
+  installConfig = readEnvFile(path.join(PREFIX, ".clouddeck-install"));
+} catch (err) {
+  // Unprivileged commands such as `status` must still work with a root-only
+  // install marker; root should see the real error rather than wrong defaults.
+  if (!process.getuid || process.getuid() === 0) configError = err;
+}
+
+const DATADIR = installConfig.DATADIR || "/var/lib/clouddeck";
+const ETCDIR = installConfig.ETCDIR || "/etc/clouddeck";
+const AGENT_PORT = installConfig.AGENT_PORT || "9090";
+const PANEL_PORT = installConfig.PANEL_PORT || "2083";
+const REPO = installConfig.REPO || "dakshraman/clouddeck";
+const NO_SYSTEMD = installConfig.NO_SYSTEMD || "0";
+const DO_AGENT = installConfig.DO_AGENT !== undefined ? installConfig.DO_AGENT : "1";
+const DO_PANEL = installConfig.DO_PANEL !== undefined ? installConfig.DO_PANEL : "1";
+const FAST = installConfig.FAST || "0";
+const SYSTEM_NODE = installConfig.SYSTEM_NODE || "0";
+
+function panelDataDir() {
+  const env = tryReadEnvFile(path.join(ETCDIR, "panel.env"));
+  return env.PANEL_DATA_DIR || path.join(DATADIR, "panel");
+}
+
+function usersFile() {
+  return path.join(panelDataDir(), "users.json");
+}
+
+function installedVersion() {
+  try {
+    return fs.readFileSync(path.join(PREFIX, ".clouddeck-version"), "utf8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// --- errors / output --------------------------------------------------------
+
+function die(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+function usageError(message) {
+  if (message) console.error(message);
+  console.error(helpText());
+  process.exit(2);
+}
+
+function helpText() {
+  return `CloudDeck management CLI
+
+Usage: clouddeck <command> [options]
+
+  clouddeck help
+  clouddeck version
+  clouddeck status
+  clouddeck open
+  clouddeck start [panel|agent]
+  clouddeck stop [panel|agent]
+  clouddeck restart [panel|agent]
+  clouddeck logs [panel|agent] [-f]
+  clouddeck site create <domain> [--app wordpress|laravel|nextjs|django|flask|docker|springboot] [--php VERSION]
+  clouddeck site list
+  clouddeck site delete <domain>
+  clouddeck user list
+  clouddeck user passwd [username]
+  clouddeck passwd [username]
+  clouddeck reset-password [username]
+  clouddeck user add <username> [--email EMAIL]
+  clouddeck update [version]
+  clouddeck reinstall
+  clouddeck uninstall [--purge]
+
+Service control, user/password changes, update, reinstall and uninstall
+require sudo. The store is root-owned, so run every command with sudo.`;
+}
+
+function requireRoot() {
+  if (typeof process.getuid === "function" && process.getuid() === 0) return;
+  console.error("run this command with sudo");
+  process.exit(1);
+}
+
+function row(name, value) {
+  return `  ${`${name}:`.padEnd(12)}${value}`;
+}
+
+function hasCommand(command) {
+  return !spawnSync(command, ["--version"], { stdio: "ignore" }).error;
+}
+
+function systemdAvailable() {
+  return fs.existsSync("/run/systemd/system") && hasCommand("systemctl");
+}
+
+function useSystemd() {
+  return NO_SYSTEMD !== "1" && systemdAvailable();
+}
+
+function componentEnabled(name) {
+  return (name === "panel" ? DO_PANEL : DO_AGENT) !== "0";
+}
+
+function enabledComponents() {
+  return ["panel", "agent"].filter(componentEnabled);
+}
+
+function requirePanel() {
+  if (!componentEnabled("panel")) {
+    die("the panel is not installed on this host (installed with --no-panel)");
+  }
+}
+
+function panelUrl() {
+  let wsl = false;
+  try {
+    wsl = /microsoft/i.test(fs.readFileSync("/proc/version", "utf8"));
+  } catch {
+    // not Linux or unreadable: fall through to the LAN address
+  }
+  if (!wsl && process.env.WSL_DISTRO_NAME) wsl = true;
+  if (wsl) return `http://localhost:${PANEL_PORT}`;
+
+  const result = spawnSync("hostname", ["-I"], { encoding: "utf8" });
+  const ip = (result.stdout || "").trim().split(/\s+/).filter(Boolean)[0];
+  return `http://${ip || "<server-ip>"}:${PANEL_PORT}`;
+}
+
+// --- atomic files -----------------------------------------------------------
+
+function writeFileAtomic(file, content, mode) {
+  const dir = path.dirname(file);
+  fs.mkdirSync(dir, { recursive: true });
+
+  let owner;
+  try {
+    owner = fs.statSync(file);
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+    owner = fs.statSync(dir);
+  }
+
+  const tmp = path.join(
+    dir,
+    `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`,
+  );
+  let fd = null;
+  try {
+    fd = fs.openSync(
+      tmp,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
+      mode,
+    );
+    fs.writeFileSync(fd, content);
+    fs.fchmodSync(fd, mode);
+    fs.fchownSync(fd, owner.uid, owner.gid);
+    fs.closeSync(fd);
+    fd = null;
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    if (fd !== null) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        // already closed
+      }
+    }
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      // best-effort cleanup
+    }
+    throw err;
+  }
+}
+
+// --- users store ------------------------------------------------------------
+
+function loadBcrypt() {
+  try {
+    return require(path.join(PREFIX, "panel", "node_modules", "bcryptjs"));
+  } catch {
+    die(
+      "panel bundle is missing bcryptjs; reinstall CloudDeck with: sudo clouddeck reinstall",
+    );
+  }
+}
+
+function readUsers() {
+  const file = usersFile();
+  let raw;
+  try {
+    raw = fs.readFileSync(file, "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") return { users: [] };
+    if (err.code === "EACCES" || err.code === "EPERM") {
+      die(`cannot read ${file}: permission denied (run this command with sudo)`);
+    }
+    die(`cannot read ${file}: ${err.message}`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    die(`refusing to overwrite malformed users store: ${file}`);
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.users)) {
+    die(`refusing to overwrite malformed users store: ${file}`);
+  }
+  for (const user of data.users) {
+    if (!user || typeof user !== "object" || typeof user.username !== "string") {
+      die(`refusing to overwrite malformed users store: ${file}`);
+    }
+  }
+  return data;
+}
+
+function writeUsers(data) {
+  const file = usersFile();
+  try {
+    writeFileAtomic(file, `${JSON.stringify(data, null, 2)}\n`, 0o600);
+  } catch (err) {
+    die(`could not write ${file}: ${err.message}`);
+  }
+}
+
+function validateUsername(username) {
+  if (!USERNAME_RE.test(username)) {
+    die("username must be 3-32 characters: letters, digits, dot, dash or underscore");
+  }
+}
+
+function validatePassword(password) {
+  if (password.length < 8) die("password must be at least 8 characters");
+  if (Buffer.byteLength(password, "utf8") > 72) die("password must be at most 72 bytes");
+}
+
+function readStdinLine() {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin });
+    let settled = false;
+    rl.once("line", (line) => {
+      settled = true;
+      rl.close();
+      resolve(line);
+    });
+    rl.once("close", () => {
+      if (!settled) resolve(null);
+    });
+  });
+}
+
+function readHidden(promptText) {
+  return new Promise((resolve) => {
+    process.stdout.write(promptText);
+    const input = process.stdin;
+    readline.emitKeypressEvents(input);
+    input.setRawMode(true);
+    input.resume();
+
+    let value = "";
+    const finish = (result) => {
+      input.removeListener("keypress", onKey);
+      input.setRawMode(false);
+      input.pause();
+      process.stdout.write("\n");
+      resolve(result);
+    };
+    const onKey = (str, key) => {
+      if (key && key.ctrl && key.name === "c") {
+        input.removeListener("keypress", onKey);
+        input.setRawMode(false);
+        process.stdout.write("\n");
+        process.exit(130);
+      }
+      if (key && (key.name === "return" || key.name === "enter")) {
+        finish(value);
+        return;
+      }
+      if (key && key.name === "backspace") {
+        value = Array.from(value).slice(0, -1).join("");
+        return;
+      }
+      if (str && !/[\r\n]/.test(str) && !(key && (key.ctrl || key.meta))) {
+        value += str;
+      }
+    };
+    input.on("keypress", onKey);
+  });
+}
+
+async function readNewPassword() {
+  if (process.env.CLOUDDECK_NEW_PASSWORD !== undefined) {
+    return process.env.CLOUDDECK_NEW_PASSWORD;
+  }
+  if (!process.stdin.isTTY) {
+    const line = await readStdinLine();
+    if (line === null) die("no password provided on stdin");
+    return line;
+  }
+  const first = await readHidden("New password: ");
+  const second = await readHidden("Confirm password: ");
+  if (first !== second) die("passwords do not match");
+  return first;
+}
+
+// --- service helpers --------------------------------------------------------
+
+function serviceState(unit, pidName) {
+  if (useSystemd()) {
+    const result = spawnSync("systemctl", ["is-active", unit], { encoding: "utf8" });
+    if (result.error) return "unknown (systemctl unavailable)";
+    return (result.stdout || "").trim() || (result.stderr || "").trim() || "unknown";
+  }
+
+  const pidFile = path.join(PREFIX, "run", pidName);
+  try {
+    const pid = Number.parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
+    if (!pid) return "stopped";
+    try {
+      process.kill(pid, 0);
+      return `running (pid ${pid})`;
+    } catch (err) {
+      return err.code === "EPERM" ? `running (pid ${pid})` : "stopped";
+    }
+  } catch {
+    return "stopped";
+  }
+}
+
+function unitState(unit) {
+  const result = spawnSync("systemctl", ["is-active", unit], { encoding: "utf8" });
+  if (result.error) return "unknown";
+  return (result.stdout || "").trim() || "unknown";
+}
+
+function phpFpmUnits() {
+  const result = spawnSync(
+    "systemctl",
+    ["list-unit-files", "--type=service", "--no-legend", "php*-fpm.service"],
+    { encoding: "utf8" },
+  );
+  return (result.stdout || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim().split(/\s+/)[0].replace(/\.service$/, ""))
+    .filter(Boolean);
+}
+
+function checkHealth(url) {
+  const result = spawnSync(
+    "curl",
+    ["-fsS", "--max-time", "2", "-o", "/dev/null", url],
+    { stdio: "ignore" },
+  );
+  if (result.error) {
+    return {
+      ok: false,
+      detail: result.error.code === "ENOENT" ? "curl not found" : result.error.message,
+    };
+  }
+  return result.status === 0
+    ? { ok: true, detail: "OK" }
+    : { ok: false, detail: `unreachable (curl exit ${result.status})` };
+}
+
+function restartPanel() {
+  if (useSystemd()) {
+    const result = spawnSync("systemctl", ["restart", "clouddeck-panel"], { stdio: "inherit" });
+    if (result.error) {
+      console.error(`could not run systemctl: ${result.error.message}`);
+      return false;
+    }
+    return result.status === 0;
+  }
+
+  const script = path.join(PREFIX, "run", "start.sh");
+  if (!fs.existsSync(script)) {
+    console.error(`missing ${script}`);
+    return false;
+  }
+  const result = spawnSync(script, [], { stdio: "inherit" });
+  if (result.error) {
+    console.error(`could not run ${script}: ${result.error.message}`);
+    return false;
+  }
+  return result.status === 0;
+}
+
+function restartHint() {
+  if (useSystemd()) return "sudo systemctl restart clouddeck-panel";
+  const script = path.join(PREFIX, "run", "start.sh");
+  return fs.existsSync(script) ? `sudo ${script}` : "sudo clouddeck reinstall";
+}
+
+function rotateSessionSecret() {
+  const file = path.join(ETCDIR, "panel.env");
+  const line = `PANEL_SESSION_SECRET=${crypto.randomBytes(32).toString("hex")}`;
+
+  let body = "";
+  try {
+    body = fs.readFileSync(file, "utf8");
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+
+  if (body === "") {
+    throw new Error(`${file} is missing; rerun the installer to restore it`);
+  }
+
+  const lines = body.split(/\r?\n/);
+  let found = false;
+  const updated = lines.map((current) => {
+    if (/^\s*PANEL_SESSION_SECRET\s*=/.test(current)) {
+      found = true;
+      return line;
+    }
+    return current;
+  });
+  if (!found) {
+    if (updated.length > 0 && updated[updated.length - 1] === "") {
+      updated.splice(updated.length - 1, 0, line);
+    } else {
+      updated.push(line);
+    }
+  }
+
+  let next = updated.join("\n");
+  if (!next.endsWith("\n")) next += "\n";
+  writeFileAtomic(file, next, 0o600);
+}
+
+// --- commands ---------------------------------------------------------------
+
+function cmdVersion(args) {
+  if (args.length) usageError("usage: clouddeck version");
+  const version = installedVersion();
+  if (!version) {
+    console.log("CloudDeck is not installed");
+    process.exit(1);
+  }
+  console.log(version);
+}
+
+function cmdStatus(args) {
+  if (args.length) usageError("usage: clouddeck status");
+
+  const version = installedVersion();
+  console.log("CloudDeck status");
+  console.log(row("Version", version || "not installed"));
+  console.log(row("Prefix", PREFIX));
+  console.log(row("Config", ETCDIR));
+  console.log(row("Data", DATADIR));
+  if (componentEnabled("panel")) {
+    console.log(row("Panel data", panelDataDir()));
+    console.log(row("Panel URL", panelUrl()));
+  }
+  console.log("");
+  console.log("Services");
+  for (const name of enabledComponents()) {
+    console.log(row(name, serviceState(`clouddeck-${name}`, `${name}.pid`)));
+  }
+  if (systemdAvailable()) {
+    for (const unit of ["nginx", "mariadb"]) {
+      console.log(row(unit, unitState(unit)));
+    }
+    for (const unit of phpFpmUnits()) {
+      console.log(row(unit, unitState(unit)));
+    }
+  }
+
+  console.log("");
+  console.log("Health");
+  let healthy = true;
+  for (const name of enabledComponents()) {
+    const url =
+      name === "panel"
+        ? `http://127.0.0.1:${PANEL_PORT}/`
+        : `http://127.0.0.1:${AGENT_PORT}/v1/health`;
+    const health = checkHealth(url);
+    console.log(row(name, `${health.detail} (${url})`));
+    if (!health.ok) healthy = false;
+  }
+  if (!healthy) process.exitCode = 1;
+}
+
+function cmdOpen() {
+  const url = `http://localhost:${PANEL_PORT}`;
+  console.log(`Opening CloudDeck panel: ${url}`);
+  try {
+    if (process.platform === "darwin") {
+      spawnSync("open", [url], { stdio: "inherit" });
+    } else if (process.platform === "win32") {
+      spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+    } else {
+      if (fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || process.env.WSL_DISTRO_NAME) {
+        spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+      } else {
+        spawnSync("xdg-open", [url], { stdio: "inherit" });
+      }
+    }
+  } catch {
+    console.log(`Navigate in your browser to: ${url}`);
+  }
+}
+
+function serviceAction(action, args) {
+  requireRoot();
+  if (args.length > 1) usageError(`usage: clouddeck ${action} [panel|agent]`);
+  const target = args[0];
+  if (target && target !== "panel" && target !== "agent") {
+    usageError(`unknown service: ${target}`);
+  }
+  if (target && !componentEnabled(target)) {
+    die(`${target} is not installed on this host`);
+  }
+
+  const units = target
+    ? [`clouddeck-${target}`]
+    : enabledComponents().map((name) => `clouddeck-${name}`);
+  if (units.length === 0) die("no CloudDeck services are installed");
+
+  if (useSystemd()) {
+    console.log(`systemctl ${action} ${units.join(" ")}`);
+    const result = spawnSync("systemctl", [action, ...units], { stdio: "inherit" });
+    if (result.error) die(`could not run systemctl: ${result.error.message}`);
+    if (result.status !== 0) die(`systemctl ${action} failed (exit ${result.status})`);
+    return;
+  }
+
+  const scriptName = action === "stop" ? "stop.sh" : "start.sh";
+  const script = path.join(PREFIX, "run", scriptName);
+  if (!fs.existsSync(script)) {
+    die(`missing ${script}; reinstall CloudDeck with: sudo clouddeck reinstall`);
+  }
+  if (target) console.log(`no systemd: ${scriptName} manages both panel and agent`);
+  const result = spawnSync(script, [], { stdio: "inherit" });
+  if (result.error) die(`could not run ${script}: ${result.error.message}`);
+  if (result.status !== 0) die(`${script} failed (exit ${result.status})`);
+}
+
+function cmdLogs(args) {
+  let target = componentEnabled("panel") ? "panel" : "agent";
+  let targetSet = false;
+  let follow = false;
+  for (const arg of args) {
+    if (arg === "-f") {
+      follow = true;
+    } else if (arg === "panel" || arg === "agent") {
+      if (targetSet) usageError("usage: clouddeck logs [panel|agent] [-f]");
+      target = arg;
+      targetSet = true;
+    } else {
+      usageError(`unknown argument: ${arg}`);
+    }
+  }
+
+  const unit = `clouddeck-${target}`;
+  if (targetSet && !componentEnabled(target)) {
+    die(`${target} is not installed on this host`);
+  }
+  if (useSystemd()) {
+    const command = ["-u", unit, "-n", "100"];
+    if (follow) command.push("-f");
+    const result = spawnSync("journalctl", command, { stdio: "inherit" });
+    if (result.error || result.status !== 0) {
+      console.error(
+        `could not read logs; run manually: journalctl -u ${unit} -n 100${follow ? " -f" : ""}`,
+      );
+      process.exit(1);
+    }
+    return;
+  }
+
+  const file = path.join(PREFIX, "run", `${target}.log`);
+  const command = ["-n", "100"];
+  if (follow) command.push("-f");
+  command.push(file);
+  const result = spawnSync("tail", command, { stdio: "inherit" });
+  if (result.error || result.status !== 0) {
+    console.error(
+      `could not read ${file}; run manually: tail -n 100${follow ? " -f" : ""} ${file}`,
+    );
+    process.exit(1);
+  }
+}
+
+function cmdUserList(args) {
+  if (args.length) usageError("usage: clouddeck user list");
+  const data = readUsers();
+  if (data.users.length === 0) {
+    console.log("no users yet (open the panel to run setup)");
+    return;
+  }
+  for (const user of data.users) {
+    console.log(`${user.username}\t${user.email || "-"}`);
+  }
+}
+
+function syncSystemPassword(password) {
+  try {
+    spawnSync("chpasswd", [], {
+      input: `clouddeck:${password}\n`,
+      encoding: "utf8",
+    });
+    const sudoersDir = "/etc/sudoers.d";
+    if (fs.existsSync(sudoersDir)) {
+      const file = path.join(sudoersDir, "clouddeck");
+      if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, "# CloudDeck web terminal sudo permissions\nclouddeck ALL=(ALL:ALL) ALL\n", { mode: 0o440 });
+      }
+    }
+  } catch {
+    // Non-blocking
+  }
+}
+
+async function cmdUserAdd(args) {
+  requireRoot();
+  requirePanel();
+
+  let username = null;
+  let email = null;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--email") {
+      if (i + 1 >= args.length) {
+        usageError("usage: clouddeck user add <username> [--email EMAIL]");
+      }
+      email = args[i + 1];
+      i += 1;
+    } else if (arg.startsWith("-")) {
+      usageError(`unknown flag: ${arg}`);
+    } else if (username === null) {
+      username = arg;
+    } else {
+      usageError("usage: clouddeck user add <username> [--email EMAIL]");
+    }
+  }
+
+  if (!username) usageError("usage: clouddeck user add <username> [--email EMAIL]");
+  validateUsername(username);
+  if (email !== null && (email.length > 254 || !EMAIL_RE.test(email))) {
+    die("invalid email address");
+  }
+
+  const data = readUsers();
+  if (data.users.some((user) => user.username === username)) {
+    die(`user already exists: ${username}`);
+  }
+
+  const bcrypt = loadBcrypt();
+  const password = await readNewPassword();
+  validatePassword(password);
+
+  const user = {
+    username,
+    passwordHash: bcrypt.hashSync(password, BCRYPT_ROUNDS),
+    createdAt: new Date().toISOString(),
+  };
+  if (email) user.email = email;
+  data.users.push(user);
+  writeUsers(data);
+  syncSystemPassword(password);
+
+  console.log(`Created admin account '${username}'.`);
+  if (!restartPanel()) {
+    console.error(
+      `The account was created, but the panel could not be restarted; restart it manually: ${restartHint()}`,
+    );
+    process.exit(1);
+  }
+  console.log(`Log in at ${panelUrl()} as '${username}'.`);
+}
+
+async function cmdUserPasswd(args) {
+  requireRoot();
+  requirePanel();
+  if (args.length > 1) usageError("usage: clouddeck user passwd [username]");
+  if (args[0] && args[0].startsWith("-")) usageError(`unknown flag: ${args[0]}`);
+
+  const data = readUsers();
+  let username = args[0];
+  if (!username) {
+    if (data.users.length === 0) {
+      die("no users yet; create one with: sudo clouddeck user add admin");
+    }
+    if (data.users.length > 1) {
+      console.error("multiple users exist; specify a username:");
+      for (const user of data.users) console.error(`  ${user.username}`);
+      console.error("usage: sudo clouddeck user passwd <username>");
+      process.exit(1);
+    }
+    username = data.users[0].username;
+  }
+
+  const user = data.users.find((candidate) => candidate.username === username);
+  if (!user) die(`no such user: ${username} (see: clouddeck user list)`);
+
+  const bcrypt = loadBcrypt();
+  const password = await readNewPassword();
+  validatePassword(password);
+
+  user.passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+  writeUsers(data);
+  syncSystemPassword(password);
+  console.log(`Password updated for '${username}'.`);
+
+  let rotated = true;
+  try {
+    rotateSessionSecret();
+  } catch (err) {
+    rotated = false;
+    console.error(`warning: could not rotate PANEL_SESSION_SECRET: ${err.message}`);
+  }
+  if (rotated) {
+    console.log("All existing panel sessions were signed out.");
+  } else {
+    process.exitCode = 1;
+  }
+
+  if (!restartPanel()) {
+    console.error(
+      `The panel could not be restarted; restart it manually: ${restartHint()}`,
+    );
+    console.error(`Log in at ${panelUrl()} as '${username}' with the new password.`);
+    process.exit(1);
+  }
+  console.log(`Log in at ${panelUrl()} as '${username}' with the new password.`);
+}
+
+function requireInstalled() {
+  const marker = path.join(PREFIX, ".clouddeck-install");
+  if (!fs.existsSync(marker)) {
+    die(`no CloudDeck install found at ${PREFIX} (missing ${marker})`);
+  }
+}
+
+function normalizeVersion(version) {
+  if (!version || version === "latest") return version;
+  return version.startsWith("v") ? version : `v${version}`;
+}
+
+function installerUrl(version) {
+  const base = `https://github.com/${REPO}/releases`;
+  return version && version !== "latest"
+    ? `${base}/download/${version}/install.sh`
+    : `${base}/latest/download/install.sh`;
+}
+
+function runInstaller(version, force) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "clouddeck-update-"));
+  try {
+    const url = installerUrl(version);
+    const installer = path.join(tmp, "install.sh");
+    console.log(`Downloading installer from ${url}`);
+    const download = spawnSync(
+      "curl",
+      ["-fsSL", "--retry", "3", "--connect-timeout", "15", "-o", installer, url],
+      { stdio: ["ignore", "inherit", "inherit"] },
+    );
+    if (download.error) {
+      console.error(
+        `failed to download installer: ${
+          download.error.code === "ENOENT" ? "curl not found" : download.error.message
+        }`,
+      );
+      return 1;
+    }
+    if (download.status !== 0) {
+      console.error(`failed to download installer from ${url} (curl exit ${download.status})`);
+      return 1;
+    }
+
+    const args = [
+      installer,
+      "--prefix",
+      PREFIX,
+      "--datadir",
+      DATADIR,
+      "--etcdir",
+      ETCDIR,
+      "--agent-port",
+      String(AGENT_PORT),
+      "--panel-port",
+      String(PANEL_PORT),
+    ];
+    if (version) args.push("--version", version);
+    if (NO_SYSTEMD === "1") args.push("--no-systemd");
+    if (DO_AGENT === "0") args.push("--no-agent");
+    if (DO_PANEL === "0") args.push("--no-panel");
+    if (FAST === "1") args.push("--fast");
+    if (SYSTEM_NODE === "1") args.push("--system-node");
+    if (force) args.push("--force");
+
+    const result = spawnSync("bash", args, { stdio: "inherit" });
+    if (result.error) {
+      console.error(
+        `could not run installer: ${
+          result.error.code === "ENOENT" ? "bash not found" : result.error.message
+        }`,
+      );
+      return 1;
+    }
+    if (result.status !== 0) {
+      console.error(`installer failed (exit ${result.status})`);
+      return result.status || 1;
+    }
+    return 0;
+  } finally {
+    try {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup
+    }
+  }
+}
+
+function cmdUpdate(args) {
+  requireRoot();
+  requireInstalled();
+  if (args.length > 1) usageError("usage: clouddeck update [version]");
+  if (args[0] && args[0].startsWith("-")) usageError(`unknown flag: ${args[0]}`);
+  const version = args[0] ? normalizeVersion(args[0]) : undefined;
+  process.exit(runInstaller(version, false));
+}
+
+function cmdReinstall(args) {
+  requireRoot();
+  if (args.length) usageError("usage: clouddeck reinstall");
+  const version = installedVersion();
+  if (!version) {
+    die(`CloudDeck is not installed (missing ${path.join(PREFIX, ".clouddeck-version")})`);
+  }
+  process.exit(runInstaller(normalizeVersion(version), true));
+}
+
+function removeSymlinkInside(file, root) {
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch (err) {
+    if (err.code === "ENOENT") return;
+    throw err;
+  }
+  if (!stat.isSymbolicLink()) return;
+
+  const target = path.resolve(path.dirname(file), fs.readlinkSync(file));
+  const rel = path.relative(path.resolve(root), target);
+  const inside =
+    rel === "" ||
+    (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+  if (inside) fs.unlinkSync(file);
+}
+
+function removeTree(target, label) {
+  const resolved = path.resolve(target);
+  if (resolved === path.parse(resolved).root) {
+    die(`refusing to remove ${label}: ${resolved}`);
+  }
+  fs.rmSync(resolved, { recursive: true, force: true });
+}
+
+function cmdUninstall(args) {
+  requireRoot();
+  requireInstalled();
+  let purge = false;
+  for (const arg of args) {
+    if (arg === "--purge") purge = true;
+    else usageError(`unknown argument: ${arg}`);
+  }
+
+  if (systemdAvailable()) {
+    for (const unit of ["clouddeck-panel", "clouddeck-agent"]) {
+      spawnSync("systemctl", ["disable", "--now", unit], { stdio: "ignore" });
+    }
+  }
+  for (const unit of ["clouddeck-panel", "clouddeck-agent"]) {
+    try {
+      fs.unlinkSync(`/etc/systemd/system/${unit}.service`);
+    } catch (err) {
+      if (err.code !== "ENOENT") console.error(`could not remove ${unit}.service: ${err.message}`);
+    }
+  }
+  if (hasCommand("systemctl")) {
+    spawnSync("systemctl", ["daemon-reload"], { stdio: "ignore" });
+  }
+
+  const stopScript = path.join(PREFIX, "run", "stop.sh");
+  if (fs.existsSync(stopScript)) spawnSync(stopScript, [], { stdio: "ignore" });
+
+  try {
+    removeSymlinkInside("/usr/local/bin/clouddeck", PREFIX);
+  } catch (err) {
+    console.error(`could not remove /usr/local/bin/clouddeck: ${err.message}`);
+  }
+  for (const name of ["node", "npm", "npx"]) {
+    try {
+      removeSymlinkInside(`/usr/local/bin/${name}`, PREFIX);
+    } catch (err) {
+      console.error(`could not remove /usr/local/bin/${name}: ${err.message}`);
+    }
+  }
+
+  removeTree(PREFIX, "prefix");
+  if (purge) {
+    removeTree(DATADIR, "data dir");
+    removeTree(ETCDIR, "config dir");
+  }
+
+  console.log("CloudDeck was uninstalled.");
+  if (purge) {
+    console.log(`Removed data:   ${DATADIR}`);
+    console.log(`Removed config: ${ETCDIR}`);
+  } else {
+    console.log(`Kept data:      ${DATADIR}`);
+    console.log(`Kept config:    ${ETCDIR}`);
+    console.log("Run with --purge to remove them too.");
+  }
+  console.log("Distro packages (nginx, PHP, MariaDB) were not removed.");
+}
+
+// --- site & application management ------------------------------------------
+
+function agentRequest(method, endpoint, body) {
+  const agentEnv = tryReadEnvFile(path.join(ETCDIR, "agent.env"));
+  const token = agentEnv.AGENT_AUTH_TOKEN || "";
+  const curlArgs = [
+    "-fsSL",
+    "--max-time", "15",
+    "-X", method,
+    "-H", `Authorization: Bearer ${token}`,
+    "-H", "Content-Type: application/json",
+  ];
+  if (body) {
+    curlArgs.push("-d", JSON.stringify(body));
+  }
+  curlArgs.push(`http://127.0.0.1:${AGENT_PORT}${endpoint}`);
+  const result = spawnSync("curl", curlArgs, { encoding: "utf8" });
+  if (result.error) {
+    throw new Error(`Failed to contact CloudDeck agent: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Agent request failed (exit ${result.status}): ${result.stderr || result.stdout}`);
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    return result.stdout;
+  }
+}
+
+async function cmdSiteCreate(args) {
+  requireRoot();
+  let domain = "";
+  let appTemplate = "";
+  let phpVersion = "8.4";
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--app" && args[i + 1]) {
+      appTemplate = args[++i].toLowerCase();
+    } else if (args[i] === "--php" && args[i + 1]) {
+      phpVersion = args[++i];
+    } else if (!domain && !args[i].startsWith("-")) {
+      domain = args[i].toLowerCase();
+    }
+  }
+  if (!domain) {
+    usageError("usage: clouddeck site create <domain> [--app wordpress|laravel|nextjs|django|flask|docker|springboot] [--php VERSION]");
+  }
+
+  console.log(`==> Creating site: ${domain}...`);
+  const isPhpApp = appTemplate === "wordpress" || appTemplate === "laravel" || !appTemplate;
+  const chosenPhp = isPhpApp ? phpVersion : "none";
+
+  const siteRes = agentRequest("POST", "/v1/sites", { domain, phpVersion: chosenPhp });
+  console.log(`[OK] Site ${domain} provisioned (Task ${siteRes.taskId || "started"}).`);
+
+  const webrootDir = path.join(DATADIR, "sites", domain);
+  try { fs.mkdirSync(webrootDir, { recursive: true }); } catch {}
+
+  if (appTemplate === "wordpress") {
+    console.log(`==> Scaffolding WordPress industrial template...`);
+    const cleanDb = domain.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 16);
+    const dbName = `wp_${cleanDb}`;
+    const dbUser = `wp_${cleanDb}`.slice(0, 16);
+    const dbPass = crypto.randomBytes(8).toString("hex") + "CD!";
+    try {
+      agentRequest("POST", "/v1/mysql/databases", { name: dbName });
+      agentRequest("POST", "/v1/mysql/users", { user: dbUser, password: dbPass, host: "localhost" });
+      agentRequest("POST", "/v1/mysql/grants", { user: dbUser, host: "localhost", database: dbName, privileges: "all" });
+      console.log(`[OK] Database '${dbName}' created with user '${dbUser}'.`);
+    } catch (e) {
+      console.warn(`[WARN] Database creation notice: ${e.message}`);
+    }
+    const wpIndex = `<?php\ndefine('WP_USE_THEMES', true);\nif (file_exists(__DIR__ . '/wp-blog-header.php')) {\n    require __DIR__ . '/wp-blog-header.php';\n} else {\n    echo "<!DOCTYPE html><html><head><title>WordPress Ready</title></head><body><h1>CloudDeck WordPress Ready</h1><p>Database: ${dbName}</p></body></html>";\n}\n`;
+    fs.writeFileSync(path.join(webrootDir, "index.php"), wpIndex, "utf8");
+    console.log(`[OK] WordPress configured at ${webrootDir}`);
+  } else if (appTemplate === "laravel") {
+    console.log(`==> Scaffolding Laravel industrial template...`);
+    const pubDir = path.join(webrootDir, "public");
+    fs.mkdirSync(pubDir, { recursive: true });
+    fs.writeFileSync(path.join(pubDir, "index.php"), "<?php echo '<h1>CloudDeck Laravel Ready</h1>';\n", "utf8");
+    fs.writeFileSync(path.join(webrootDir, ".env"), `APP_NAME=Laravel\nAPP_ENV=production\nAPP_KEY=base64:${crypto.randomBytes(32).toString("base64")}\n`, "utf8");
+    console.log(`[OK] Laravel configured at ${webrootDir}`);
+  } else if (appTemplate === "nextjs") {
+    console.log(`==> Scaffolding Next.js industrial template...`);
+    const pkgJson = JSON.stringify({ name: domain, scripts: { start: "next start -p $PORT" }, dependencies: { next: "^15.4.0", react: "^19.0.0" } }, null, 2);
+    fs.writeFileSync(path.join(webrootDir, "package.json"), pkgJson, "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "nextjs", kind: "node", command: "npm start", port: 3000 });
+    console.log(`[OK] Next.js supervised app started on port 3000.`);
+  } else if (appTemplate === "django") {
+    console.log(`==> Scaffolding Django industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "requirements.txt"), "Django>=5.1\ngunicorn>=23.0.0\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "django", kind: "python", command: "python3 -m gunicorn myproject.wsgi:application --bind 127.0.0.1:$PORT", port: 8000 });
+    console.log(`[OK] Django supervised app started on port 8000.`);
+  } else if (appTemplate === "flask") {
+    console.log(`==> Scaffolding Flask industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "requirements.txt"), "Flask>=3.1.0\ngunicorn>=23.0.0\n", "utf8");
+    fs.writeFileSync(path.join(webrootDir, "app.py"), "from flask import Flask\napp = Flask(__name__)\n@app.route('/')\ndef hello(): return '<h1>Flask on CloudDeck</h1>'\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "flask", kind: "python", command: "python3 -m gunicorn app:app --bind 127.0.0.1:$PORT", port: 5000 });
+    console.log(`[OK] Flask supervised app started on port 5000.`);
+  } else if (appTemplate === "docker") {
+    console.log(`==> Scaffolding Docker industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "Dockerfile"), "FROM nginx:alpine\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "docker", kind: "docker", command: `docker run --rm --name clouddeck-${domain.replace(/[^a-zA-Z0-9]/g, "")} -p 127.0.0.1:$PORT:80 nginx:alpine`, port: 8080 });
+    console.log(`[OK] Docker supervised container started on port 8080.`);
+  } else if (appTemplate === "springboot") {
+    console.log(`==> Scaffolding Spring Boot industrial template...`);
+    fs.writeFileSync(path.join(webrootDir, "README.md"), "# Spring Boot Application\nUpload your packaged JAR as app.jar\n", "utf8");
+    agentRequest("POST", "/v1/apps", { site: domain, name: "springboot", kind: "java", command: "java -jar app.jar --server.port=$PORT", port: 8080 });
+    console.log(`[OK] Spring Boot supervised app configured on port 8080.`);
+  }
+
+  console.log(`\n🎉 Site '${domain}' is live and configured!`);
+}
+
+async function cmdSiteList() {
+  const sites = agentRequest("GET", "/v1/sites");
+  const list = sites.sites || [];
+  console.log(`Configured Sites (${list.length}):`);
+  for (const s of list) {
+    console.log(`  ● ${s.domain.padEnd(28)} PHP: ${(s.phpVersion || "none").padEnd(8)} SSL: ${s.ssl && s.ssl.enabled ? "enabled" : "disabled"}`);
+  }
+}
+
+async function cmdSiteDelete(args) {
+  requireRoot();
+  const domain = (args[0] || "").toLowerCase();
+  if (!domain) usageError("usage: clouddeck site delete <domain>");
+  console.log(`==> Deleting site: ${domain}...`);
+  agentRequest("DELETE", `/v1/sites/${encodeURIComponent(domain)}`);
+  console.log(`[OK] Site '${domain}' removed.`);
+}
+
+// --- dispatch ---------------------------------------------------------------
+
+async function main() {
+  if (configError) {
+    die(
+      `cannot read ${path.join(PREFIX, ".clouddeck-install")}: ${configError.message}`,
+    );
+  }
+  const [command, ...args] = process.argv.slice(2);
+
+  switch (command) {
+    case undefined:
+    case "help":
+      if (command === "help" && args.length) usageError("usage: clouddeck help");
+      console.log(helpText());
+      return;
+    case "version":
+      cmdVersion(args);
+      return;
+    case "status":
+      cmdStatus(args);
+      return;
+    case "open":
+      cmdOpen();
+      return;
+    case "start":
+    case "stop":
+    case "restart":
+      serviceAction(command, args);
+      return;
+    case "logs":
+      cmdLogs(args);
+      return;
+    case "site": {
+      const [subcommand, ...rest] = args;
+      if (subcommand === "create") await cmdSiteCreate(rest);
+      else if (subcommand === "list") await cmdSiteList();
+      else if (subcommand === "delete") await cmdSiteDelete(rest);
+      else if (!subcommand) usageError("usage: clouddeck site <create|list|delete>");
+      else usageError(`unknown site command: ${subcommand}`);
+      return;
+    }
+    case "user": {
+      const [subcommand, ...rest] = args;
+      if (subcommand === "list") cmdUserList(rest);
+      else if (subcommand === "add") await cmdUserAdd(rest);
+      else if (subcommand === "passwd") await cmdUserPasswd(rest);
+      else if (!subcommand) usageError("usage: clouddeck user <list|add|passwd>");
+      else usageError(`unknown user command: ${subcommand}`);
+      return;
+    }
+    case "passwd":
+    case "reset-password":
+      await cmdUserPasswd(args);
+      return;
+    case "update":
+      cmdUpdate(args);
+      return;
+    case "reinstall":
+      cmdReinstall(args);
+      return;
+    case "uninstall":
+      cmdUninstall(args);
+      return;
+    default:
+      usageError(`unknown command: ${command}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(`clouddeck: ${err && err.message ? err.message : err}`);
+  process.exit(1);
+});

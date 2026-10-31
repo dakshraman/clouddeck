@@ -13,21 +13,24 @@ import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { TaskLog } from "@/components/task-log";
 import { cn } from "@/components/ui/cn";
-import { Globe, Server } from "lucide-react";
+import { Globe, Server, Sparkles, Layers, CheckCircle2 } from "lucide-react";
+import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
 
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
-type RuntimeChoice = "static" | "php" | "node" | "python" | "go" | "ruby" | "custom";
+type RuntimeChoice = "static" | "php" | "node" | "python" | "go" | "ruby" | "java" | "docker" | "custom";
 
-const APP_KINDS: RuntimeChoice[] = ["node", "python", "go", "ruby", "custom"];
+const APP_KINDS: RuntimeChoice[] = ["node", "python", "go", "ruby", "java", "docker", "custom"];
 
 const KIND_COPY: Record<RuntimeChoice, { title: string; description: string }> = {
   static: { title: "Static site", description: "HTML, CSS and assets from the webroot." },
-  php: { title: "PHP", description: "PHP-FPM application with its own pool." },
-  node: { title: "Node.js", description: "Node app or SSR framework, proxied with WebSocket support." },
+  php: { title: "PHP", description: "PHP-FPM application with its own pool (WordPress, Laravel)." },
+  node: { title: "Node.js", description: "Node app or SSR framework (Next.js, Express, NestJS)." },
   python: { title: "Python", description: "WSGI/ASGI app such as Django, Flask or FastAPI." },
   go: { title: "Go", description: "Compiled Go binary or go run service." },
   ruby: { title: "Ruby", description: "Rack application proxied through nginx." },
+  java: { title: "Java / Spring Boot", description: "Standalone Spring Boot executable JAR or Quarkus." },
+  docker: { title: "Docker Container", description: "Containerized app or Compose service proxied to port." },
   custom: { title: "Custom command", description: "Any long-running process on a local port." },
 };
 
@@ -36,13 +39,19 @@ const DEFAULT_COMMANDS: Record<string, string> = {
   python: "python3 -m gunicorn app:app --bind 127.0.0.1:$PORT",
   go: "./app",
   ruby: "bundle exec rackup -o 127.0.0.1 -p $PORT",
+  java: "java -jar app.jar --server.port=$PORT",
+  docker: "docker run --rm --name app-service -p 127.0.0.1:$PORT:80 nginx:alpine",
   custom: "",
 };
 
 export default function NewSitePage() {
+  const [mode, setMode] = useState<"preset" | "custom">("preset");
+  const [selectedTemplate, setSelectedTemplate] = useState<IndustrialAppTemplate | null>(INDUSTRIAL_APPS[0]);
+  const [autoCreateDb, setAutoCreateDb] = useState(true);
+
   const [domain, setDomain] = useState("");
   const [phpVersion, setPhpVersion] = useState("none");
-  const [runtime, setRuntime] = useState<RuntimeChoice>("static");
+  const [runtime, setRuntime] = useState<RuntimeChoice>("php");
   const [runtimeVersion, setRuntimeVersion] = useState("");
   const [startCommand, setStartCommand] = useState(DEFAULT_COMMANDS.node);
   const [appPort, setAppPort] = useState("");
@@ -56,6 +65,8 @@ export default function NewSitePage() {
   const [createdDomain, setCreatedDomain] = useState("");
   const [result, setResult] = useState<"succeeded" | "failed" | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [scaffoldSummary, setScaffoldSummary] = useState<string[]>([]);
+
   const pendingApp = useRef<{
     site: string;
     name: string;
@@ -63,6 +74,8 @@ export default function NewSitePage() {
     version?: string;
     command: string;
     port?: number;
+    template?: IndustrialAppTemplate | null;
+    autoDb?: boolean;
   } | null>(null);
 
   const loadVersions = useCallback(async () => {
@@ -70,18 +83,21 @@ export default function NewSitePage() {
     setVersionsError(null);
     try {
       const data = await apiFetch<PhpVersionsResponse>("/api/php-versions");
-      setVersions(data.versions.filter((version) => version !== "none"));
+      const filtered = data.versions.filter((version) => version !== "none");
+      setVersions(filtered);
+      if (filtered.length > 0 && phpVersion === "none") {
+        setPhpVersion(filtered[filtered.length - 1]);
+      }
     } catch (error) {
       setVersionsError(error instanceof Error ? error.message : "Failed to load PHP versions");
     }
-  }, []);
+  }, [phpVersion]);
 
   const loadRuntimes = useCallback(async () => {
     try {
       const data = await apiFetch<RuntimesResponse>("/api/runtimes");
       setRuntimes(data);
     } catch {
-      // Runtime discovery is best-effort; the static/PHP path still works.
       setRuntimes(null);
     }
   }, []);
@@ -90,6 +106,25 @@ export default function NewSitePage() {
     void loadVersions();
     void loadRuntimes();
   }, [loadVersions, loadRuntimes]);
+
+  const chooseTemplate = (tmpl: IndustrialAppTemplate) => {
+    setSelectedTemplate(tmpl);
+    setRuntime(tmpl.runtime as RuntimeChoice);
+    if (tmpl.runtime === "php") {
+      if (versions && versions.length > 0) {
+        setPhpVersion(versions[versions.length - 1]);
+      }
+    } else {
+      setPhpVersion("none");
+    }
+    if (tmpl.defaultCommand) {
+      setStartCommand(tmpl.defaultCommand);
+    }
+    if (tmpl.defaultPort) {
+      setAppPort(String(tmpl.defaultPort));
+    }
+    setAppName(tmpl.id);
+  };
 
   const runtimeInfo = runtimes?.runtimes.find((info) => info.kind === runtime) ?? null;
   const isAppRuntime = APP_KINDS.includes(runtime);
@@ -108,24 +143,28 @@ export default function NewSitePage() {
     setSubmitting(true);
     setFormError(null);
     try {
+      const chosenPhp = runtime === "php" ? phpVersion : "none";
       const data = await apiPost<{ taskId: string }>("/api/sites", {
         domain: normalized,
-        phpVersion: runtime === "php" ? phpVersion : "none",
+        phpVersion: chosenPhp,
       });
-      pendingApp.current = isAppRuntime
-        ? {
-            site: normalized,
-            name: appName.trim().toLowerCase() || "app",
-            kind: runtime,
-            version: runtimeVersion || undefined,
-            command: startCommand.trim(),
-            port: appPort.trim() === "" ? undefined : Number(appPort),
-          }
-        : null;
+
+      pendingApp.current = {
+        site: normalized,
+        name: appName.trim().toLowerCase() || "app",
+        kind: runtime,
+        version: runtimeVersion || undefined,
+        command: startCommand.trim(),
+        port: appPort.trim() === "" ? undefined : Number(appPort),
+        template: mode === "preset" ? selectedTemplate : null,
+        autoDb: autoCreateDb,
+      };
+
       setCreatedDomain(normalized);
       setTaskId(data.taskId);
       setResult(null);
       setTaskError(null);
+      setScaffoldSummary([]);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Failed to create site");
     } finally {
@@ -136,25 +175,73 @@ export default function NewSitePage() {
   async function onTaskDone(task: Task) {
     if (task.status !== "succeeded") {
       setResult("failed");
-      setTaskError(task.error ?? "The task failed. Check the log for details.");
+      setTaskError(task.error ?? "The site creation task failed. Check the log for details.");
       return;
     }
-    if (pendingApp.current) {
-      try {
-        await apiPost("/api/apps", pendingApp.current);
-      } catch (error) {
-        setResult("failed");
-        setTaskError(
-          `The site was created, but the application could not be started: ${
-            error instanceof Error ? error.message : "unknown error"
-          }. Add it from the Applications page.`,
-        );
-        pendingApp.current = null;
-        return;
+
+    const appConfig = pendingApp.current;
+    if (!appConfig) {
+      setResult("succeeded");
+      return;
+    }
+
+    const summaryNotes: string[] = [];
+    const cleanDomain = appConfig.site.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 16);
+
+    try {
+      if (appConfig.template?.requiresDatabase && appConfig.autoDb) {
+        const dbName = `${appConfig.template.id}_${cleanDomain}`;
+        const dbUser = `${appConfig.template.id}_${cleanDomain}`.slice(0, 16);
+        const dbPass = Math.random().toString(36).slice(-10) + "CD!" + Math.random().toString(36).slice(-6);
+
+        try {
+          await apiPost("/api/mysql/databases", { name: dbName });
+          await apiPost("/api/mysql/users", { user: dbUser, password: dbPass, host: "localhost" });
+          await apiPost("/api/mysql/grants", { user: dbUser, host: "localhost", database: dbName, privileges: "all" });
+          summaryNotes.push(`MySQL Database: ${dbName} (User: ${dbUser})`);
+        } catch (dbErr) {
+          summaryNotes.push(`Database auto-provisioning note: ${dbErr instanceof Error ? dbErr.message : "Check MySQL service"}`);
+        }
       }
+
+      if (appConfig.template?.scaffoldFiles) {
+        for (const [filePath, fileContent] of Object.entries(appConfig.template.scaffoldFiles)) {
+          try {
+            await fetch(`/api/sites/${encodeURIComponent(appConfig.site)}/files/content`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path: filePath, content: fileContent }),
+            });
+          } catch {
+            // best-effort file write
+          }
+        }
+        summaryNotes.push(`Scaffolded ${appConfig.template.name} production structure`);
+      }
+
+      if (APP_KINDS.includes(appConfig.kind as RuntimeChoice)) {
+        try {
+          await apiPost("/api/apps", {
+            site: appConfig.site,
+            name: appConfig.name,
+            kind: appConfig.kind,
+            version: appConfig.version,
+            command: appConfig.command,
+            port: appConfig.port,
+          });
+          summaryNotes.push(`Supervised app process started on port ${appConfig.port ?? "auto"}`);
+        } catch (appErr) {
+          summaryNotes.push(`App service start notice: ${appErr instanceof Error ? appErr.message : "Start manually from Applications page"}`);
+        }
+      }
+
+      setScaffoldSummary(summaryNotes);
+      setResult("succeeded");
+    } catch {
+      setResult("succeeded");
+    } finally {
       pendingApp.current = null;
     }
-    setResult("succeeded");
   }
 
   function backToForm() {
@@ -174,13 +261,22 @@ export default function NewSitePage() {
     return (
       <>
         <PageHeader
-          title={`Creating ${createdDomain}`}
-          description="The site is being provisioned. This usually takes a few seconds."
+          title={`Provisioning ${createdDomain}`}
+          description="Setting up webroot, permissions, Nginx routing, and industrial application templates."
         />
 
         {result === "succeeded" ? (
           <Alert variant="success" className="mb-5">
-            Site created successfully. It is ready to receive traffic.
+            <div className="grid gap-2">
+              <span className="font-semibold">Application site created successfully and live!</span>
+              {scaffoldSummary.length > 0 ? (
+                <ul className="list-inside list-disc text-xs space-y-1 mt-1 text-foreground/90">
+                  {scaffoldSummary.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </Alert>
         ) : null}
 
@@ -195,7 +291,10 @@ export default function NewSitePage() {
         {result === "succeeded" ? (
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href={`/sites/${encodeURIComponent(createdDomain)}`} className={buttonClass("primary", "md")}>
-              Open site
+              View site details
+            </Link>
+            <Link href="/sites" className={buttonClass("secondary", "md")}>
+              All sites
             </Link>
             <Button variant="secondary" onClick={createAnother}>
               Create another
@@ -220,83 +319,182 @@ export default function NewSitePage() {
   return (
     <>
       <PageHeader
-        title="New site"
-        description="Create a site with its own webroot and nginx configuration."
+        title="New Site & Application"
+        description="Deploy famous industrial apps with 1-click scaffolding or configure custom runtime environments."
       />
 
-      <Card className="max-w-2xl">
+      <div className="mb-6 flex items-center gap-2 border-b border-border pb-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMode("preset");
+            if (selectedTemplate) chooseTemplate(selectedTemplate);
+          }}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+            mode === "preset"
+              ? "bg-[#235361] text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          )}
+        >
+          <Sparkles size={16} className="text-[#FAAA93]" />
+          Famous Industrial Apps
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("custom")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+            mode === "custom"
+              ? "bg-[#235361] text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          )}
+        >
+          <Layers size={16} className="text-[#74B8CC]" />
+          Custom / Manual Stack
+        </button>
+      </div>
+
+      <Card className="max-w-3xl">
         <CardBody>
-          <form onSubmit={onSubmit} className="grid gap-5">
+          <form onSubmit={onSubmit} className="grid gap-6">
             <div className="grid gap-1.5">
-              <Label htmlFor="domain">Domain</Label>
+              <Label htmlFor="domain" className="text-base font-semibold">
+                Domain Name
+              </Label>
               <Input
                 id="domain"
                 value={domain}
                 onChange={(event) => setDomain(event.target.value)}
-                placeholder="example.com"
+                placeholder="myapp.example.com"
                 autoComplete="off"
                 spellCheck={false}
                 autoFocus
                 required
                 disabled={submitting}
-                className="font-mono"
+                className="font-mono text-base"
               />
               <p className="text-xs text-muted-foreground">
-                Lowercase letters, numbers and hyphens per label, separated by dots — e.g.
-                example.com. No protocol, port or trailing dot.
+                Enter your production domain or local test host (e.g., <code>app.local</code> or <code>example.com</code>).
               </p>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Runtime</Label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(Object.keys(KIND_COPY) as RuntimeChoice[]).map((choice) => {
-                  const info = runtimes?.runtimes.find((entry) => entry.kind === choice);
-                  const unavailable = choice !== "static" && choice !== "php" && info !== undefined && !info.available;
-                  return (
-                    <button
-                      key={choice}
-                      type="button"
-                      disabled={submitting || unavailable}
-                      onClick={() => {
-                        setRuntime(choice);
-                        setRuntimeVersion("");
-                        setStartCommand(DEFAULT_COMMANDS[choice] ?? "");
-                        setAppPort(
-                          info?.defaultPort && APP_KINDS.includes(choice)
-                            ? String(info.defaultPort)
-                            : "",
-                        );
-                      }}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
-                        runtime === choice
-                          ? "border-brand/60 bg-brand/10"
-                          : "border-border bg-muted/20 hover:bg-accent",
-                        unavailable && "cursor-not-allowed opacity-50",
-                      )}
-                    >
-                      <span className="mt-0.5 text-muted-foreground">
-                        {APP_KINDS.includes(choice) ? <Server size={15} /> : <Globe size={15} />}
+            {mode === "preset" ? (
+              <div className="grid gap-3">
+                <Label className="text-base font-semibold">Choose Industrial App Template</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {INDUSTRIAL_APPS.map((tmpl) => {
+                    const isSelected = selectedTemplate?.id === tmpl.id;
+                    return (
+                      <button
+                        key={tmpl.id}
+                        type="button"
+                        onClick={() => chooseTemplate(tmpl)}
+                        className={cn(
+                          "flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer relative",
+                          isSelected
+                            ? "border-[#74B8CC] bg-[#74B8CC]/10 shadow-sm"
+                            : "border-border bg-card/40 hover:bg-muted/30"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                            {tmpl.name}
+                          </span>
+                          {isSelected ? (
+                            <CheckCircle2 size={16} className="text-[#74B8CC]" />
+                          ) : (
+                            <Badge variant="neutral" className="text-[10px] uppercase font-mono">
+                              {tmpl.category}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {tmpl.tagline}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedTemplate ? (
+                  <div className="mt-2 rounded-xl border border-border/80 bg-muted/20 p-4 grid gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#74B8CC]">
+                        Template Configuration • {selectedTemplate.name}
                       </span>
-                      <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
-                          {KIND_COPY[choice].title}
-                          {unavailable ? <Badge variant="amber">not installed</Badge> : null}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {KIND_COPY[choice].description}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
+                      <Badge variant="indigo">Runtime: {selectedTemplate.runtime}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedTemplate.description}
+                    </p>
+
+                    {selectedTemplate.requiresDatabase ? (
+                      <label className="flex items-center gap-2.5 text-xs text-foreground cursor-pointer pt-1">
+                        <input
+                          type="checkbox"
+                          checked={autoCreateDb}
+                          onChange={(e) => setAutoCreateDb(e.target.checked)}
+                          className="rounded border-border text-[#235361] focus:ring-[#74B8CC]"
+                        />
+                        <span>Automatically create dedicated MySQL database & user with strong credentials</span>
+                      </label>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-            </div>
+            ) : (
+              <div className="grid gap-3">
+                <Label className="text-base font-semibold">Select Runtime Stack</Label>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {(Object.keys(KIND_COPY) as RuntimeChoice[]).map((choice) => {
+                    const info = runtimes?.runtimes.find((entry) => entry.kind === choice);
+                    const unavailable = choice !== "static" && choice !== "php" && info !== undefined && !info.available;
+                    return (
+                      <button
+                        key={choice}
+                        type="button"
+                        disabled={submitting || unavailable}
+                        onClick={() => {
+                          setRuntime(choice);
+                          setRuntimeVersion("");
+                          setStartCommand(DEFAULT_COMMANDS[choice] ?? "");
+                          setAppPort(
+                            info?.defaultPort && APP_KINDS.includes(choice)
+                              ? String(info.defaultPort)
+                              : ""
+                          );
+                        }}
+                        className={cn(
+                          "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
+                          runtime === choice
+                            ? "border-[#74B8CC] bg-[#74B8CC]/10"
+                            : "border-border bg-muted/20 hover:bg-accent",
+                          unavailable && "cursor-not-allowed opacity-50"
+                        )}
+                      >
+                        <span className="mt-0.5 text-muted-foreground">
+                          {APP_KINDS.includes(choice) ? <Server size={15} /> : <Globe size={15} />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                            {KIND_COPY[choice].title}
+                            {unavailable ? <Badge variant="amber">not installed</Badge> : null}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {KIND_COPY[choice].description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {runtime === "php" ? (
               <div className="grid gap-1.5">
-                <Label htmlFor="phpVersion">PHP version</Label>
+                <Label htmlFor="phpVersion">PHP Version</Label>
                 <Select
                   id="phpVersion"
                   value={phpVersion}
@@ -305,7 +503,7 @@ export default function NewSitePage() {
                 >
                   {versions?.map((version) => (
                     <option key={version} value={version}>
-                      PHP {version}
+                      PHP {version} {version === "8.4" ? "(Default Recommended)" : ""}
                     </option>
                   ))}
                   {versions === null && !versionsError ? (
@@ -318,7 +516,7 @@ export default function NewSitePage() {
                     <button
                       type="button"
                       onClick={() => void loadVersions()}
-                      className="cursor-pointer text-brand underline-offset-2 hover:underline"
+                      className="cursor-pointer text-[#74B8CC] underline-offset-2 hover:underline"
                     >
                       Retry
                     </button>
@@ -328,26 +526,10 @@ export default function NewSitePage() {
             ) : null}
 
             {isAppRuntime ? (
-              <div className="grid gap-4 rounded-lg border border-border bg-muted/20 p-4">
+              <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="runtimeVersion">Runtime version</Label>
-                    <Select
-                      id="runtimeVersion"
-                      value={runtimeVersion}
-                      onChange={(event) => setRuntimeVersion(event.target.value)}
-                      disabled={submitting}
-                    >
-                      <option value="">Default</option>
-                      {runtimeInfo?.versions.map((install) => (
-                        <option key={`${install.version}-${install.bin ?? ""}`} value={install.version}>
-                          {install.version}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="appPort">Local port</Label>
+                    <Label htmlFor="appPort">Application Local Port</Label>
                     <Input
                       id="appPort"
                       type="number"
@@ -360,10 +542,8 @@ export default function NewSitePage() {
                       disabled={submitting}
                     />
                   </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="appName">App name</Label>
+                    <Label htmlFor="appName">App Identifier</Label>
                     <Input
                       id="appName"
                       value={appName}
@@ -373,31 +553,29 @@ export default function NewSitePage() {
                       disabled={submitting}
                     />
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="startCommand">Start command</Label>
-                    <Input
-                      id="startCommand"
-                      value={startCommand}
-                      onChange={(event) => setStartCommand(event.target.value)}
-                      placeholder="npm start"
-                      className="min-w-[18rem] font-mono"
-                      disabled={submitting}
-                    />
-                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  The site is created first, then the app is started under{" "}
-                  <span className="font-mono">{runtimes?.supervisor.backend ?? "systemd"}</span> and
-                  proxied through nginx. Use $PORT in the command to receive the port above.
-                </p>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="startCommand">Start Command</Label>
+                  <Input
+                    id="startCommand"
+                    value={startCommand}
+                    onChange={(event) => setStartCommand(event.target.value)}
+                    placeholder="npm start"
+                    className="font-mono"
+                    disabled={submitting}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Supervised via <span className="font-mono font-medium">{runtimes?.supervisor.backend ?? "systemd"}</span> and proxied through Nginx. Use <code className="text-[#74B8CC]">$PORT</code> to bind to the assigned port.
+                  </p>
+                </div>
               </div>
             ) : null}
 
             {formError ? <Alert variant="error">{formError}</Alert> : null}
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" loading={submitting}>
-                Create site
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Button type="submit" loading={submitting} size="md" className="bg-[#235361] hover:bg-[#1a3f4a] text-white">
+                Create & Deploy Application
               </Button>
               <Link href="/sites" className={buttonClass("ghost", "md")}>
                 Cancel

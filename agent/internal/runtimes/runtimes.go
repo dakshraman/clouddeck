@@ -22,6 +22,8 @@ const (
 	KindPython = "python"
 	KindGo     = "go"
 	KindRuby   = "ruby"
+	KindJava   = "java"
+	KindDocker = "docker"
 	KindCustom = "custom"
 )
 
@@ -93,6 +95,20 @@ func Detect() []KindInfo {
 			Versions:    detectRuby(),
 		},
 		{
+			Kind:        KindJava,
+			Label:       "Java / Spring Boot",
+			Description: "Spring Boot executable JAR, Quarkus, or Gradle/Maven Java application.",
+			DefaultPort: 8080,
+			Versions:    detectJava(),
+		},
+		{
+			Kind:        KindDocker,
+			Label:       "Docker Container",
+			Description: "Docker container or Compose stack proxied to local port.",
+			DefaultPort: 8080,
+			Versions:    detectDocker(),
+		},
+		{
 			Kind:        KindCustom,
 			Label:       "Custom command",
 			Description: "Any long-running command you can start on a local port.",
@@ -125,7 +141,7 @@ func Lookup(kind string) (KindInfo, bool) {
 // ValidKind reports whether kind is a runtime the agent understands.
 func ValidKind(kind string) bool {
 	switch kind {
-	case KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindCustom:
+	case KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindJava, KindDocker, KindCustom:
 		return true
 	}
 	return false
@@ -135,7 +151,7 @@ func ValidKind(kind string) bool {
 // (as opposed to static files or PHP-FPM).
 func IsApp(kind string) bool {
 	switch kind {
-	case KindNode, KindPython, KindGo, KindRuby, KindCustom:
+	case KindNode, KindPython, KindGo, KindRuby, KindJava, KindDocker, KindCustom:
 		return true
 	}
 	return false
@@ -213,6 +229,20 @@ func detectRuby() []Runtime {
 	return []Runtime{}
 }
 
+func detectJava() []Runtime {
+	if bin, version := probe("java", "-version"); version != "" {
+		return []Runtime{{Kind: KindJava, Label: "Java", Version: version, Bin: bin, Default: true}}
+	}
+	return []Runtime{}
+}
+
+func detectDocker() []Runtime {
+	if bin, version := probe("docker", "--version"); version != "" {
+		return []Runtime{{Kind: KindDocker, Label: "Docker", Version: version, Bin: bin, Default: true}}
+	}
+	return []Runtime{}
+}
+
 // probe runs `name args...` and extracts the first semantic version it prints.
 // The agent usually runs as a systemd service with a minimal PATH, so common
 // install locations are tried when LookPath fails.
@@ -248,6 +278,8 @@ var fallbackPaths = map[string][]string{
 	"python3": {"/usr/bin/python3", "/usr/local/bin/python3"},
 	"go":      {"/usr/local/go/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go"},
 	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby"},
+	"java":    {"/usr/bin/java", "/usr/local/bin/java", "/usr/lib/jvm/default-java/bin/java"},
+	"docker":  {"/usr/bin/docker", "/usr/local/bin/docker"},
 	"php":     {"/usr/bin/php", "/usr/local/bin/php"},
 }
 

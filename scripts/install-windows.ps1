@@ -403,7 +403,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo '==> Updating package repository and installing prerequisites...'
 apt-get update -qq >/dev/null 2>&1 || true
-apt-get install -y -qq curl ca-certificates openssl >/dev/null 2>&1 || true
+apt-get install -y -qq curl ca-certificates openssl libatomic1 >/dev/null 2>&1 || true
 
 echo '==> Fetching and running Unified CloudDeck Installer...'
 INSTALLER_URL='https://clouddeck.dakshraman.in/install.sh'
@@ -688,5 +688,5 @@ Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrRe
 Write-Host "  ${tcSky}$gRailMid${clrReset}"
 Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
 Write-Host ""
-$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.31" }
+$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.32" }
 Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."

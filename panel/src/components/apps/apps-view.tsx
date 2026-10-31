@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/components/ui/cn";
 import { Cpu, Play, RotateCw, Square, Trash2, Terminal } from "lucide-react";
 
-const APP_KINDS = new Set(["node", "python", "go", "ruby", "custom"]);
+const APP_KINDS = new Set(["node", "python", "go", "ruby", "java", "docker", "custom"]);
 
 function stateVariant(state: AppInfo["status"]["state"]): BadgeVariant {
   switch (state) {
@@ -49,6 +49,10 @@ function kindLabel(kind: string): string {
       return "Go";
     case "ruby":
       return "Ruby";
+    case "java":
+      return "Java / Spring Boot";
+    case "docker":
+      return "Docker";
     case "custom":
       return "Custom";
     default:
@@ -365,6 +369,8 @@ function NewAppForm({
     else if (kind === "python") setCommand("python3 -m gunicorn app:app --bind 127.0.0.1:$PORT");
     else if (kind === "go") setCommand("./app");
     else if (kind === "ruby") setCommand("bundle exec rackup -o 127.0.0.1 -p $PORT");
+    else if (kind === "java") setCommand("java -jar app.jar --server.port=$PORT");
+    else if (kind === "docker") setCommand("docker run --rm --name app-service -p 127.0.0.1:$PORT:80 nginx:alpine");
     else setCommand("");
     if (selected?.defaultPort) setPort(String(selected.defaultPort));
   }, [kind, selected?.defaultPort]);

@@ -572,7 +572,7 @@ export interface RemoteMysqlUsersResponse {
 }
 // ---- v0.6: app runtimes, process supervision, firewall and security ----
 
-export type RuntimeKind = "static" | "php" | "node" | "python" | "go" | "ruby" | "custom";
+export type RuntimeKind = "static" | "php" | "node" | "python" | "go" | "ruby" | "java" | "docker" | "custom";
 
 export interface RuntimeInstall {
   kind: RuntimeKind;

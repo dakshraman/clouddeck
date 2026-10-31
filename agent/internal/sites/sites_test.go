@@ -149,7 +149,7 @@ func TestRenderNginxConfigByteIdenticalPHPSite(t *testing.T) {
     error_log /var/log/nginx/example.com.error.log;
 
     location / {
-        try_files $uri $uri/ =404;
+        try_files $uri $uri/ /index.php?$args;
     }
 
     location ~ \.php$ {

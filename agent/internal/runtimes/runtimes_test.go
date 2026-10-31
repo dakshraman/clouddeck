@@ -4,7 +4,7 @@ import "testing"
 
 func TestDetectCoversEveryKind(t *testing.T) {
 	got := Detect()
-	want := []string{KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindCustom}
+	want := []string{KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindJava, KindDocker, KindCustom}
 	if len(got) != len(want) {
 		t.Fatalf("got %d kinds, want %d", len(got), len(want))
 	}
@@ -31,7 +31,7 @@ func TestStaticAndCustomAlwaysAvailable(t *testing.T) {
 }
 
 func TestValidKind(t *testing.T) {
-	for _, kind := range []string{KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindCustom} {
+	for _, kind := range []string{KindStatic, KindPHP, KindNode, KindPython, KindGo, KindRuby, KindJava, KindDocker, KindCustom} {
 		if !ValidKind(kind) {
 			t.Fatalf("ValidKind(%q) = false", kind)
 		}
@@ -44,7 +44,7 @@ func TestValidKind(t *testing.T) {
 }
 
 func TestIsApp(t *testing.T) {
-	for _, kind := range []string{KindNode, KindPython, KindGo, KindRuby, KindCustom} {
+	for _, kind := range []string{KindNode, KindPython, KindGo, KindRuby, KindJava, KindDocker, KindCustom} {
 		if !IsApp(kind) {
 			t.Fatalf("IsApp(%q) = false", kind)
 		}

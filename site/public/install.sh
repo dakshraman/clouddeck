@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.31"
+      VERSION="v0.6.32"
     fi
   fi
 }
@@ -908,7 +908,7 @@ provision_linux_packages() {
   fi
 
   step "Provisioning Linux server stack packages..."
-  _pkgs="git unzip sqlite3 ufw"
+  _pkgs="git unzip sqlite3 ufw libatomic1"
   [ "$DO_NGINX" = "1" ] && _pkgs="$_pkgs nginx"
   
   if [ "$DO_PHP" = "1" ]; then

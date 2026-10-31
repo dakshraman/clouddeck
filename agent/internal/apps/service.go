@@ -117,7 +117,7 @@ func (s *Service) Create(ctx context.Context, log safeexec.Logger, in CreateInpu
 	}
 	if !runtimes.ValidKind(kind) || !runtimes.IsApp(kind) {
 		return App{}, apierr.BadRequest("invalid_runtime",
-			fmt.Sprintf("runtime %q cannot be hosted as an app; choose node, python, go, ruby or custom", kind))
+			fmt.Sprintf("runtime %q cannot be hosted as an app; choose node, python, go, ruby, java, docker or custom", kind))
 	}
 	command, err := ValidateCommand(in.Command)
 	if err != nil {

@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -235,6 +236,7 @@ func (i *Installer) installNode(ctx context.Context, log tasks.LogFunc, major st
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return apierr.New(502, "install_failed", fmt.Sprintf("create %s: %v", dest, err))
 	}
+	ensureNodePrereqs(ctx, log)
 	if err := safeexec.RunTimeout(ctx, false, log, downloadTimeout,
 		"tar", "-xJf", archive, "-C", dest, "--strip-components=1"); err != nil {
 		os.RemoveAll(dest)
@@ -242,8 +244,13 @@ func (i *Installer) installNode(ctx context.Context, log tasks.LogFunc, major st
 	}
 	if err := safeexec.RunTimeout(ctx, false, log, time.Minute,
 		filepath.Join(dest, "bin", "node"), "-v"); err != nil {
-		os.RemoveAll(dest)
-		return installFailed(err)
+		// Second chance: check if libatomic1 was needed but failed early
+		ensureNodePrereqs(ctx, log)
+		if retryErr := safeexec.RunTimeout(ctx, false, log, time.Minute,
+			filepath.Join(dest, "bin", "node"), "-v"); retryErr != nil {
+			os.RemoveAll(dest)
+			return installFailed(retryErr)
+		}
 	}
 	log("info", "installed node "+version+" in "+dest)
 	return nil
@@ -288,6 +295,40 @@ func installedNodeMajor(major string) string {
 		}
 	}
 	return ""
+}
+
+// ensureNodePrereqs checks and installs system prerequisites required by modern Node.js
+// builds (such as libatomic1 for V8 64-bit atomics).
+func ensureNodePrereqs(ctx context.Context, log tasks.LogFunc) {
+	if runtime.GOOS != "linux" {
+		return
+	}
+	hasLibatomic := false
+	if out, err := exec.Command("ldconfig", "-p").Output(); err == nil && len(out) > 0 {
+		if strings.Contains(string(out), "libatomic.so.1") {
+			hasLibatomic = true
+		}
+	}
+	if !hasLibatomic {
+		for _, p := range []string{
+			"/usr/lib/x86_64-linux-gnu/libatomic.so.1",
+			"/usr/lib/aarch64-linux-gnu/libatomic.so.1",
+			"/usr/lib/libatomic.so.1",
+			"/usr/lib64/libatomic.so.1",
+		} {
+			if _, err := os.Stat(p); err == nil {
+				hasLibatomic = true
+				break
+			}
+		}
+	}
+	if !hasLibatomic {
+		if _, err := exec.LookPath("apt-get"); err == nil {
+			log("info", "installing missing libatomic1 prerequisite for Node.js...")
+			_ = safeexec.RunTimeout(ctx, false, log, 2*time.Minute,
+				"bash", "-c", "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq >/dev/null 2>&1 || true; apt-get install -y -qq libatomic1 >/dev/null 2>&1 || true")
+		}
+	}
 }
 
 // nodeDirFor resolves a major or exact version to its install directory.
