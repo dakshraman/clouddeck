@@ -34,16 +34,6 @@ export function Footer() {
               The modern, blazing-fast, open-source Linux hosting control panel and local development suite.
               Consumes under 50MB idle RAM with zero root web processes.
             </p>
-            <div className="flex items-center gap-1.5 pt-1">
-              {palette.map((c) => (
-                <span
-                  key={c.hex}
-                  title={`${c.name}: ${c.hex}`}
-                  className="h-3 w-3 rounded-full ring-1 ring-black/10"
-                  style={{ backgroundColor: c.hex }}
-                />
-              ))}
-            </div>
           </div>
 
           {/* Product Links */}
@@ -164,7 +154,7 @@ export function Footer() {
 
         {/* Bottom Strip */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[#D2ADAC]/40 pt-6 text-center text-xs text-[#8B9FA6] sm:flex-row sm:text-left">
-          <p>© 2026 Daksh Raman. Released under Open Source License.</p>
+          <p>© 2026 Raman Daksh. Released under Open Source License.</p>
           <p>Crafted with Next.js 15, React 19, Tailwind CSS &amp; Go stdlib.</p>
         </div>
       </div>
