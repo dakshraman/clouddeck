@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
+import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
 import { Check, CheckCircle2, Copy, KeyRound, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { apiFetch, readError } from "@/components/api";
 import { Alert, type AlertVariant } from "@/components/ui/alert";
@@ -213,7 +213,7 @@ export function TwoFactorCard({ initialEnabled = false, onStatusChange }: TwoFac
       {/* Enable 2FA Dialog */}
       <Dialog.Root open={enableOpen} onOpenChange={setEnableOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm " />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover p-6 shadow-2xl focus:outline-none">
             <div className="flex items-start justify-between gap-3 border-b border-border pb-4">
               <div className="flex items-center gap-3">
@@ -345,7 +345,7 @@ export function TwoFactorCard({ initialEnabled = false, onStatusChange }: TwoFac
       {/* Disable 2FA Dialog */}
       <Dialog.Root open={disableOpen} onOpenChange={setDisableOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm " />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover p-6 shadow-2xl focus:outline-none">
             <div className="flex items-start justify-between gap-3 border-b border-border pb-4">
               <div className="flex items-center gap-3">

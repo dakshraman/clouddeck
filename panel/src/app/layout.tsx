@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      data-theme="luma"
+      data-theme="clouddeck"
       className={`${spaceGrotesk.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

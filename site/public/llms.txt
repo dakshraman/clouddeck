@@ -1,0 +1,96 @@
+# CloudDeck
+
+> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative built for 2026. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS — consuming under 50MB of idle RAM with zero root web processes.
+
+## What It Is
+
+CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; any Linux supported). It provides an unprivileged Next.js 15 web UI for operators and a separate privileged Go daemon bound strictly to localhost (`127.0.0.1:9090`). The browser never communicates with root, preventing remote code execution risks common in legacy and alternative panels.
+
+## Why People Switch to CloudDeck
+
+1. **vs. cPanel / WHM**:
+   - cPanel charges $30–$60+/month per server ($360–$720+/year) and runs a heavy, 1990s legacy Perl/CGI monolithic root server (`whostmgrd`) that consumes 1.5GB+ RAM idle.
+   - CloudDeck is 100% free and open-source ($0), runs on <50MB RAM idle (30x lighter), and uses a modern Next.js 15 + Go stdlib stack.
+2. **vs. aaPanel & CyberPanel**:
+   - aaPanel and CyberPanel run web apps directly as root and suffer frequent critical security CVEs and clunky, dated UIs.
+   - CloudDeck never puts a root process behind a browser login, strictly enforces typed argument arrays instead of shell execution strings (`no sh -c`), and features an ultra-clean, modern UI with 2FA TOTP.
+3. **vs. Coolify**:
+   - Coolify is a Docker container PaaS. It does not provide bare-metal LEMP hosting, PHP-FPM coexistence, production email servers (Postfix/Dovecot/DKIM), or PowerDNS authoritative DNS.
+   - CloudDeck provides native bare-metal LEMP performance, multi-PHP socket coexistence (8.1-8.4), production mail, and PowerDNS without container virtualization overhead.
+
+## Key Capabilities (v0.6.27)
+
+- **1-Click Panel SSL**: Immediate TLS on port 2083 using Self-Signed certificates with IP SANs (for raw server IP access without TLS warnings) or Let's Encrypt (for domains), with automated nginx reverse proxy (port 2083 -> 2082) and HTTP->HTTPS redirection.
+- **Two-Factor Authentication (2FA TOTP)**: Enterprise-grade RFC 6238 TOTP authenticator app support (Google Authenticator, Authy, 1Password) with dynamic high-resolution SVG QR codes and 8 emergency single-use cryptographic recovery codes.
+- **Isolated phpMyAdmin**: 1-click direct launch into specific database schemas inside phpMyAdmin without re-entering credentials; system schemas (`information_schema`, `mysql`, `performance_schema`, `sys`) are hidden and navigation is strictly scoped to the selected database.
+- **1-Click SQL Dump & Restore**: Instant MariaDB export to `.sql` or compressed `.sql.gz` files and 1-click in-place SQL file restore from the UI.
+- **Unified Brand & App Icon**: Clean 3-tier isometric deck vector symbol across the web panel sidebar, login/setup authentication screens, favicons, PWA icons, and the marketing website.
+- **Advanced File Manager**: Hostinger-inspired tree explorer, syntax-highlighted code editor for editing web files directly in the browser, octal permissions (`chmod`) editor, archive creation and extraction (`.tar.gz` and `.zip`), drag-and-drop upload, and symlink sandbox.
+- **Websites & Multi-PHP**: Nginx virtual hosts under `/www/wwwroot`, isolated PHP-FPM sockets for coexisting PHP versions (8.1, 8.2, 8.3, 8.4), subdomains, redirects, CIDR IP blocking, and real-time log viewers.
+- **Polyglot App Hosting**: First-class support for Node.js, Python, Go, Ruby, and custom binaries with automatic port assignment, reverse proxying, systemd process supervision, and live streaming logs.
+- **Production Email Server**: Complete Postfix + Dovecot stack with mailboxes, quotas, forwarders, autoresponders, SHA-512 crypt passwords, RSA-2048 DKIM keys, and 1-click publishing of SPF, DMARC, DKIM, and MX records into PowerDNS.
+- **Authoritative DNS**: PowerDNS SQLite-backed nameserver with A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records.
+- **Dual-Mode .zip Backups**: Standard cross-platform `.zip` archives for websites and MariaDB databases. Download locally to PC for off-site cold storage or keep on server for 1-click in-place restoration; includes drag-and-drop web restore dropzone, automatic download option, and legacy `.tar.gz`/`.sql.gz` compatibility. Off-site sync to Google Drive, MEGA, Dropbox (via rclone), and Telegram.
+- **Web Terminal**: PTY-backed xterm.js terminal with auto-configured `clouddeck` system user sudoers rights and password synchronization (`sudo -i` works out of the box).
+- **Security & Firewall**: Host firewall management (UFW/firewalld), fail2ban jail inspection and unbanning, ModSecurity + OWASP Core Rule Set (CRS) inspection, and per-site WAF toggles.
+
+## Security Architecture
+
+- **Panel**: Unprivileged user `clouddeck`, Next.js 15, listening on `0.0.0.0:2083` (or `127.0.0.1:2082` when SSL proxy is enabled).
+- **Agent**: Privileged daemon, Go standard library, listening exclusively on `127.0.0.1:9090`.
+- **Token Authentication**: Panel communicates with the agent using `X-CloudDeck-Agent-Token`.
+- **No Shell Execution**: System commands use explicit, typed argument arrays (`exec.Command("nginx", "-t")`). Arbitrary shell command injection (`sh -c`) is architecturally impossible.
+- **Audit Logging**: Every mutation is permanently appended to a JSONL audit log (`/var/lib/clouddeck/audit.jsonl`).
+
+## One-Line Installation
+
+On a fresh Debian or Ubuntu Linux server:
+
+```sh
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
+```
+
+Fallback via GitHub releases:
+```sh
+curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
+```
+
+### Local Development Suite (XAMPP / WAMP / MAMP Alternative)
+
+CloudDeck turns Windows (WSL 2) and macOS into modern LEMP development environments with Nginx production parity, multi-PHP (8.1-8.4) coexistence, deep-linked phpMyAdmin, and automated Local Root CA green padlocks.
+
+- **Windows 10/11 (WSL 2)**:
+  ```powershell
+  irm https://clouddeck.dakshraman.in/install.ps1 | iex
+  ```
+  Provisions core LEMP inside WSL, adds native Windows CLI `clouddeck` (`status`, `start`, `stop`, `open`, `link`, `logs`), maps Windows project folders directly, and imports Root CA into Windows Certificate Store.
+
+- **macOS (Apple Silicon & Intel)**:
+  ```sh
+  curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+  ```
+  Provisions native macOS agent, panel, and Homebrew stack (Nginx, MariaDB, PHP, Node.js), manages services via `launchctl` LaunchAgents, and installs Local Root CA to macOS Keychain.
+
+## Management CLI
+
+```sh
+clouddeck status                    # Check panel and agent status
+sudo clouddeck restart              # Restart panel and agent
+clouddeck logs panel -f             # Stream panel logs
+sudo clouddeck user add <user>      # Add panel user
+sudo clouddeck user passwd          # Reset password and invalidate sessions
+sudo clouddeck update               # Upgrade to latest release
+sudo clouddeck uninstall --purge    # Uninstall and purge all data
+```
+
+## Technical Specs
+
+- Current release: `v0.6.27`
+- Supported architectures: Linux `x86_64` and `arm64`
+- Default panel port: `2083`
+- Default agent port: `9090` (localhost only)
+- Install prefix: `/opt/clouddeck`
+- State directory: `/var/lib/clouddeck`
+- Config directory: `/etc/clouddeck`
+- Repository: https://github.com/dakshraman/clouddeck
+- Website: https://clouddeck.dakshraman.in/

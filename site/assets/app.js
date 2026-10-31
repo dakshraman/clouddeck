@@ -272,13 +272,22 @@
   /* ---------- under the hood pill switcher ---------- */
 
   const hoodPills = Array.from(document.querySelectorAll(".hood-pill"));
+  const hoodGrids = Array.from(document.querySelectorAll("[data-hood-grid]"));
   hoodPills.forEach((pill) => {
     pill.addEventListener("click", () => {
+      const cat = pill.getAttribute("data-hood-cat");
       hoodPills.forEach((p) => {
         const isMatch = p === pill;
         p.classList.toggle("is-active", isMatch);
         p.setAttribute("aria-selected", String(isMatch));
       });
+      if (cat) {
+        hoodGrids.forEach((grid) => {
+          const isGridMatch = grid.getAttribute("data-hood-grid") === cat;
+          grid.hidden = !isGridMatch;
+          grid.classList.toggle("is-active", isGridMatch);
+        });
+      }
     });
   });
 

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/version-v0.6.26-1cc8e8?style=flat-square" alt="Version v0.6.26" /></a>
+  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/version-v0.6.27-1cc8e8?style=flat-square" alt="Version v0.6.27" /></a>
   <img src="https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square" alt="Platform Linux" />
   <img src="https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square" alt="Panel Next.js 15" />
   <img src="https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square" alt="Agent Go stdlib" />
@@ -391,6 +391,7 @@ cd panel && npm run typecheck && npm run build
 
 ## 📜 Release History
 
+- **v0.6.27** — **Uni 6-Color Primary Theme & Next.js Marketing Site**: Upgraded panel primary theme to the Uni 6-color palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) with full appearance presets; migrated marketing website to Next.js 15 (React 19, TypeScript, Tailwind CSS) with unified responsive breakpoints, interactive deck preview, and tabbed installer.
 - **v0.6.26** — **phpMyAdmin Database Isolation & Unified Brand Icon**: Strict single-database navigation tree scoping via dynamic `only_db` and session cookie, hiding system schemas (`information_schema`, `mysql`, `performance_schema`, `sys`); unified 3-tier isometric deck brand icon across panel sidebar, login/setup authentication screens, favicons, PWA icons, and landing site.
 - **v0.6.25** — **1-Click Panel SSL**: Automated self-signed TLS with IP SANs (raw server IP support) and Let's Encrypt for domains; automatic nginx HTTPS reverse proxy on port 2083; deep-linked phpMyAdmin per database; dashboard failed task status filters.
 - **v0.6.24** — **2FA TOTP Authentication**: RFC 6238 TOTP with live QR code SVG and 8 emergency recovery codes; 1-click database dump (`.sql`/`.sql.gz`) and restore; advanced File Manager with built-in code editor, chmod permissions, and `.tar.gz`/`.zip` archive tools; phpMyAdmin session permissions fix.

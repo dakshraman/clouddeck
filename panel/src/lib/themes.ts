@@ -1,5 +1,11 @@
 export const THEMES = [
   {
+    id: "clouddeck",
+    name: "CloudDeck Uni",
+    description: "Deep marine teal, sky powder cyan, and warm peach accent.",
+    preview: ["#235361", "#74B8CC", "#FAAA93"],
+  },
+  {
     id: "daylight",
     name: "Daylight",
     description: "Clean light surfaces, cyan edge.",
@@ -45,7 +51,7 @@ export const THEMES = [
 
 export type ThemeId = (typeof THEMES)[number]["id"];
 
-export const DEFAULT_THEME: ThemeId = "luma";
+export const DEFAULT_THEME: ThemeId = "clouddeck";
 
 export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && THEMES.some((theme) => theme.id === value);

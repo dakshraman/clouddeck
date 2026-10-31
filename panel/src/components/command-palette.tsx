@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import * as Dialog from "@radix-ui/react-dialog";
+import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, CornerDownLeft, Search, X } from "lucide-react";
 import { cn } from "@/components/ui/cn";
@@ -117,7 +117,7 @@ export function CommandPalette() {
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm " />
         <Dialog.Content
           className="fixed left-1/2 top-[12%] z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 focus:outline-none"
           aria-label="Search"

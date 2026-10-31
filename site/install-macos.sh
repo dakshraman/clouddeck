@@ -142,7 +142,7 @@ resolve_version() {
     VERSION="$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "latest")"
     if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
       # Fallback to dev channel
-      VERSION="v0.6.26"
+      VERSION="v0.6.27"
     fi
   fi
   say "Target version: $VERSION"
@@ -482,7 +482,7 @@ case "\$CMD" in
     ;;
 
   version)
-    cat "$PREFIX/.clouddeck-version" 2>/dev/null || echo "v0.6.26"
+    cat "$PREFIX/.clouddeck-version" 2>/dev/null || echo "v0.6.27"
     ;;
 
   help|*)

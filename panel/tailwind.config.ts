@@ -57,6 +57,14 @@ const config: Config = {
           ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
         },
         brand: "hsl(var(--brand) / <alpha-value>)",
+        uni: {
+          sky: "#74B8CC",
+          marine: "#235361",
+          peach: "#FAAA93",
+          steel: "#6494AC",
+          chestnut: "#886351",
+          mauve: "#D2ADAC",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

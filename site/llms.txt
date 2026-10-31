@@ -18,7 +18,7 @@ CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; a
    - Coolify is a Docker container PaaS. It does not provide bare-metal LEMP hosting, PHP-FPM coexistence, production email servers (Postfix/Dovecot/DKIM), or PowerDNS authoritative DNS.
    - CloudDeck provides native bare-metal LEMP performance, multi-PHP socket coexistence (8.1-8.4), production mail, and PowerDNS without container virtualization overhead.
 
-## Key Capabilities (v0.6.26)
+## Key Capabilities (v0.6.27)
 
 - **1-Click Panel SSL**: Immediate TLS on port 2083 using Self-Signed certificates with IP SANs (for raw server IP access without TLS warnings) or Let's Encrypt (for domains), with automated nginx reverse proxy (port 2083 -> 2082) and HTTP->HTTPS redirection.
 - **Two-Factor Authentication (2FA TOTP)**: Enterprise-grade RFC 6238 TOTP authenticator app support (Google Authenticator, Authy, 1Password) with dynamic high-resolution SVG QR codes and 8 emergency single-use cryptographic recovery codes.
@@ -85,7 +85,7 @@ sudo clouddeck uninstall --purge    # Uninstall and purge all data
 
 ## Technical Specs
 
-- Current release: `v0.6.26`
+- Current release: `v0.6.27`
 - Supported architectures: Linux `x86_64` and `arm64`
 - Default panel port: `2083`
 - Default agent port: `9090` (localhost only)

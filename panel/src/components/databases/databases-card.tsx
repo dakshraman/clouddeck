@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { formatBytes } from "@/components/format";
 import { cn } from "@/components/ui/cn";
-import * as Dialog from "@radix-ui/react-dialog";
+import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
 import { Database, Download, ExternalLink, FileText, Plus, Trash2, Upload, UploadCloud, X } from "lucide-react";
 
 const DATABASE_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
@@ -359,9 +359,9 @@ export function DatabasesCard({ databases, error, disabled, onRefresh, pmaInstal
 
       <Dialog.Root open={importTarget !== null} onOpenChange={(open) => { if (!open) closeImport(); }}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm " />
           <Dialog.Content
-            className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-raised focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+            className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-raised focus:outline-none  data-[state=open]:zoom-in-95"
             aria-describedby="import-dialog-description"
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">

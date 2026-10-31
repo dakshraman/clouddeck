@@ -3,7 +3,65 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  html[data-theme="clouddeck"] {
+    color-scheme: dark;
+
+    /* CloudDeck Uni Primary 6-Color Theme:
+       #74B8CC (Sky Powder Teal), #235361 (Deep Marine Teal), #FAAA93 (Pastel Peach),
+       #6494AC (Dusty Steel Teal), #886351 (Warm Chestnut), #D2ADAC (Soft Mauve Rose) */
+    --background: 198 42% 7%;
+    --foreground: 195 25% 96%;
+
+    --card: 196 38% 11%;
+    --card-foreground: 195 25% 96%;
+
+    --popover: 196 40% 10%;
+    --popover-foreground: 195 25% 96%;
+
+    --primary: 194 47% 26%;
+    --primary-foreground: 194 47% 96%;
+
+    --secondary: 198 32% 16%;
+    --secondary-foreground: 195 25% 96%;
+
+    --muted: 198 28% 15%;
+    --muted-foreground: 198 18% 64%;
+
+    --accent: 194 47% 63%;
+    --accent-foreground: 194 47% 12%;
+
+    --destructive: 358.7 100% 69.6%;
+    --destructive-foreground: 0 0% 9.1%;
+
+    --success: 152 55% 45%;
+    --warning: 13 92% 78%;
+
+    --border: 2 15% 24%;
+    --input: 198 28% 18%;
+    --ring: 194 47% 63%;
+    --radius: 0.625rem;
+
+    --sidebar: 198 44% 9%;
+    --sidebar-foreground: 195 25% 96%;
+    --sidebar-border: 198 28% 15%;
+    --sidebar-accent: 196 35% 15%;
+    --sidebar-accent-foreground: 194 47% 63%;
+    --sidebar-primary: 194 47% 63%;
+    --sidebar-primary-foreground: 194 47% 12%;
+    --sidebar-ring: 194 47% 63%;
+
+    --brand: 194 47% 63%;
+
+    --uni-sky: #74B8CC;
+    --uni-marine: #235361;
+    --uni-peach: #FAAA93;
+    --uni-steel: #6494AC;
+    --uni-chestnut: #886351;
+    --uni-mauve: #D2ADAC;
+  }
+
+  html[data-theme="luma"] {
     color-scheme: dark;
 
     /* Luma preset — neutral dark surfaces with a cyan/teal accent. */

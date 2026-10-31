@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Uni 6-Color Primary Theme */
+  --c-sky: #74B8CC;
+  --c-marine: #235361;
+  --c-peach: #FAAA93;
+  --c-steel: #6494AC;
+  --c-chestnut: #886351;
+  --c-mauve: #D2ADAC;
+
+  /* Surfaces & Canvas */
+  --bg-page: #FAF7F5;
+  --bg-page-soft: #F4EFEB;
+  --surface-card: #FFFFFF;
+  --surface-muted: #F8F5F2;
+  --surface-dark: #0C171C;
+  --surface-dark-card: #122228;
+  --surface-dark-card-hover: #182D35;
+
+  /* Borders */
+  --border-light: rgba(210, 173, 172, 0.45);
+  --border-steel: rgba(100, 148, 172, 0.35);
+  --border-dark: rgba(116, 184, 204, 0.18);
+  --border-dark-strong: rgba(116, 184, 204, 0.35);
+
+  /* Typography */
+  --text-main: #14242B;
+  --text-muted: #566E76;
+  --text-dim: #8B9FA6;
+  --text-light: #F4F8FA;
+  --text-light-muted: #9BB2BA;
+
+  /* Font */
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: light dark;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism navigation bar */
+.glass-nav {
+  background: rgba(250, 247, 245, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(210, 173, 172, 0.55);
+}
+
+.glass-nav-dark {
+  background: rgba(12, 23, 28, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(116, 184, 204, 0.2);
+}
+
+/* Uni card styling */
+.uni-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(210, 173, 172, 0.45);
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 30px -10px rgba(35, 83, 97, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uni-card:hover {
+  border-color: rgba(100, 148, 172, 0.65);
+  box-shadow: 0 20px 40px -15px rgba(35, 83, 97, 0.14);
+  transform: translateY(-2px);
+}
+
+.uni-card-dark {
+  background: #122228;
+  border: 1px solid rgba(116, 184, 204, 0.18);
+  border-radius: 1.25rem;
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.45);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uni-card-dark:hover {
+  border-color: rgba(116, 184, 204, 0.4);
+  box-shadow: 0 22px 48px -12px rgba(0, 0, 0, 0.65), 0 0 25px rgba(116, 184, 204, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Ambient glow blobs matching Uni 6-color palette */
+.glow-sky {
+  background: radial-gradient(circle, rgba(116, 184, 204, 0.32) 0%, rgba(116, 184, 204, 0) 70%);
+}
+
+.glow-peach {
+  background: radial-gradient(circle, rgba(250, 170, 147, 0.35) 0%, rgba(250, 170, 147, 0) 70%);
+}
+
+.glow-marine {
+  background: radial-gradient(circle, rgba(35, 83, 97, 0.4) 0%, rgba(35, 83, 97, 0) 70%);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 148, 172, 0.35);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 148, 172, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
