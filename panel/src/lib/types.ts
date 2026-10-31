@@ -732,3 +732,23 @@ export interface PanelSSLInstallRequest {
   key?: string;
 }
 
+export interface DNSNameserversInfo {
+  nameserver1: string;
+  nameserver2: string;
+  serverIP: string;
+}
+
+export interface SiteTunnelInfo {
+  domain: string;
+  publicUrl: string;
+  startedAt: string;
+  status: string;
+}
+
+export interface SiteSyncResult {
+  dnsZoneCreated: boolean;
+  mailDomainCreated: boolean;
+  dkimApplied: boolean;
+  records?: any[];
+}
+

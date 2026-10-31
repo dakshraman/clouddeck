@@ -2,9 +2,136 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"clouddeck/agent/internal/apierr"
+	"clouddeck/agent/internal/dns"
+	"clouddeck/agent/internal/mail"
+	"clouddeck/agent/internal/sites"
 )
+
+func (s *Server) handleGetDNSNameservers(w http.ResponseWriter, r *http.Request) {
+	if s.dns == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "dns_unavailable", "dns service is not configured"))
+		return
+	}
+	writeJSON(w, http.StatusOK, s.dns.GetNameservers(r.Context()))
+}
+
+func (s *Server) handleSetDNSNameservers(w http.ResponseWriter, r *http.Request) {
+	if s.dns == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "dns_unavailable", "dns service is not configured"))
+		return
+	}
+	var req struct {
+		Nameserver1 string `json:"nameserver1"`
+		Nameserver2 string `json:"nameserver2"`
+	}
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := s.dns.SetNameservers(r.Context(), req.Nameserver1, req.Nameserver2); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, s.dns.GetNameservers(r.Context()))
+}
+
+func (s *Server) handleDNSMailSync(w http.ResponseWriter, r *http.Request) {
+	domain := r.PathValue("domain")
+	normalized, err := sites.ValidateDomain(domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if s.dns == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "dns_unavailable", "dns service is not configured"))
+		return
+	}
+	if s.mail == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "mail_unavailable", "mail service is not configured"))
+		return
+	}
+
+	ctx := r.Context()
+
+	// 1) Checks if PowerDNS zone exists for domain. If not, calls dns.CreateZone.
+	zones, err := s.dns.Zones(ctx)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	zoneExists := false
+	for _, z := range zones {
+		if strings.EqualFold(z.Name, normalized) {
+			zoneExists = true
+			break
+		}
+	}
+	dnsZoneCreated := false
+	if !zoneExists {
+		if _, err := s.dns.CreateZone(ctx, normalized); err != nil {
+			writeError(w, err)
+			return
+		}
+		dnsZoneCreated = true
+	}
+
+	// 2) Checks if mail domain exists in mail service. If not, adds mail domain.
+	mailDomains, err := s.mail.ListDomains()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	mailDomainExists := false
+	for _, d := range mailDomains {
+		if strings.EqualFold(d, normalized) {
+			mailDomainExists = true
+			break
+		}
+	}
+	mailDomainCreated := false
+	if !mailDomainExists {
+		if err := s.mail.AddDomain(normalized); err != nil {
+			writeError(w, err)
+			return
+		}
+		mailDomainCreated = true
+	}
+
+	// 3) Calls mail.ApplyDNS(ctx, domain, DNSOptions{SPF: true, DMARCPolicy: "none", DKIM: true, MX: true}).
+	dnsRes, err := s.mail.ApplyDNS(ctx, normalized, mail.DNSOptions{
+		SPF:         true,
+		DMARCPolicy: "none",
+		DKIM:        true,
+		MX:          true,
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	dkimApplied := false
+	if dnsRes.Applied != nil {
+		if _, ok := dnsRes.Applied["dkim"]; ok {
+			dkimApplied = true
+		}
+	}
+
+	records, _ := s.dns.Records(ctx, normalized)
+	if records == nil {
+		records = []dns.Record{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"dnsZoneCreated":    dnsZoneCreated,
+		"mailDomainCreated": mailDomainCreated,
+		"dkimApplied":       dkimApplied,
+		"records":           records,
+	})
+}
 
 func (s *Server) handleDNSStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.dns.Status(r.Context()))

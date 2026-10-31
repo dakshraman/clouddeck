@@ -23,9 +23,11 @@ import { SiteAppCard } from "@/components/site/app-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
+import { DnsMailCard } from "@/components/site/dns-mail-card";
+import { TunnelCard } from "@/components/site/tunnel-card";
 import { cn } from "@/components/ui/cn";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { ArrowLeft, ExternalLink, FolderOpen, Globe, HelpCircle, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, FolderOpen, Globe, HelpCircle, ShieldCheck, Trash2 } from "lucide-react";
 
 function isCustomDomain(domain: string): boolean {
   const lower = domain.toLowerCase();
@@ -241,6 +243,16 @@ export function SiteDetail({ domain }: { domain: string }) {
             </Badge>
           ) : null}
           <a
+            href={`/api/preview/${encodeURIComponent(site.domain)}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={buttonClass("secondary", "sm")}
+            title={`Preview ${site.domain} in-panel`}
+          >
+            <Eye size={14} aria-hidden="true" />
+            Preview in Panel
+          </a>
+          <a
             href={`${site.ssl.enabled ? "https" : "http"}://${site.domain}`}
             target="_blank"
             rel="noreferrer noopener"
@@ -302,6 +314,10 @@ export function SiteDetail({ domain }: { domain: string }) {
       </div>
 
       <TabPanel id="overview" active={tab === "overview"}>
+        <TunnelCard domain={site.domain} />
+
+        <DnsMailCard domain={site.domain} />
+
         <Card>
           <CardHeader>
             <div>

@@ -15,7 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { ExternalLink, Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, Globe, Pencil, Plus, Trash2 } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -272,6 +272,16 @@ export function SitesView() {
                             </>
                           ) : (
                             <>
+                              <a
+                                href={`/api/preview/${encodeURIComponent(site.domain)}`}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className={buttonClass("secondary", "sm")}
+                                title={`Preview ${site.domain} in-panel`}
+                              >
+                                <Eye size={14} aria-hidden="true" />
+                                Preview
+                              </a>
                               <a
                                 href={siteUrl}
                                 target="_blank"

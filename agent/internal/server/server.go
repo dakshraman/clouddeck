@@ -36,10 +36,11 @@ import (
 	"clouddeck/agent/internal/systeminfo"
 	"clouddeck/agent/internal/tasks"
 	"clouddeck/agent/internal/term"
+	"clouddeck/agent/internal/tunnel"
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.34"
+const Version = "0.6.35"
 
 const maxBodyBytes = 1 << 20
 
@@ -53,6 +54,7 @@ type Server struct {
 	mysql    *mysql.Service
 	services *services.Manager
 	dns      *dns.Manager
+	tunnel   *tunnel.Service
 	backups  *backup.Service
 	mail     *mail.Service
 	siteinfo *siteinfo.Service
@@ -69,7 +71,7 @@ type Server struct {
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -109,6 +111,8 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/services/{name}/restart", s.handleRestartService)
 
 	mux.HandleFunc("GET /v1/dns/status", s.handleDNSStatus)
+	mux.HandleFunc("GET /v1/dns/nameservers", s.handleGetDNSNameservers)
+	mux.HandleFunc("PUT /v1/dns/nameservers", s.handleSetDNSNameservers)
 	mux.HandleFunc("GET /v1/dns/zones", s.handleListDNSZones)
 	mux.HandleFunc("POST /v1/dns/zones", s.handleCreateDNSZone)
 	mux.HandleFunc("DELETE /v1/dns/zones/{zone}", s.handleDeleteDNSZone)
@@ -161,6 +165,11 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/sites/{domain}/usage", s.handleSiteUsage)
 	mux.HandleFunc("GET /v1/sites/{domain}/stats", s.handleSiteStats)
 	mux.HandleFunc("GET /v1/sites/{domain}/logs", s.handleSiteLogs)
+	mux.HandleFunc("POST /v1/sites/{domain}/dns-mail-sync", s.handleDNSMailSync)
+	mux.HandleFunc("GET /v1/sites/{domain}/tunnel", s.handleGetTunnel)
+	mux.HandleFunc("POST /v1/sites/{domain}/tunnel", s.handleStartTunnel)
+	mux.HandleFunc("DELETE /v1/sites/{domain}/tunnel", s.handleStopTunnel)
+	mux.HandleFunc("GET /v1/tunnels", s.handleListTunnels)
 
 	// v0.5 — FTP accounts
 	mux.HandleFunc("GET /v1/ftp/status", s.handleFTPStatus)

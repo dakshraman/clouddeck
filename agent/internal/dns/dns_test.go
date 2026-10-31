@@ -616,3 +616,60 @@ func TestMutationsValidateBeforeRunning(t *testing.T) {
 	}
 	assertAuditContains(t, auditDir, `"action":"dns.zone.create"`, `"action":"dns.record.add"`, `"result":"rejected"`)
 }
+
+func TestNameservers(t *testing.T) {
+	mgr, _ := newTestManager(t, config.Config{
+		Nameserver1: "ns1.old.com",
+		Nameserver2: "ns2.old.com",
+		ServerIP:    "10.0.0.1",
+	})
+	ctx := context.Background()
+
+	info := mgr.GetNameservers(ctx)
+	if info.Nameserver1 != "ns1.old.com" || info.Nameserver2 != "ns2.old.com" || info.ServerIP != "10.0.0.1" {
+		t.Fatalf("unexpected nameservers info: %+v", info)
+	}
+
+	if err := mgr.SetNameservers(ctx, "ns1.new.com", "ns2.new.com"); err != nil {
+		t.Fatalf("SetNameservers: %v", err)
+	}
+
+	info = mgr.GetNameservers(ctx)
+	if info.Nameserver1 != "ns1.new.com" || info.Nameserver2 != "ns2.new.com" || info.ServerIP != "10.0.0.1" {
+		t.Fatalf("unexpected updated nameservers info: %+v", info)
+	}
+}
+
+func TestCreateZoneCreatesDefaultRecords(t *testing.T) {
+	bin, argvFile := writeFakePdnsutil(t, map[string]fakeReply{
+		"create-zone": {},
+		"add-record":  {},
+	})
+	mgr, _ := newTestManager(t, config.Config{
+		PdnsUtilBin: bin,
+		Nameserver1: "ns1.example.com",
+		Nameserver2: "ns2.example.com",
+		ServerIP:    "192.0.2.1",
+	})
+	ctx := context.Background()
+
+	zone, err := mgr.CreateZone(ctx, "example.com")
+	if err != nil {
+		t.Fatalf("CreateZone: %v", err)
+	}
+	if zone.Name != "example.com" {
+		t.Fatalf("zone = %+v, want example.com", zone)
+	}
+
+	calls := readArgvs(t, argvFile)
+	want := [][]string{
+		{"create-zone", "example.com"},
+		{"add-record", "example.com", "@", "NS", "3600", "ns1.example.com"},
+		{"add-record", "example.com", "@", "NS", "3600", "ns2.example.com"},
+		{"add-record", "example.com", "@", "A", "300", "192.0.2.1"},
+		{"add-record", "example.com", "www", "CNAME", "300", "@"},
+	}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("calls = %v, want %v", calls, want)
+	}
+}

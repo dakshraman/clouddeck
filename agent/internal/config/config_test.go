@@ -157,3 +157,43 @@ func TestLoadRejectsInvalidPanelPorts(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadNameserversAndServerIP(t *testing.T) {
+	t.Setenv("AGENT_AUTH_TOKEN", "test-token")
+
+	t.Run("defaults", func(t *testing.T) {
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if !strings.HasPrefix(cfg.Nameserver1, "ns1.") {
+			t.Errorf("Nameserver1 = %q, want prefix ns1.", cfg.Nameserver1)
+		}
+		if !strings.HasPrefix(cfg.Nameserver2, "ns2.") {
+			t.Errorf("Nameserver2 = %q, want prefix ns2.", cfg.Nameserver2)
+		}
+		if cfg.ServerIP == "" {
+			t.Error("ServerIP is empty")
+		}
+	})
+
+	t.Run("explicit custom values", func(t *testing.T) {
+		t.Setenv("AGENT_NAMESERVER1", "ns1.custom.com")
+		t.Setenv("AGENT_NAMESERVER2", "ns2.custom.com")
+		t.Setenv("AGENT_SERVER_IP", "198.51.100.1")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.Nameserver1 != "ns1.custom.com" {
+			t.Errorf("Nameserver1 = %q, want ns1.custom.com", cfg.Nameserver1)
+		}
+		if cfg.Nameserver2 != "ns2.custom.com" {
+			t.Errorf("Nameserver2 = %q, want ns2.custom.com", cfg.Nameserver2)
+		}
+		if cfg.ServerIP != "198.51.100.1" {
+			t.Errorf("ServerIP = %q, want 198.51.100.1", cfg.ServerIP)
+		}
+	})
+}

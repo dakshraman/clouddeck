@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import type { PhpVersionsResponse, RuntimesResponse, Task } from "@/lib/types";
+import type { DNSNameserversInfo, PhpVersionsResponse, RuntimesResponse, SiteSyncResult, Task } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { TaskLog } from "@/components/task-log";
 import { cn } from "@/components/ui/cn";
-import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink } from "lucide-react";
+import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink, Eye, Zap } from "lucide-react";
 import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
 
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
@@ -48,6 +48,9 @@ export default function NewSitePage() {
   const [mode, setMode] = useState<"preset" | "custom">("preset");
   const [selectedTemplate, setSelectedTemplate] = useState<IndustrialAppTemplate | null>(INDUSTRIAL_APPS[0]);
   const [autoCreateDb, setAutoCreateDb] = useState(true);
+  const [setupDns, setSetupDns] = useState(true);
+  const [setupMail, setSetupMail] = useState(true);
+  const [nameservers, setNameservers] = useState<DNSNameserversInfo | null>(null);
 
   const [domain, setDomain] = useState("");
   const [phpVersion, setPhpVersion] = useState("none");
@@ -76,6 +79,8 @@ export default function NewSitePage() {
     port?: number;
     template?: IndustrialAppTemplate | null;
     autoDb?: boolean;
+    setupDns?: boolean;
+    setupMail?: boolean;
   } | null>(null);
 
   const loadVersions = useCallback(async () => {
@@ -105,6 +110,9 @@ export default function NewSitePage() {
   useEffect(() => {
     void loadVersions();
     void loadRuntimes();
+    apiFetch<DNSNameserversInfo>("/api/dns/nameservers")
+      .then((data) => setNameservers(data))
+      .catch(() => {});
   }, [loadVersions, loadRuntimes]);
 
   const chooseTemplate = (tmpl: IndustrialAppTemplate) => {
@@ -158,6 +166,8 @@ export default function NewSitePage() {
         port: appPort.trim() === "" ? undefined : Number(appPort),
         template: mode === "preset" ? selectedTemplate : null,
         autoDb: autoCreateDb,
+        setupDns,
+        setupMail,
       };
 
       setCreatedDomain(normalized);
@@ -235,6 +245,21 @@ export default function NewSitePage() {
         }
       }
 
+      if (appConfig.setupDns || appConfig.setupMail) {
+        try {
+          const syncRes = await apiPost<SiteSyncResult>(
+            `/api/sites/${encodeURIComponent(appConfig.site)}/sync`,
+            {},
+          );
+          if (syncRes.dnsZoneCreated) summaryNotes.push("Configured Authoritative DNS Zone");
+          if (syncRes.mailDomainCreated || syncRes.dkimApplied) summaryNotes.push("Configured Mail Stack & DKIM keys");
+        } catch (syncErr) {
+          summaryNotes.push(
+            `DNS & Mail sync notice: ${syncErr instanceof Error ? syncErr.message : "Sync manually in site details"}`,
+          );
+        }
+      }
+
       setScaffoldSummary(summaryNotes);
       setResult("succeeded");
     } catch {
@@ -290,12 +315,55 @@ export default function NewSitePage() {
 
         {result === "succeeded" ? (
           <div className="mt-5 space-y-4">
+            {/* Assigned Nameservers & Server IP Card */}
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-md bg-brand/10 p-1.5 text-brand">
+                    <Globe size={16} />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">Assigned Nameservers &amp; Server IP</span>
+                </div>
+                <Badge variant="green">Ready for Traffic</Badge>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3 text-xs">
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5">
+                  <div className="text-muted-foreground font-medium">Primary NS (NS1)</div>
+                  <div className="mt-1 font-mono font-semibold text-foreground truncate">{nameservers?.nameserver1 || "ns1.yourdomain.com"}</div>
+                </div>
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5">
+                  <div className="text-muted-foreground font-medium">Secondary NS (NS2)</div>
+                  <div className="mt-1 font-mono font-semibold text-foreground truncate">{nameservers?.nameserver2 || "ns2.yourdomain.com"}</div>
+                </div>
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5">
+                  <div className="text-muted-foreground font-medium">Server IP</div>
+                  <div className="mt-1 font-mono font-semibold text-foreground truncate">{nameservers?.serverIP || "127.0.0.1"}</div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={`/api/preview/${encodeURIComponent(createdDomain)}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={buttonClass("primary", "md")}
+              >
+                <Eye size={16} aria-hidden="true" />
+                Preview Site (In-Panel)
+              </a>
+              <Link
+                href={`/sites/${encodeURIComponent(createdDomain)}`}
+                className={buttonClass("secondary", "md")}
+              >
+                <Zap size={16} aria-hidden="true" />
+                Launch Public Tunnel
+              </Link>
               <a
                 href={`http://${createdDomain}`}
                 target="_blank"
                 rel="noreferrer noopener"
-                className={buttonClass("primary", "md")}
+                className={buttonClass("secondary", "md")}
               >
                 <ExternalLink size={16} aria-hidden="true" />
                 Open site in browser
@@ -303,10 +371,10 @@ export default function NewSitePage() {
               <Link href={`/sites/${encodeURIComponent(createdDomain)}`} className={buttonClass("secondary", "md")}>
                 View site details
               </Link>
-              <Link href="/sites" className={buttonClass("secondary", "md")}>
+              <Link href="/sites" className={buttonClass("ghost", "md")}>
                 All sites
               </Link>
-              <Button variant="secondary" onClick={createAnother}>
+              <Button variant="ghost" onClick={createAnother}>
                 Create another
               </Button>
             </div>
@@ -595,6 +663,43 @@ export default function NewSitePage() {
                 </div>
               </div>
             ) : null}
+
+            {/* DNS & Mail Integration Options */}
+            <div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Automated DNS &amp; Mail Stack Configuration
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={setupDns}
+                  onChange={(e) => setSetupDns(e.target.checked)}
+                  disabled={submitting}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                />
+                <div>
+                  <span className="text-sm font-medium text-foreground">Set up Authoritative DNS Zone</span>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically provisions a PowerDNS zone with authoritative NS and @ / www A-records pointing to this server.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={setupMail}
+                  onChange={(e) => setSetupMail(e.target.checked)}
+                  disabled={submitting}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                />
+                <div>
+                  <span className="text-sm font-medium text-foreground">Configure Mail Stack &amp; DKIM</span>
+                  <p className="text-xs text-muted-foreground">
+                    Sets up the mail domain, generates 2048-bit DKIM keys, and publishes SPF, DMARC, and MX DNS records.
+                  </p>
+                </div>
+              </label>
+            </div>
 
             {formError ? <Alert variant="error">{formError}</Alert> : null}
 

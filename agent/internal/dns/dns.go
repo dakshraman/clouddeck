@@ -81,6 +81,13 @@ type Status struct {
 	ConfDir   string `json:"confDir,omitempty"`
 }
 
+// NameserversInfo describes the active DNS nameservers and server IP.
+type NameserversInfo struct {
+	Nameserver1 string `json:"nameserver1"`
+	Nameserver2 string `json:"nameserver2"`
+	ServerIP    string `json:"serverIP"`
+}
+
 // Manager talks to PowerDNS through pdnsutil.
 type Manager struct {
 	cfg   config.Config
@@ -91,6 +98,26 @@ type Manager struct {
 // New creates the manager.
 func New(cfg config.Config, auditLog *audit.Log) *Manager {
 	return &Manager{cfg: cfg, audit: auditLog}
+}
+
+// GetNameservers returns current nameservers and server IP.
+func (m *Manager) GetNameservers(ctx context.Context) NameserversInfo {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return NameserversInfo{
+		Nameserver1: m.cfg.Nameserver1,
+		Nameserver2: m.cfg.Nameserver2,
+		ServerIP:    m.cfg.ServerIP,
+	}
+}
+
+// SetNameservers updates in-memory / config nameservers.
+func (m *Manager) SetNameservers(ctx context.Context, ns1, ns2 string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cfg.Nameserver1 = strings.TrimSpace(ns1)
+	m.cfg.Nameserver2 = strings.TrimSpace(ns2)
+	return nil
 }
 
 // Status probes pdnsutil availability. Never fails: a missing or unusable
@@ -148,6 +175,29 @@ func (m *Manager) CreateZone(ctx context.Context, name string) (Zone, error) {
 	if err := m.record(ActionZoneCreate, params); err != nil {
 		return Zone{}, err
 	}
+
+	m.mu.Lock()
+	ns1 := m.cfg.Nameserver1
+	ns2 := m.cfg.Nameserver2
+	serverIP := m.cfg.ServerIP
+	m.mu.Unlock()
+
+	// Automatically create default records (ignore errors so zone creation remains robust):
+	// - NS record for "@" with content m.cfg.Nameserver1 (TTL 3600)
+	// - NS record for "@" with content m.cfg.Nameserver2 (TTL 3600)
+	// - A record for "@" with content m.cfg.ServerIP (TTL 300)
+	// - CNAME record for "www" with content "@" or zone name (TTL 300)
+	if strings.TrimSpace(ns1) != "" {
+		_, _ = m.AddRecord(ctx, zone, "@", "NS", strings.TrimSpace(ns1), 3600)
+	}
+	if strings.TrimSpace(ns2) != "" {
+		_, _ = m.AddRecord(ctx, zone, "@", "NS", strings.TrimSpace(ns2), 3600)
+	}
+	if strings.TrimSpace(serverIP) != "" {
+		_, _ = m.AddRecord(ctx, zone, "@", "A", strings.TrimSpace(serverIP), 300)
+	}
+	_, _ = m.AddRecord(ctx, zone, "www", "CNAME", "@", 300)
+
 	return Zone{Name: zone}, nil
 }
 

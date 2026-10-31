@@ -3,10 +3,12 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds the resolved agent settings.
@@ -44,6 +46,9 @@ type Config struct {
 	PdnsUtilBin    string
 	PdnsConfDir    string
 	PdnsControlBin string
+	Nameserver1    string // AGENT_NAMESERVER1
+	Nameserver2    string // AGENT_NAMESERVER2
+	ServerIP       string // AGENT_SERVER_IP
 
 	// v0.3 backups
 	BackupDir        string
@@ -173,7 +178,20 @@ func Load() (Config, error) {
 	cfg.MailVhostsDir = env("AGENT_MAIL_VHOSTS_DIR", filepath.Join(mailRoot, "vhosts"))
 	cfg.MailReloadCmd = env("AGENT_MAIL_RELOAD_CMD", "")
 	host, _ := os.Hostname()
+	host = strings.TrimSpace(host)
 	cfg.MailHostname = env("AGENT_MAIL_HOSTNAME", host)
+
+	defaultDomain := host
+	if defaultDomain == "" || strings.EqualFold(defaultDomain, "localhost") {
+		defaultDomain = "clouddeck.local"
+	}
+	cfg.Nameserver1 = env("AGENT_NAMESERVER1", "ns1."+defaultDomain)
+	cfg.Nameserver2 = env("AGENT_NAMESERVER2", "ns2."+defaultDomain)
+	if ip := strings.TrimSpace(os.Getenv("AGENT_SERVER_IP")); ip != "" {
+		cfg.ServerIP = ip
+	} else {
+		cfg.ServerIP = discoverServerIP()
+	}
 
 	// v0.4 site operations
 	cfg.PHPSockMap = env("AGENT_PHP_SOCK_MAP", "")
@@ -324,4 +342,44 @@ func validRunAs(value string) bool {
 		return false
 	}
 	return true
+}
+
+// discoverServerIP attempts to find the outbound or interface IP, defaulting to 127.0.0.1.
+func discoverServerIP() string {
+	conn, err := net.DialTimeout("udp", "8.8.8.8:80", 500*time.Millisecond)
+	if err == nil {
+		defer conn.Close()
+		if udpAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP != nil {
+			if !udpAddr.IP.IsLoopback() && !udpAddr.IP.IsUnspecified() {
+				return udpAddr.IP.String()
+			}
+		}
+	}
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+				if ip != nil && !ip.IsLoopback() && !ip.IsUnspecified() {
+					if ip4 := ip.To4(); ip4 != nil {
+						return ip4.String()
+					}
+				}
+			}
+		}
+	}
+	return "127.0.0.1"
 }

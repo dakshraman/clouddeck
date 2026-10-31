@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { NameserversCard } from "@/components/dns/nameservers-card";
 import { RecordsCard } from "@/components/dns/records-card";
 import { ZonesCard } from "@/components/dns/zones-card";
 import { ServerCrash } from "lucide-react";
@@ -85,6 +86,8 @@ export function DnsPage() {
           ) : undefined
         }
       />
+
+      <NameserversCard />
 
       {state === "error" ? (
         <Alert variant="error" className="mb-6">
