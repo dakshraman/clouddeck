@@ -36,12 +36,20 @@
 
 ---
 
-## ⚡ Quick Install
+## ⚡ 1-Command Universal Installation
 
-Run this single command on a fresh **Ubuntu** or **Debian** VPS (x86_64 or arm64) with root access:
+CloudDeck features a **Single Unified Cross-Platform Installer** that automatically detects your operating system (**Linux**, **macOS**, or **Windows WSL 2**) and launches an interactive **Uni-themed terminal selector**.
+
+### 🐧 Linux Server & 🍏 macOS Workstation
+
+Run this single universal command:
 
 ```bash
+# On Linux (root required):
 curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
+
+# On macOS (Apple Silicon M1–M4 & Intel):
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash
 ```
 
 > **Fallback via GitHub Releases:**
@@ -49,30 +57,45 @@ curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
 > curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 > ```
 
-In **under 4 minutes**, the installer:
-1. Downloads the static Go agent binary and self-contained Next.js 15 panel bundle.
-2. Provisions the native web stack: **Nginx**, **PHP-FPM** (with coexisting 8.1–8.4 support), **MariaDB**, **certbot**, **PowerDNS**, **ModSecurity + OWASP CRS**, **fail2ban**, and **UFW**.
-3. Prompts securely for your administrator login credentials.
-4. Generates hardened systemd units and delivers a ready-to-use panel at `http://<your-server-ip>:2083`.
-5. Enables 1-click Panel SSL (Self-signed with IP SANs or Let's Encrypt) to transition to HTTPS immediately!
+### 🎨 Interactive Component Selector (Uni Theme)
 
-### 🏎️ High-Speed & Low-Resource Install Flags
+No more separate scripts or memorizing flags! The installer boots an interactive terminal UI styled with CloudDeck's Uni palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`):
 
-For budget VPS instances (1 vCPU, 1GB–2GB RAM) or lightning-fast deployments:
-
-```bash
-# Minimal / Fast install: Core LEMP (Nginx, PHP-FPM, MariaDB, Certbot, UFW)
-# Skips heavy security/DNS daemons (ModSecurity, PowerDNS, Fail2ban) - installs in ~60s
-curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --fast
-
-# Reuse existing system Node.js (>=20.0.0 with npm) to save bandwidth and disk
-curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --fast --system-node
+```text
+┌─ Choose Installation Profile ─────────────────────────────────────────────┐
+│                                                                           │
+│  [1] Recommended Full LEMP Stack (Default)                                │
+│      • Next.js 15 Panel, Go Agent & CloudDeck CLI                         │
+│      • Nginx Web Server + MariaDB Database                                │
+│      • Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)                         │
+│      • Node.js 22 LTS Runtime & npm                                       │
+│      • Postfix/Dovecot Email Stack & PowerDNS Nameserver (Linux)          │
+│      • ModSecurity WAF + OWASP Core Rule Set & Fail2ban (Linux)           │
+│                                                                           │
+│  [2] Fast Core Development Suite (~60s)                                   │
+│      • Next.js 15 Panel, Go Agent & CloudDeck CLI                         │
+│      • Nginx Web Server + MariaDB + PHP 8.4 + Node.js                     │
+│      • Skips heavy mail, DNS and WAF setup                                │
+│                                                                           │
+│  [3] Custom Component Selection (Interactive Checklist)                   │
+│      • Interactively toggle individual services                           │
+│                                                                           │
+│  [4] Minimal Deck Only                                                    │
+│      • Panel, Agent and CLI only (bring your own web stack)               │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
+
+> **Unattended / CI Mode:**
+> Pass `--yes` (or `-y`) to skip prompts and install the recommended profile automatically:
+> ```bash
+> curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --yes
+> ```
 
 > **VPS Optimizations Built-In:**
 > - **Auto-Swapfile (< 2GB RAM)**: Automatically creates and activates a 1GB swapfile on low-memory servers to eliminate OOM kills.
 > - **APT Acceleration**: Uses `--no-install-recommends` and suppresses `man-db` CPU-lockup triggers.
-> - **Parallel Downloads**: Pre-fetches panel and agent assets in background concurrent with APT package installation.
+> - **Parallel Downloads**: Pre-fetches panel and agent assets in background concurrent with package installation.
 
 ---
 
@@ -97,10 +120,10 @@ irm https://clouddeck.dakshraman.in/install.ps1 | iex
 
 ### 🍏 macOS (Apple Silicon & Intel)
 
-Run this single command in **Terminal**:
+Run this single universal command in **Terminal**:
 
 ```bash
-curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash
 ```
 
 - **Apple Silicon Native**: Native `arm64` (M1/M2/M3/M4) and Intel (`x86_64`) static binaries.

@@ -8,7 +8,7 @@ export function LocalDevSuite() {
   const [copiedMac, setCopiedMac] = useState(false);
 
   const winCmd = "irm https://clouddeck.dakshraman.in/install.ps1 | iex";
-  const macCmd = "curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash";
+  const macCmd = "curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash";
 
   const copyWin = () => {
     navigator.clipboard.writeText(winCmd);
