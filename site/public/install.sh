@@ -306,7 +306,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.27"
+      VERSION="v0.6.28"
     fi
   fi
   say "   ${TC_MAUVE}Release version:${CLR_RESET} ${TC_SKY}${CLR_BOLD}$VERSION${CLR_RESET}"

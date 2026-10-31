@@ -424,6 +424,7 @@ cd panel && npm run typecheck && npm run build
 
 ## 📜 Release History
 
+- **v0.6.28** — **Single Unified Cross-Platform Installer & Interactive Uni Terminal UX**: Universal one-command installer for Linux, macOS, and Windows WSL 2 with automatic OS detection; interactive Uni-themed component checklist (Recommended Full Stack, Fast Core Development, Custom Checklist, Minimal Deck) eliminating separate fast/standard scripts; unpinned dynamic latest stable release resolution across all platforms; comprehensive documentation refresh.
 - **v0.6.27** — **Uni 6-Color Primary Theme & Next.js Marketing Site**: Upgraded panel primary theme to the Uni 6-color palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) with full appearance presets; migrated marketing website to Next.js 15 (React 19, TypeScript, Tailwind CSS) with unified responsive breakpoints, interactive deck preview, and tabbed installer.
 - **v0.6.26** — **phpMyAdmin Database Isolation & Unified Brand Icon**: Strict single-database navigation tree scoping via dynamic `only_db` and session cookie, hiding system schemas (`information_schema`, `mysql`, `performance_schema`, `sys`); unified 3-tier isometric deck brand icon across panel sidebar, login/setup authentication screens, favicons, PWA icons, and landing site.
 - **v0.6.25** — **1-Click Panel SSL**: Automated self-signed TLS with IP SANs (raw server IP support) and Let's Encrypt for domains; automatic nginx HTTPS reverse proxy on port 2083; deep-linked phpMyAdmin per database; dashboard failed task status filters.
