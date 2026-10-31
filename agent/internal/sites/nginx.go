@@ -2,6 +2,8 @@ package sites
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -20,6 +22,7 @@ type nginxRedirect struct {
 type nginxData struct {
 	Domain     string
 	Root       string
+	SiteRoot   string
 	PHP        string // empty for static sites
 	LogDir     string
 	FpmSock    string // resolved php-fpm socket (PHP sites only)
@@ -54,7 +57,20 @@ func renderNginxConfig(site store.Site, logDir, fpmSock, wafEngine, modsecConf s
 
 // renderNginxConfigWithApps also emits proxy blocks for a site's apps.
 func renderNginxConfigWithApps(site store.Site, logDir, fpmSock, wafEngine, modsecConf string, proxies ProxyTargets, rootProxy int) string {
-	data := nginxData{Domain: site.Domain, Root: site.Root, LogDir: logDir, Proxies: proxies, RootProxy: rootProxy}
+	rootDir := site.Root
+	if site.Root != "" {
+		if fi, err := os.Stat(filepath.Join(site.Root, "public")); err == nil && fi.IsDir() {
+			rootDir = filepath.Join(site.Root, "public")
+		}
+	}
+	data := nginxData{
+		Domain:    site.Domain,
+		Root:      rootDir,
+		SiteRoot:  site.Root,
+		LogDir:    logDir,
+		Proxies:   proxies,
+		RootProxy: rootProxy,
+	}
 	if site.PHPVersion != "" && site.PHPVersion != "none" {
 		data.PHP = site.PHPVersion
 		data.FpmSock = strings.ReplaceAll(fpmSock, "{{version}}", site.PHPVersion)
@@ -117,7 +133,7 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-{{if .PHP}}        try_files $uri $uri/ /index.php?$args;{{else}}        try_files $uri $uri/ =404;{{end}}
+{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}
@@ -132,7 +148,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
-    root {{$.Root}}/{{.}};
+    root {{$.SiteRoot}}/{{.}};
     index index.html index.php;
 
     client_max_body_size 100m;
@@ -180,7 +196,7 @@ server {
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-{{if .PHP}}        try_files $uri $uri/ /index.php?$args;{{else}}        try_files $uri $uri/ =404;{{end}}
+{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}
@@ -195,7 +211,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
-    root {{$.Root}}/{{.}};
+    root {{$.SiteRoot}}/{{.}};
     index index.html index.php;
 
     client_max_body_size 100m;

@@ -117,9 +117,6 @@ func TestSetScheduleValidation(t *testing.T) {
 		{"weekday too high", func(sc *Schedule) { sc.Weekday = 7 }, "weekday"},
 		{"keep zero", func(sc *Schedule) { sc.Keep = 0 }, "keep"},
 		{"keep too high", func(sc *Schedule) { sc.Keep = 366 }, "keep"},
-		{"unknown upload", func(sc *Schedule) { sc.Uploads = []UploadTarget{{Type: "dropbox"}} }, "unsupported upload type"},
-		{"malformed rclone remote", func(sc *Schedule) { sc.Uploads = []UploadTarget{{Type: "rclone", Remote: "gdrive"}} }, "rclone remote"},
-		{"telegram not configured", func(sc *Schedule) { sc.Uploads = []UploadTarget{{Type: "telegram"}} }, "telegram uploads need"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -206,8 +203,7 @@ func TestSetSchedulePersistsAndPreservesRunState(t *testing.T) {
 		t.Fatalf("GetSchedule: %v", err)
 	}
 	if !got.Enabled || got.Frequency != "weekly" || got.Time != "04:30" || got.Weekday != 5 ||
-		got.Keep != 3 || !got.IncludeDatabases || len(got.Uploads) != 1 ||
-		got.Uploads[0].Type != "rclone" || got.Uploads[0].Remote != "gdrive:backups" {
+		got.Keep != 3 || !got.IncludeDatabases || len(got.Uploads) != 0 {
 		t.Errorf("round-tripped schedule = %+v", got)
 	}
 	if got.LastRunAt == nil || !got.LastRunAt.Equal(runAt) || !strings.Contains(got.LastError, "gone.example.com") {

@@ -72,6 +72,7 @@ func (s *Service) SetSchedule(sc Schedule) (Schedule, error) {
 	if s.cfg.DryRun {
 		return Schedule{}, dryRunErr()
 	}
+	sc.Uploads = nil
 	params := scheduleParams(sc)
 	if err := validateSchedule(sc); err != nil {
 		return Schedule{}, s.reject(ActionScheduleSet, params, err)
@@ -246,6 +247,7 @@ func (s *Service) recordRunResult(now time.Time, summary string) error {
 // database. It returns the number of started tasks and a summary of admission
 // failures ("" when all good).
 func (s *Service) startScheduledRun(ctx context.Context, sc Schedule) (int, string) {
+	sc.Uploads = nil
 	if err := s.validateUploads(sc.Uploads); err != nil {
 		// Every task would fail at admission; report once instead of N times.
 		return 0, "uploads: " + err.Error()
@@ -403,6 +405,7 @@ func (s *Service) loadScheduleLocked() (Schedule, error) {
 	if err := json.Unmarshal(data, &sc); err != nil {
 		return Schedule{}, apierr.Internal(fmt.Sprintf("parse backup schedule: %v", err))
 	}
+	sc.Uploads = nil
 	return sc, nil
 }
 

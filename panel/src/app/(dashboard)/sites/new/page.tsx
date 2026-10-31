@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { TaskLog } from "@/components/task-log";
 import { cn } from "@/components/ui/cn";
-import { Globe, Server, Sparkles, Layers, CheckCircle2 } from "lucide-react";
+import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink } from "lucide-react";
 import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
 
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
@@ -289,16 +289,41 @@ export default function NewSitePage() {
         <TaskLog taskId={taskId} onComplete={onTaskDone} />
 
         {result === "succeeded" ? (
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={`/sites/${encodeURIComponent(createdDomain)}`} className={buttonClass("primary", "md")}>
-              View site details
-            </Link>
-            <Link href="/sites" className={buttonClass("secondary", "md")}>
-              All sites
-            </Link>
-            <Button variant="secondary" onClick={createAnother}>
-              Create another
-            </Button>
+          <div className="mt-5 space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={`http://${createdDomain}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={buttonClass("primary", "md")}
+              >
+                <ExternalLink size={16} aria-hidden="true" />
+                Open site in browser
+              </a>
+              <Link href={`/sites/${encodeURIComponent(createdDomain)}`} className={buttonClass("secondary", "md")}>
+                View site details
+              </Link>
+              <Link href="/sites" className={buttonClass("secondary", "md")}>
+                All sites
+              </Link>
+              <Button variant="secondary" onClick={createAnother}>
+                Create another
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/40 p-3.5 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground/90">
+                If using a custom domain (e.g., .ss), make sure it resolves to your server IP in DNS or /etc/hosts.
+              </p>
+              <p className="mt-1">
+                For local development or testing, add{" "}
+                <code className="rounded bg-background px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                  &lt;server_ip&gt; {createdDomain}
+                </code>{" "}
+                to your <code className="font-mono text-[11px]">/etc/hosts</code> or Windows{" "}
+                <code className="font-mono text-[11px]">C:\Windows\System32\drivers\etc\hosts</code>.
+              </p>
+            </div>
           </div>
         ) : null}
 

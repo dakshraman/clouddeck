@@ -1,6 +1,8 @@
 package sites
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -149,7 +151,7 @@ func TestRenderNginxConfigByteIdenticalPHPSite(t *testing.T) {
     error_log /var/log/nginx/example.com.error.log;
 
     location / {
-        try_files $uri $uri/ /index.php?$args;
+        try_files $uri $uri/ /index.php?$query_string /index.html =404;
     }
 
     location ~ \.php$ {
@@ -294,5 +296,29 @@ func TestRestartCommand(t *testing.T) {
 		if strings.Join(args, " ") != strings.Join(tc.args, " ") {
 			t.Errorf("restartCommand(%q) args = %v, want %v", tc.configured, args, tc.args)
 		}
+	}
+}
+
+func TestRenderNginxConfigFrameworkPublicWebroot(t *testing.T) {
+	dir := t.TempDir()
+	publicDir := filepath.Join(dir, "public")
+	if err := os.MkdirAll(publicDir, 0o755); err != nil {
+		t.Fatalf("mkdir public: %v", err)
+	}
+
+	site := store.Site{
+		Domain:     "laravel.example.com",
+		Root:       dir,
+		PHPVersion: "8.3",
+	}
+
+	config := RenderNginxConfig(site, "/var/log/nginx", "/run/php/php{{version}}-fpm.sock")
+	wantRoot := "root " + publicDir + ";"
+	if !strings.Contains(config, wantRoot) {
+		t.Errorf("config missing detected public root %q:\n%s", wantRoot, config)
+	}
+	wantRouting := "try_files $uri $uri/ /index.php?$query_string /index.html =404;"
+	if !strings.Contains(config, wantRouting) {
+		t.Errorf("config missing PHP routing %q:\n%s", wantRouting, config)
 	}
 }

@@ -622,6 +622,10 @@ func (s *Service) locate(id string) (parsedName, os.FileInfo, error) {
 // archive to archivePath. Symlinks and non-regular entries are skipped. The
 // archive is built under a temp name and atomically renamed into place.
 func writeSiteZip(archivePath, root string, log tasks.LogFunc) error {
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return fmt.Errorf("create webroot %s: %w", root, err)
+	}
+
 	tmp, err := os.CreateTemp(filepath.Dir(archivePath), ".backup-*.zip")
 	if err != nil {
 		return fmt.Errorf("create temp archive: %w", err)
@@ -642,14 +646,20 @@ func writeSiteZip(archivePath, root string, log tasks.LogFunc) error {
 	files, skipped := 0, 0
 	walkErr := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			if log != nil {
+				log("warn", fmt.Sprintf("failed to access %s: %v", p, err))
+			}
+			return nil
 		}
 		if p == root {
 			return nil
 		}
 		rel, err := filepath.Rel(root, p)
 		if err != nil {
-			return err
+			if log != nil {
+				log("warn", fmt.Sprintf("failed to resolve relative path %s: %v", p, err))
+			}
+			return nil
 		}
 		rel = filepath.ToSlash(rel)
 		if d.Type()&fs.ModeSymlink != 0 {
@@ -658,42 +668,66 @@ func writeSiteZip(archivePath, root string, log tasks.LogFunc) error {
 		}
 		info, err := d.Info()
 		if err != nil {
-			return err
+			if log != nil {
+				log("warn", fmt.Sprintf("failed to inspect %s: %v", p, err))
+			}
+			return nil
 		}
 		switch {
 		case info.IsDir():
 			hdr, err := zip.FileInfoHeader(info)
 			if err != nil {
-				return err
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to create zip header for directory %s: %v", p, err))
+				}
+				return nil
 			}
 			hdr.Name = rel + "/"
 			hdr.Method = zip.Deflate
 			if _, err := zw.CreateHeader(hdr); err != nil {
-				return err
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to write zip header for directory %s: %v", p, err))
+				}
+				return nil
 			}
 			return nil
 		case info.Mode().IsRegular():
 			hdr, err := zip.FileInfoHeader(info)
 			if err != nil {
-				return err
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to create zip header for %s: %v", p, err))
+				}
+				return nil
 			}
 			hdr.Name = rel
 			hdr.Method = zip.Deflate
 			w, err := zw.CreateHeader(hdr)
 			if err != nil {
-				return err
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to write zip header for %s: %v", p, err))
+				}
+				return nil
 			}
 			f, err := os.Open(p)
 			if err != nil {
-				return err
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to open %s: %v", p, err))
+				}
+				return nil
 			}
 			_, copyErr := io.Copy(w, f)
 			closeErr := f.Close()
 			if copyErr != nil {
-				return copyErr
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to read %s: %v", p, copyErr))
+				}
+				return nil
 			}
 			if closeErr != nil {
-				return closeErr
+				if log != nil {
+					log("warn", fmt.Sprintf("failed to close %s: %v", p, closeErr))
+				}
+				return nil
 			}
 			files++
 			return nil
@@ -1029,7 +1063,13 @@ func (s *Service) dumpDatabaseZip(ctx context.Context, archivePath, name string,
 	ctx, cancel := context.WithTimeout(ctx, dumpTimeout)
 	defer cancel()
 
-	args := []string{"--skip-add-drop-table", "-u", s.cfg.MySQLRootUser}
+	args := []string{
+		"--skip-add-drop-table",
+		"--single-transaction",
+		"--quick",
+		"--skip-lock-tables",
+		"-u", s.cfg.MySQLRootUser,
+	}
 	if s.cfg.MySQLHost != "" {
 		args = append(args, "-h", s.cfg.MySQLHost)
 	}
@@ -1183,7 +1223,13 @@ func (s *Service) dumpDatabase(ctx context.Context, archivePath, name string, lo
 
 	// --skip-add-drop-table honours the documented restore promise that no
 	// existing tables are dropped.
-	args := []string{"--skip-add-drop-table", "-u", s.cfg.MySQLRootUser}
+	args := []string{
+		"--skip-add-drop-table",
+		"--single-transaction",
+		"--quick",
+		"--skip-lock-tables",
+		"-u", s.cfg.MySQLRootUser,
+	}
 	if s.cfg.MySQLHost != "" {
 		args = append(args, "-h", s.cfg.MySQLHost)
 	}

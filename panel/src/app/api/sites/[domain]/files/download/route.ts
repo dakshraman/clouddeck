@@ -51,7 +51,11 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResp
     try {
       res = await fetch(
         `${config.agentUrl}/v1/sites/${encodeURIComponent(domain)}/files/download?${query}`,
-        { cache: "no-store", signal: AbortSignal.timeout(AGENT_TIMEOUT_MS) },
+        {
+          headers: agentHeaders(),
+          cache: "no-store",
+          signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
+        },
       );
     } catch {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 {
   "name": "clouddeck-panel",
-  "version": "0.6.33",
+  "version": "0.6.34",
   "private": true,
   "overrides": {
     "postcss": "^8.5.23",

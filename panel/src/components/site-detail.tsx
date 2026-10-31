@@ -25,7 +25,17 @@ import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
 import { cn } from "@/components/ui/cn";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { ArrowLeft, FolderOpen, Globe, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FolderOpen, Globe, HelpCircle, ShieldCheck, Trash2 } from "lucide-react";
+
+function isCustomDomain(domain: string): boolean {
+  const lower = domain.toLowerCase();
+  const testTlds = [".ss", ".local", ".test", ".internal", ".lan", ".home", ".corp", ".invalid", ".localhost", ".example"];
+  if (testTlds.some((tld) => lower.endsWith(tld))) return true;
+  const parts = lower.split(".");
+  if (parts.length < 2) return true;
+  const tld = parts[parts.length - 1];
+  return tld.length <= 1 || /^\d+$/.test(tld);
+}
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
 
@@ -225,6 +235,21 @@ export function SiteDetail({ domain }: { domain: string }) {
           </h1>
           <Badge variant={siteStatusVariant(site.status)}>{titleCase(site.status)}</Badge>
           {site.ssl.enabled ? <Badge variant="green">SSL</Badge> : null}
+          {isCustomDomain(site.domain) ? (
+            <Badge variant="amber" title="Custom or test domain">
+              Custom domain
+            </Badge>
+          ) : null}
+          <a
+            href={`${site.ssl.enabled ? "https" : "http"}://${site.domain}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={buttonClass("primary", "sm")}
+            title={`Open http${site.ssl.enabled ? "s" : ""}://${site.domain} in new tab`}
+          >
+            <ExternalLink size={14} aria-hidden="true" />
+            Open site
+          </a>
           <Link
             href={`/sites/${encodeURIComponent(site.domain)}/files`}
             className={buttonClass("secondary", "sm")}
@@ -233,6 +258,23 @@ export function SiteDetail({ domain }: { domain: string }) {
             Files
           </Link>
         </div>
+
+        {isCustomDomain(site.domain) ? (
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            <HelpCircle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <div>
+              <span>Testing a custom domain? Add </span>
+              <code className="rounded bg-background/80 px-1 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                &lt;server_ip&gt; {site.domain}
+              </code>
+              <span> to your </span>
+              <code className="font-mono text-[11px]">/etc/hosts</code>
+              <span> or Windows </span>
+              <code className="font-mono text-[11px]">C:\Windows\System32\drivers\etc\hosts</code>
+              <span> so your browser can resolve it.</span>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-6 overflow-x-auto border-b border-border">

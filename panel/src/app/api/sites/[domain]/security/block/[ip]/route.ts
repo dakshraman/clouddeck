@@ -48,6 +48,7 @@ async function forwardToAgent(agentPath: string, method: string): Promise<NextRe
   try {
     res = await fetch(config.agentUrl + agentPath, {
       method,
+      headers: agentHeaders(),
       cache: "no-store",
       signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
     });

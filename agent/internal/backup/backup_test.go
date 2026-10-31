@@ -903,3 +903,36 @@ func TestUploadRejectsInvalid(t *testing.T) {
 	_, err = h.svc.SaveUploaded("not_a_backup.tar.gz", strings.NewReader("dummy"))
 	wantAPIError(t, err, 400, "invalid_id")
 }
+
+func TestWriteSiteZipResilientAndMkdir(t *testing.T) {
+	dir := t.TempDir()
+	archivePath := filepath.Join(dir, "archive.zip")
+	missingRoot := filepath.Join(dir, "missing_root")
+
+	var logged []string
+	logFunc := func(level, msg string) {
+		logged = append(logged, level+": "+msg)
+	}
+
+	// 1. Missing root should be created and zipped without error
+	if err := writeSiteZip(archivePath, missingRoot, logFunc); err != nil {
+		t.Fatalf("writeSiteZip on missing root failed: %v", err)
+	}
+	if _, err := os.Stat(missingRoot); err != nil {
+		t.Fatalf("expected missing root to be created: %v", err)
+	}
+
+	// 2. Site with file
+	siteRoot := filepath.Join(dir, "site_files")
+	if err := os.MkdirAll(siteRoot, 0o755); err != nil {
+		t.Fatalf("mkdir siteRoot: %v", err)
+	}
+	goodFile := filepath.Join(siteRoot, "index.html")
+	if err := os.WriteFile(goodFile, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("write good file: %v", err)
+	}
+	archivePath2 := filepath.Join(dir, "archive2.zip")
+	if err := writeSiteZip(archivePath2, siteRoot, logFunc); err != nil {
+		t.Fatalf("writeSiteZip should succeed: %v", err)
+	}
+}
