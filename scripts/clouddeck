@@ -73,6 +73,8 @@ const REPO = installConfig.REPO || "dakshraman/clouddeck";
 const NO_SYSTEMD = installConfig.NO_SYSTEMD || "0";
 const DO_AGENT = installConfig.DO_AGENT !== undefined ? installConfig.DO_AGENT : "1";
 const DO_PANEL = installConfig.DO_PANEL !== undefined ? installConfig.DO_PANEL : "1";
+const FAST = installConfig.FAST || "0";
+const SYSTEM_NODE = installConfig.SYSTEM_NODE || "0";
 
 function panelDataDir() {
   const env = tryReadEnvFile(path.join(ETCDIR, "panel.env"));
@@ -823,6 +825,8 @@ function runInstaller(version, force) {
     if (NO_SYSTEMD === "1") args.push("--no-systemd");
     if (DO_AGENT === "0") args.push("--no-agent");
     if (DO_PANEL === "0") args.push("--no-panel");
+    if (FAST === "1") args.push("--fast");
+    if (SYSTEM_NODE === "1") args.push("--system-node");
     if (force) args.push("--force");
 
     const result = spawnSync("bash", args, { stdio: "inherit" });

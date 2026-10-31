@@ -54,6 +54,24 @@ In **under 4 minutes**, the installer:
 4. Generates hardened systemd units and delivers a ready-to-use panel at `http://<your-server-ip>:2083`.
 5. Enables 1-click Panel SSL (Self-signed with IP SANs or Let's Encrypt) to transition to HTTPS immediately!
 
+### 🏎️ High-Speed & Low-Resource Install Flags
+
+For budget VPS instances (1 vCPU, 1GB–2GB RAM) or lightning-fast deployments:
+
+```bash
+# Minimal / Fast install: Core LEMP (Nginx, PHP-FPM, MariaDB, Certbot, UFW)
+# Skips heavy security/DNS daemons (ModSecurity, PowerDNS, Fail2ban) - installs in ~60s
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --fast
+
+# Reuse existing system Node.js (>=20.0.0 with npm) to save bandwidth and disk
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --fast --system-node
+```
+
+> **VPS Optimizations Built-In:**
+> - **Auto-Swapfile (< 2GB RAM)**: Automatically creates and activates a 1GB swapfile on low-memory servers to eliminate OOM kills.
+> - **APT Acceleration**: Uses `--no-install-recommends` and suppresses `man-db` CPU-lockup triggers.
+> - **Parallel Downloads**: Pre-fetches panel and agent assets in background concurrent with APT package installation.
+
 ---
 
 ## 💡 Why CloudDeck?

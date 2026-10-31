@@ -17,6 +17,8 @@
 #   --agent-port N       agent port (default: 9090, binds 127.0.0.1)
 #   --panel-port N       panel port (default: 2083, binds 0.0.0.0)
 #   --gh-token TOKEN     GitHub token for downloading from a private repo
+#   --fast, --minimal    fast core LEMP install (skips ModSecurity, PowerDNS, fail2ban)
+#   --system-node        reuse host Node.js (>=20.0.0 with npm) instead of downloading runtime
 #   --no-agent           skip the agent
 #   --no-panel           skip the panel
 #   --no-systemd         force script mode even if systemd is present
@@ -39,6 +41,17 @@ PANEL_PORT="2083"
 GH_TOKEN="${CLOUDDECK_GH_TOKEN:-}"
 DO_AGENT=1
 DO_PANEL=1
+FAST=0
+SYSTEM_NODE=0
+USING_SYSTEM_NODE=0
+SYS_NODE_PATH=""
+SYS_NPM_PATH=""
+SYS_NPX_PATH=""
+SYS_NODE_VER=""
+PID_AGENT=""
+PID_PANEL=""
+PID_CLI=""
+PID_NODE=""
 FORCE_NO_SYSTEMD=0
 FORCE=0
 UNINSTALL=0
@@ -55,19 +68,21 @@ die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 # --- parse args --------------------------------------------------------------
 while [ $# -gt 0 ]; do
   case "$1" in
-    --version)     VERSION="$2"; shift 2 ;;
-    --prefix)      PREFIX="$2"; shift 2 ;;
-    --datadir)     DATADIR="$2"; shift 2 ;;
-    --etcdir)      ETCDIR="$2"; shift 2 ;;
-    --agent-port)  AGENT_PORT="$2"; shift 2 ;;
-    --panel-port)  PANEL_PORT="$2"; shift 2 ;;
-    --gh-token)    GH_TOKEN="$2"; shift 2 ;;
-    --no-agent)    DO_AGENT=0; shift ;;
-    --no-panel)    DO_PANEL=0; shift ;;
-    --no-systemd)  FORCE_NO_SYSTEMD=1; shift ;;
-    --force)       FORCE=1; shift ;;
-    --uninstall)   UNINSTALL=1; shift ;;
-    --purge)       PURGE=1; shift ;;
+    --version)         VERSION="$2"; shift 2 ;;
+    --prefix)          PREFIX="$2"; shift 2 ;;
+    --datadir)         DATADIR="$2"; shift 2 ;;
+    --etcdir)          ETCDIR="$2"; shift 2 ;;
+    --agent-port)      AGENT_PORT="$2"; shift 2 ;;
+    --panel-port)      PANEL_PORT="$2"; shift 2 ;;
+    --gh-token)        GH_TOKEN="$2"; shift 2 ;;
+    --fast|--minimal)  FAST=1; shift ;;
+    --system-node)     SYSTEM_NODE=1; shift ;;
+    --no-agent)        DO_AGENT=0; shift ;;
+    --no-panel)        DO_PANEL=0; shift ;;
+    --no-systemd)      FORCE_NO_SYSTEMD=1; shift ;;
+    --force)           FORCE=1; shift ;;
+    --uninstall)       UNINSTALL=1; shift ;;
+    --purge)           PURGE=1; shift ;;
     -h|--help)
       cat <<'USAGE'
 CloudDeck installer - one command, any Linux distro.
@@ -82,6 +97,8 @@ Flags:
   --agent-port N       agent port (default: 9090, binds 127.0.0.1)
   --panel-port N       panel port (default: 2083, binds 0.0.0.0)
   --gh-token TOKEN     GitHub token (private repos)
+  --fast, --minimal    fast core LEMP install (skips ModSecurity, PowerDNS, fail2ban)
+  --system-node        reuse host Node.js (>=20 with npm) instead of downloading runtime
   --no-agent           skip the agent
   --no-panel           skip the panel
   --no-systemd         force script mode even if systemd is present
@@ -155,6 +172,10 @@ resolve_latest() { # sets VERSION to the latest tag
 }
 
 release_json() { # fetch the release JSON for $VERSION
+  if [ -s "${TMP:-}/release.json" ]; then
+    cat "$TMP/release.json"
+    return 0
+  fi
   if [ -n "$GH_TOKEN" ]; then
     curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
       -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
@@ -162,6 +183,15 @@ release_json() { # fetch the release JSON for $VERSION
     curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
       "https://api.github.com/repos/$REPO/releases/tags/$VERSION"
   fi
+}
+
+cache_release_metadata() {
+  [ -n "$GH_TOKEN" ] || return 0
+  [ -d "${TMP:-}" ] || return 0
+  [ -s "$TMP/release.json" ] && return 0
+  curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 15 --max-time 120 \
+    -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$VERSION" \
+    > "$TMP/release.json" 2>/dev/null || true
 }
 
 asset_id() { # asset_id FILENAME -> numeric id on stdout
@@ -225,6 +255,73 @@ prompt_panel_admin() {
 }
 
 prompt_panel_admin
+
+# --- system checks & optimizations -------------------------------------------
+setup_swap() {
+  _total_mem_kb=""
+  _total_swap_kb=""
+  if [ -r /proc/meminfo ]; then
+    _total_mem_kb="$(sed -n 's/^MemTotal:[[:space:]]*\([0-9]*\).*/\1/p' /proc/meminfo 2>/dev/null || true)"
+    _total_swap_kb="$(sed -n 's/^SwapTotal:[[:space:]]*\([0-9]*\).*/\1/p' /proc/meminfo 2>/dev/null || true)"
+  fi
+  if [ -z "$_total_mem_kb" ] && command -v free >/dev/null 2>&1; then
+    _total_mem_kb="$(free -k 2>/dev/null | awk '/^Mem:/ {print $2}' || true)"
+    _total_swap_kb="$(free -k 2>/dev/null | awk '/^Swap:/ {print $2}' || true)"
+  fi
+
+  _total_mem_mb=0
+  _total_swap_mb=0
+  [ -n "$_total_mem_kb" ] && _total_mem_mb=$((_total_mem_kb / 1024))
+  [ -n "$_total_swap_kb" ] && _total_swap_mb=$((_total_swap_kb / 1024))
+
+  if [ "$_total_mem_mb" -gt 0 ] && [ "$_total_mem_mb" -lt 2048 ] && [ "$_total_swap_mb" -lt 512 ]; then
+    if [ ! -f /swapfile ] || [ ! -s /swapfile ]; then
+      rm -f /swapfile 2>/dev/null || true
+      if fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024 2>/dev/null; then
+        chmod 600 /swapfile 2>/dev/null || true
+        mkswap /swapfile >/dev/null 2>&1 || true
+        swapon /swapfile 2>/dev/null || true
+        if [ -f /etc/fstab ]; then
+          grep -q '/swapfile' /etc/fstab 2>/dev/null || printf '/swapfile none swap sw 0 0\n' >> /etc/fstab
+        else
+          printf '/swapfile none swap sw 0 0\n' >> /etc/fstab
+        fi
+        say "-- low memory detected (<2GB); created 1GB swapfile to ensure stability"
+      fi
+    else
+      swapon /swapfile 2>/dev/null || true
+    fi
+  fi
+}
+
+check_system_node() {
+  USING_SYSTEM_NODE=0
+  SYS_NODE_PATH=""
+  SYS_NPM_PATH=""
+  SYS_NPX_PATH=""
+  SYS_NODE_VER=""
+
+  if [ "$SYSTEM_NODE" = "1" ]; then
+    if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+      SYS_NODE_PATH="$(command -v node)"
+      SYS_NPM_PATH="$(command -v npm)"
+      SYS_NPX_PATH="$(command -v npx 2>/dev/null || true)"
+      SYS_NODE_VER="$("$SYS_NODE_PATH" -v 2>/dev/null | tr -d 'v' || true)"
+      _major="${SYS_NODE_VER%%.*}"
+      case "$_major" in
+        ''|*[!0-9]*) _major=0 ;;
+      esac
+      if [ "$_major" -ge 20 ]; then
+        USING_SYSTEM_NODE=1
+        say "-- host Node.js v$SYS_NODE_VER detected (reusing existing system binary)"
+      else
+        warn "--system-node requested, but host Node.js ($SYS_NODE_PATH) is v$SYS_NODE_VER (< 20.0.0); downloading pinned Node.js $NODE_VERSION"
+      fi
+    else
+      warn "--system-node requested, but node and/or npm was not found on PATH; downloading pinned Node.js $NODE_VERSION"
+    fi
+  fi
+}
 
 # --- hosting stack -----------------------------------------------------------
 # The panel manages the host web stack and its security/DNS integrations, so
@@ -298,8 +395,10 @@ configure_powerdns() {
 }
 
 configure_security_services() {
-  configure_fail2ban
-  configure_powerdns
+  if [ "$FAST" = "0" ]; then
+    configure_fail2ban
+    configure_powerdns
+  fi
   if command -v ufw >/dev/null 2>&1; then
     _panel_firewall_port="$PANEL_PORT"
     if [ -f "$ETCDIR/panel.env" ]; then
@@ -311,9 +410,11 @@ configure_security_services() {
   fi
   if systemd_present; then
     systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl enable --now fail2ban >/dev/null 2>&1 \
-      || warn "could not start fail2ban; inspect: systemctl status fail2ban"
-    if systemctl list-unit-files pdns.service >/dev/null 2>&1; then
+    if [ "$FAST" = "0" ] && command -v fail2ban-client >/dev/null 2>&1; then
+      systemctl enable --now fail2ban >/dev/null 2>&1 \
+        || warn "could not start fail2ban; inspect: systemctl status fail2ban"
+    fi
+    if [ "$FAST" = "0" ] && systemctl list-unit-files pdns.service >/dev/null 2>&1; then
       systemctl enable --now pdns >/dev/null 2>&1 \
         || warn "could not start PowerDNS; inspect: systemctl status pdns"
     fi
@@ -326,10 +427,15 @@ provision_packages() {
     return 0
   fi
 
-  _pkgs="nginx php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml
-    php-zip php-intl php-bcmath php-opcache git unzip sqlite3
-    libnginx-mod-http-modsecurity modsecurity-crs fail2ban ufw
-    pdns-server pdns-backend-sqlite3"
+  if [ "$FAST" = "1" ]; then
+    _pkgs="nginx php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml
+      php-zip php-intl php-bcmath php-opcache git unzip sqlite3 ufw"
+  else
+    _pkgs="nginx php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml
+      php-zip php-intl php-bcmath php-opcache git unzip sqlite3
+      libnginx-mod-http-modsecurity modsecurity-crs fail2ban ufw
+      pdns-server pdns-backend-sqlite3"
+  fi
 
   # MariaDB and MySQL server packages conflict: keep whichever is already here.
   if command -v mysqld >/dev/null 2>&1 \
@@ -370,14 +476,16 @@ provision_packages() {
     say "-- hosting packages already installed"
   else
     say "-- installing hosting and feature packages"
+    echo 'man-db man-db/auto-update boolean false' | debconf-set-selections 2>/dev/null || true
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
       apt-get update -qq -o DPkg::Lock::Timeout=300 \
       || warn "apt-get update failed; using the current package lists"
     # shellcheck disable=SC2086
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
-      apt-get install -y -o DPkg::Lock::Timeout=300 \
+      apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=300 \
         -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
         $_missing || die "failed to install hosting packages:$_missing"
+    rm -f /var/cache/apt/archives/*.deb 2>/dev/null || true
     say "   installed:$_missing"
   fi
 
@@ -473,16 +581,17 @@ resolve_latest
 say "   version: $VERSION"
 
 TMP="$(mktemp -d /tmp/clouddeck-install.XXXXXX)" || die "mktemp failed"
-trap 'rm -rf "$TMP"' EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+cleanup() {
+  for _pid in ${PID_AGENT:-} ${PID_PANEL:-} ${PID_CLI:-} ${PID_NODE:-}; do
+    kill "$_pid" 2>/dev/null || true
+  done
+  rm -rf "$TMP"
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 
 mkdir -p "$PREFIX" "$DATADIR" "$ETCDIR"
-
-provision_packages
-if [ "$STACK_PROVISIONED" = "1" ]; then
-  start_hosting_services
-fi
 
 # A repeat run with the same version refreshes config/services but does not
 # re-download the binaries. The marker is written only after a verified install.
@@ -490,15 +599,70 @@ INSTALLED_VERSION=""
 if [ -f "$PREFIX/.clouddeck-version" ]; then
   INSTALLED_VERSION="$(cat "$PREFIX/.clouddeck-version" 2>/dev/null || true)"
 fi
+NODE_MARKER="$PREFIX/.clouddeck-node-version"
+NODE_CURRENT="$(cat "$NODE_MARKER" 2>/dev/null || true)"
+
+check_system_node
+cache_release_metadata
+
+# Start background asset downloads concurrent with package provisioning
+_bg_started=0
+if [ "$DO_AGENT" = "1" ] && { [ "$INSTALLED_VERSION" != "$VERSION" ] || [ "$FORCE" = "1" ] || [ ! -x "$PREFIX/clouddeck-agent" ]; }; then
+  AGENT_FILE="clouddeck-agent-linux-$ARCH_GO"
+  ( download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE" ) >"$TMP/dl-agent.log" 2>&1 &
+  PID_AGENT=$!
+  _bg_started=1
+fi
+
+if [ "$DO_PANEL" = "1" ] && { [ "$INSTALLED_VERSION" != "$VERSION" ] || [ "$FORCE" = "1" ] || [ ! -f "$PREFIX/panel/server.js" ]; }; then
+  ( download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz" ) >"$TMP/dl-panel.log" 2>&1 &
+  PID_PANEL=$!
+  _bg_started=1
+fi
+
+if [ "$DO_PANEL" = "1" ] && { [ "$INSTALLED_VERSION" != "$VERSION" ] || [ "$FORCE" = "1" ] || [ ! -x "$PREFIX/bin/clouddeck" ]; }; then
+  ( download_asset "clouddeck-cli" "$TMP/clouddeck-cli" ) >"$TMP/dl-cli.log" 2>&1 &
+  PID_CLI=$!
+  _bg_started=1
+fi
+
+if [ "$DO_PANEL" = "1" ] && [ "$USING_SYSTEM_NODE" = "0" ] && { [ ! -x "$PREFIX/node/bin/node" ] || [ "$NODE_CURRENT" != "$NODE_VERSION" ] || [ "$FORCE" = "1" ]; }; then
+  NODE_TARBALL="node-v$NODE_VERSION-linux-$ARCH_NODE.tar.gz"
+  (
+    download "https://nodejs.org/dist/v$NODE_VERSION/$NODE_TARBALL" "$TMP/$NODE_TARBALL"
+    if command -v sha256sum >/dev/null 2>&1; then
+      download "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt" "$TMP/SHASUMS256.txt"
+    fi
+  ) >"$TMP/dl-node.log" 2>&1 &
+  PID_NODE=$!
+  _bg_started=1
+fi
+
+if [ "$_bg_started" = "1" ]; then
+  say "-- downloading release assets in background"
+fi
+
+setup_swap
+
+provision_packages
+if [ "$STACK_PROVISIONED" = "1" ]; then
+  start_hosting_services
+fi
 
 # --- agent -------------------------------------------------------------------
 if [ "$DO_AGENT" = "1" ]; then
   if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -x "$PREFIX/clouddeck-agent" ]; then
     say "-- agent $VERSION already installed"
   else
-    say "-- downloading agent"
     AGENT_FILE="clouddeck-agent-linux-$ARCH_GO"
-    download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE"
+    if [ -n "$PID_AGENT" ]; then
+      wait "$PID_AGENT" 2>/dev/null || true
+    fi
+    if [ ! -s "$TMP/$AGENT_FILE" ]; then
+      say "-- downloading agent"
+      download_asset "$AGENT_FILE" "$TMP/$AGENT_FILE"
+    fi
+    say "-- installing agent"
     install -m 0755 "$TMP/$AGENT_FILE" "$PREFIX/clouddeck-agent.new"
     mv -f "$PREFIX/clouddeck-agent.new" "$PREFIX/clouddeck-agent"
     say "   installed $PREFIX/clouddeck-agent"
@@ -506,14 +670,29 @@ if [ "$DO_AGENT" = "1" ]; then
 fi
 
 # --- node runtime ------------------------------------------------------------
-NODE_MARKER="$PREFIX/.clouddeck-node-version"
-NODE_CURRENT="$(cat "$NODE_MARKER" 2>/dev/null || true)"
-if [ "$DO_PANEL" = "1" ] && { [ ! -x "$PREFIX/node/bin/node" ] || [ "$NODE_CURRENT" != "$NODE_VERSION" ] || [ "$FORCE" = "1" ]; }; then
-  say "-- downloading Node.js $NODE_VERSION (pinned runtime, no distro packages)"
+if [ "$DO_PANEL" = "1" ] && [ "$USING_SYSTEM_NODE" = "1" ]; then
+  say "-- using host Node.js v$SYS_NODE_VER ($SYS_NODE_PATH)"
+  mkdir -p "$PREFIX/node/bin"
+  rm -rf "$PREFIX/node/bin/node" "$PREFIX/node/bin/npm" "$PREFIX/node/bin/npx"
+  ln -sf "$SYS_NODE_PATH" "$PREFIX/node/bin/node"
+  ln -sf "$SYS_NPM_PATH" "$PREFIX/node/bin/npm"
+  if [ -n "$SYS_NPX_PATH" ]; then
+    ln -sf "$SYS_NPX_PATH" "$PREFIX/node/bin/npx"
+  fi
+  printf 'system-%s\n' "$SYS_NODE_VER" > "$NODE_MARKER"
+elif [ "$DO_PANEL" = "1" ] && { [ ! -x "$PREFIX/node/bin/node" ] || [ "$NODE_CURRENT" != "$NODE_VERSION" ] || [ "$FORCE" = "1" ]; }; then
   NODE_TARBALL="node-v$NODE_VERSION-linux-$ARCH_NODE.tar.gz"
-  download "https://nodejs.org/dist/v$NODE_VERSION/$NODE_TARBALL" "$TMP/$NODE_TARBALL"
+  if [ -n "$PID_NODE" ]; then
+    wait "$PID_NODE" 2>/dev/null || true
+  fi
+  if [ ! -s "$TMP/$NODE_TARBALL" ]; then
+    say "-- downloading Node.js $NODE_VERSION (pinned runtime, no distro packages)"
+    download "https://nodejs.org/dist/v$NODE_VERSION/$NODE_TARBALL" "$TMP/$NODE_TARBALL"
+  fi
   if command -v sha256sum >/dev/null 2>&1; then
-    download "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt" "$TMP/SHASUMS256.txt"
+    if [ ! -s "$TMP/SHASUMS256.txt" ]; then
+      download "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt" "$TMP/SHASUMS256.txt"
+    fi
     ( cd "$TMP" && grep " $NODE_TARBALL\$" SHASUMS256.txt | sha256sum -c - >/dev/null 2>&1 ) \
       || die "Node.js checksum verification failed"
     say "   checksum ok"
@@ -529,7 +708,7 @@ if [ "$DO_PANEL" = "1" ] && [ -d "$PREFIX/node" ]; then
   # tarballs carry the upstream build UID; /opt must stay root-owned
   chown -R 0:0 "$PREFIX/node"
 
-  # expose the pinned runtime so hosted Node apps and npm work out of the box
+  # expose the runtime so hosted Node apps and npm work out of the box
   _linked=""
   for _bin in node npm npx; do
     _link="/usr/local/bin/$_bin"
@@ -545,8 +724,14 @@ if [ "$DO_PANEL" = "1" ] && [ -d "$PREFIX/node" ]; then
   if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -x "$PREFIX/bin/clouddeck" ]; then
     say "-- management CLI already installed"
   else
+    if [ -n "$PID_CLI" ]; then
+      wait "$PID_CLI" 2>/dev/null || true
+    fi
+    if [ ! -s "$TMP/clouddeck-cli" ]; then
+      say "-- downloading management CLI"
+      download_asset "clouddeck-cli" "$TMP/clouddeck-cli"
+    fi
     say "-- installing management CLI"
-    download_asset "clouddeck-cli" "$TMP/clouddeck-cli"
     mkdir -p "$PREFIX/bin"
     { printf '#!%s\n' "$PREFIX/node/bin/node"; tail -n +2 "$TMP/clouddeck-cli"; } > "$TMP/clouddeck-cli.inst"
     install -m 0755 "$TMP/clouddeck-cli.inst" "$PREFIX/bin/clouddeck"
@@ -562,8 +747,14 @@ if [ "$DO_PANEL" = "1" ]; then
   if [ "$INSTALLED_VERSION" = "$VERSION" ] && [ "$FORCE" = "0" ] && [ -f "$PREFIX/panel/server.js" ]; then
     say "-- panel $VERSION already installed"
   else
-    say "-- downloading panel"
-    download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
+    if [ -n "$PID_PANEL" ]; then
+      wait "$PID_PANEL" 2>/dev/null || true
+    fi
+    if [ ! -s "$TMP/clouddeck-panel.tar.gz" ]; then
+      say "-- downloading panel"
+      download_asset "clouddeck-panel.tar.gz" "$TMP/clouddeck-panel.tar.gz"
+    fi
+    say "-- installing panel"
     mkdir -p "$PREFIX/panel"
     tar -xzf "$TMP/clouddeck-panel.tar.gz" -C "$PREFIX/panel" || die "failed to extract panel"
     # the archive records the CI build UID; the panel must be root-owned and only
@@ -720,6 +911,8 @@ REPO=$REPO
 NO_SYSTEMD=$FORCE_NO_SYSTEMD
 DO_AGENT=$DO_AGENT
 DO_PANEL=$DO_PANEL
+FAST=$FAST
+SYSTEM_NODE=$SYSTEM_NODE
 EOF
 chmod 0644 "$PREFIX/.clouddeck-install"
 
@@ -909,7 +1102,11 @@ fi
 say "  Config:    $ETCDIR/agent.env, $ETCDIR/panel.env"
 say "  Data:      $DATADIR"
 if [ "$STACK_PROVISIONED" = "1" ]; then
-  say "  Stack:     nginx, PHP-FPM, MariaDB, certbot, Node.js/npm"
+  if [ "$FAST" = "1" ]; then
+    say "  Stack:     nginx, PHP-FPM, MariaDB, certbot, UFW (fast/minimal mode)"
+  else
+    say "  Stack:     nginx, PHP-FPM, MariaDB, certbot, Node.js/npm"
+  fi
 fi
 if [ "$DO_PANEL" = "1" ]; then
   say "  Manage:    clouddeck {status,restart,logs,update,uninstall}"
@@ -921,7 +1118,11 @@ else
 fi
 say "====================================================="
 if [ "$STACK_PROVISIONED" = "1" ]; then
-  say "Hosting stack ready: nginx on port 80, PHP-FPM and MariaDB are enabled."
+  if [ "$FAST" = "1" ]; then
+    say "Hosting stack ready: core LEMP enabled (run without --fast to add ModSecurity, PowerDNS, fail2ban)."
+  else
+    say "Hosting stack ready: nginx on port 80, PHP-FPM and MariaDB are enabled."
+  fi
 else
   say "Tip: for sites, install nginx + PHP-FPM (or point the agent at an existing stack via agent.env)."
 fi

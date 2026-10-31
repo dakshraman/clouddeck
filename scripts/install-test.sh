@@ -11,6 +11,13 @@ INSTALLER="$ROOT/scripts/install.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+help="$(sh "$INSTALLER" --help)"
+printf '%s\n' "$help" | grep -q -- '--uninstall'
+printf '%s\n' "$help" | grep -q -- '--no-systemd'
+printf '%s\n' "$help" | grep -q -- '--fast'
+printf '%s\n' "$help" | grep -q -- '--minimal'
+printf '%s\n' "$help" | grep -q -- '--system-node'
+
 if [[ "${EUID}" -ne 0 ]]; then
   echo "installer lifecycle tests require root; argument/syntax checks passed"
   exit 0
@@ -19,10 +26,6 @@ fi
 PREFIX="$TMP/prefix"
 DATA="$TMP/data"
 ETC="$TMP/etc"
-
-help="$(sh "$INSTALLER" --help)"
-printf '%s\n' "$help" | grep -q -- '--uninstall'
-printf '%s\n' "$help" | grep -q -- '--no-systemd'
 
 if sh "$INSTALLER" --prefix "$TMP/with space" --uninstall >/dev/null 2>&1; then
   echo "expected whitespace path validation to fail" >&2
