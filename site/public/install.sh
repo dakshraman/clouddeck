@@ -379,6 +379,94 @@ prompt_read() {
   eval "$_target_var=\"\$_input\""
 }
 
+# --- Port Collision Detection & Auto-Fallback -------------------------------
+is_port_in_use() {
+  local _p="$1"
+  # If CloudDeck itself is already running as an active systemd unit, it's our own service being updated
+  if systemd_present; then
+    if [ "$_p" = "$PANEL_PORT" ] && systemctl is-active --quiet clouddeck-panel 2>/dev/null; then
+      return 1
+    fi
+    if [ "$_p" = "$AGENT_PORT" ] && systemctl is-active --quiet clouddeck-agent 2>/dev/null; then
+      return 1
+    fi
+  fi
+
+  if command -v ss >/dev/null 2>&1; then
+    ss -tan 2>/dev/null | grep -qE "[:.]${_p}\b.*LISTEN" && return 0
+  fi
+  if command -v netstat >/dev/null 2>&1; then
+    netstat -tan 2>/dev/null | grep -qE "[:.]${_p}\b.*LISTEN" && return 0
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"${_p}" -sTCP:LISTEN -P -n >/dev/null 2>&1 && return 0
+  fi
+  if (exec 6<>/dev/tcp/127.0.0.1/"$_p") 2>/dev/null; then
+    exec 6<&- 6>&-
+    return 0
+  fi
+  return 1
+}
+
+find_next_free_port() {
+  local _start_port="$1"
+  local _candidate="$_start_port"
+  while [ "$_candidate" -le 65535 ]; do
+    if ! is_port_in_use "$_candidate"; then
+      echo "$_candidate"
+      return 0
+    fi
+    _candidate=$((_candidate + 1))
+  done
+  echo "$_start_port"
+}
+
+check_and_resolve_ports() {
+  # 1. Resolve PANEL_PORT if busy
+  if is_port_in_use "$PANEL_PORT"; then
+    local _fallback_panel
+    _fallback_panel="$(find_next_free_port "$((PANEL_PORT + 1))")"
+    warn "Web Panel port ${PANEL_PORT} is currently in use by another service."
+    if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
+      say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate port or press Enter for automatic fallback:${CLR_RESET}"
+      printf "    ${TC_MAUVE}• Web Panel Port [suggested free: ${_fallback_panel}]: ${CLR_RESET}"
+      local _chosen_panel=""
+      prompt_read _chosen_panel "$_fallback_panel"
+      if [ -n "$_chosen_panel" ] && [ "$_chosen_panel" -eq "$_chosen_panel" ] 2>/dev/null; then
+        PANEL_PORT="$_chosen_panel"
+      else
+        PANEL_PORT="$_fallback_panel"
+      fi
+    else
+      info "Automatically falling back to free port: ${PANEL_PORT} -> ${_fallback_panel}"
+      PANEL_PORT="$_fallback_panel"
+    fi
+    ok "Web Panel will listen on port: ${TC_PEACH}${PANEL_PORT}${CLR_RESET}"
+  fi
+
+  # 2. Resolve AGENT_PORT if busy
+  if is_port_in_use "$AGENT_PORT"; then
+    local _fallback_agent
+    _fallback_agent="$(find_next_free_port "$((AGENT_PORT + 1))")"
+    warn "Agent Daemon port ${AGENT_PORT} is currently in use by another service."
+    if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
+      say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate daemon port or press Enter for automatic fallback:${CLR_RESET}"
+      printf "    ${TC_MAUVE}• Agent Daemon Port [suggested free: ${_fallback_agent}]: ${CLR_RESET}"
+      local _chosen_agent=""
+      prompt_read _chosen_agent "$_fallback_agent"
+      if [ -n "$_chosen_agent" ] && [ "$_chosen_agent" -eq "$_chosen_agent" ] 2>/dev/null; then
+        AGENT_PORT="$_chosen_agent"
+      else
+        AGENT_PORT="$_fallback_agent"
+      fi
+    else
+      info "Automatically falling back to free port: ${AGENT_PORT} -> ${_fallback_agent}"
+      AGENT_PORT="$_fallback_agent"
+    fi
+    ok "Agent Daemon will listen on port: ${TC_PEACH}${AGENT_PORT}${CLR_RESET}"
+  fi
+}
+
 render_system_card() {
   say "  ${TC_STEEL}╭─ System Environment ──────────────────────────────────────────────${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}  ${TC_SKY}${CLR_BOLD}● Release Version:${CLR_RESET}   ${CLR_BOLD}$VERSION${CLR_RESET} ${CLR_DIM}(latest stable)${CLR_RESET}"
@@ -471,7 +559,13 @@ prompt_component_selection() {
       printf "    ${TC_MAUVE}• CloudDeck Web Panel Port [${PANEL_PORT}]: ${CLR_RESET}"
       prompt_read _port_in "${PANEL_PORT}"
       if [ -n "$_port_in" ] && [ "$_port_in" -eq "$_port_in" ] 2>/dev/null; then
-        PANEL_PORT="$_port_in"
+        if is_port_in_use "$_port_in" && [ "$_port_in" != "$PANEL_PORT" ]; then
+          _suggested="$(find_next_free_port "$((_port_in + 1))")"
+          warn "Entered port ${_port_in} is currently in use! Automatically falling back to free port ${_suggested}."
+          PANEL_PORT="$_suggested"
+        else
+          PANEL_PORT="$_port_in"
+        fi
       fi
 
       # Custom admin credentials prompt
@@ -1079,6 +1173,8 @@ AGENT_BACKUP_DIR=$DATADIR/agent/backups
 EOF
     chmod 600 "$ETCDIR/agent.env"
     ok "Wrote agent configuration: $ETCDIR/agent.env"
+  elif [ "$DO_AGENT" = "1" ] && [ -f "$ETCDIR/agent.env" ]; then
+    sed -i -E "s|^AGENT_LISTEN=.*|AGENT_LISTEN=127.0.0.1:$AGENT_PORT|" "$ETCDIR/agent.env" 2>/dev/null || true
   fi
 
   if [ "$DO_PANEL" = "1" ] && [ ! -f "$ETCDIR/panel.env" ]; then
@@ -1097,6 +1193,9 @@ PANEL_COOKIE_SECURE=false
 EOF
     chmod 600 "$ETCDIR/panel.env"
     ok "Wrote panel configuration: $ETCDIR/panel.env"
+  elif [ "$DO_PANEL" = "1" ] && [ -f "$ETCDIR/panel.env" ]; then
+    sed -i -E "s|^PORT=.*|PORT=$PANEL_PORT|" "$ETCDIR/panel.env" 2>/dev/null || true
+    sed -i -E "s|^AGENT_URL=.*|AGENT_URL=http://127.0.0.1:$AGENT_PORT|" "$ETCDIR/panel.env" 2>/dev/null || true
   fi
 
   # Layout marker for management CLI
@@ -1246,6 +1345,7 @@ EOF
 print_banner
 setup_interactive_tty
 resolve_latest
+check_and_resolve_ports
 prompt_component_selection
 
 TMP="$(mktemp -d /tmp/clouddeck-unified.XXXXXX)" || die "mktemp failed"

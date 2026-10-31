@@ -244,6 +244,70 @@ generateResolvConf=true
     }
 }
 
+# --- Port Collision Detection & Auto-Fallback -------------------------------
+
+function Test-PortInUse([int]$Port) {
+    try {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        $iar = $tcp.BeginConnect("127.0.0.1", $Port, $null, $null)
+        $wait = $iar.AsyncWaitHandle.WaitOne(400, $false)
+        if ($wait) {
+            $tcp.EndConnect($iar)
+            $tcp.Close()
+            return $true
+        }
+        $tcp.Close()
+    } catch {}
+
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
+        $listener.Start()
+        $listener.Stop()
+        return $false
+    } catch {
+        return $true
+    }
+}
+
+function Find-NextFreePort([int]$StartPort) {
+    $candidate = $StartPort
+    while ($candidate -le 65535) {
+        if (-not (Test-PortInUse $candidate)) {
+            return $candidate
+        }
+        $candidate++
+    }
+    return $StartPort
+}
+
+function Ensure-PortsAvailable {
+    if (Test-PortInUse $script:PanelPort) {
+        $suggested = Find-NextFreePort ($script:PanelPort + 1)
+        Write-Warn "Target Web Panel port $script:PanelPort is currently in use by another application."
+        
+        if (-not $Yes) {
+            Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter an alternate port or press Enter for automatic fallback:${clrReset}"
+            $pIn = Read-Host "  ${tcMauve}$gBullet Web Panel Port [suggested free: $suggested]${clrReset}"
+            if ($pIn -match "^\d+$") {
+                $candidate = [int]$pIn
+                if (Test-PortInUse $candidate -and $candidate -ne $script:PanelPort) {
+                    $nextFree = Find-NextFreePort ($candidate + 1)
+                    Write-Warn "Port $candidate is also busy! Automatically falling back to $nextFree."
+                    $script:PanelPort = $nextFree
+                } else {
+                    $script:PanelPort = $candidate
+                }
+            } else {
+                $script:PanelPort = $suggested
+            }
+        } else {
+            Write-Info "Automatically falling back to free port: $script:PanelPort -> $suggested"
+            $script:PanelPort = $suggested
+        }
+        Write-Success "Web Panel will listen on port: ${tcPeach}$script:PanelPort${clrReset}"
+    }
+}
+
 # --- Interactive Profile Selection -------------------------------------------
 
 function Prompt-InteractiveOptions([string]$DistroName = "Ubuntu") {
@@ -294,7 +358,14 @@ function Prompt-InteractiveOptions([string]$DistroName = "Ubuntu") {
 
     $portIn = Read-Host "  ${tcMauve}$gBullet CloudDeck Web Panel Port [$PanelPort]${clrReset}"
     if ($portIn -match "^\d+$") {
-        $script:PanelPort = [int]$portIn
+        $candidate = [int]$portIn
+        if (Test-PortInUse $candidate -and $candidate -ne $script:PanelPort) {
+            $nextFree = Find-NextFreePort ($candidate + 1)
+            Write-Warn "Port $candidate is busy! Automatically falling back to free port $nextFree."
+            $script:PanelPort = $nextFree
+        } else {
+            $script:PanelPort = $candidate
+        }
     }
 
     $adminAns = Read-Host "  ${tcSky}${clrBold}$gBullet Configure Initial Admin Account? [y/N]${clrReset}"
@@ -594,6 +665,7 @@ Write-Banner
 $targetDistro = Select-TargetDistro -RequestedDistro $Distro
 Write-Success "Selected WSL 2 distribution: $targetDistro"
 
+Ensure-PortsAvailable
 Prompt-InteractiveOptions -DistroName $targetDistro
 Configure-WSLDistro -DistroName $targetDistro
 
