@@ -3,6 +3,7 @@ package term
 import (
 	"os"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -361,4 +362,138 @@ func TestRingBufferWraps(t *testing.T) {
 	if string(got) != string(fill[len(fill)-ringSize:]) {
 		t.Error("snapshot does not hold the newest bytes")
 	}
+}
+
+func TestStartWorkingDir(t *testing.T) {
+	requireLinux(t)
+	svc := newTestService(t, false)
+
+	targetDir := t.TempDir()
+	sess, err := svc.Start(80, 24, targetDir)
+	if err != nil {
+		t.Fatalf("start with explicit dir: %v", err)
+	}
+	defer svc.Close(sess.ID)
+
+	_, events, cancel, err := svc.Attach(sess.ID)
+	if err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	defer cancel()
+
+	if err := svc.Input(sess.ID, []byte("pwd\r")); err != nil {
+		t.Fatalf("input: %v", err)
+	}
+	evalTarget, err := filepath.EvalSymlinks(targetDir)
+	if err != nil {
+		evalTarget = targetDir
+	}
+	drainUntil(t, events, evalTarget, 10*time.Second)
+}
+
+func TestStartWebroot(t *testing.T) {
+	requireLinux(t)
+	svc := newTestService(t, false)
+	webroot := filepath.Join(t.TempDir(), "sites", "webroot")
+	svc.cfg.Webroot = webroot
+
+	sess, err := svc.Start(80, 24)
+	if err != nil {
+		t.Fatalf("start with webroot: %v", err)
+	}
+	defer svc.Close(sess.ID)
+
+	fi, err := os.Stat(webroot)
+	if err != nil {
+		t.Fatalf("webroot not created: %v", err)
+	}
+	if perm := fi.Mode().Perm(); perm&0o755 != 0o755 {
+		t.Errorf("webroot perm = %04o, want at least 0755", perm)
+	}
+
+	_, events, cancel, err := svc.Attach(sess.ID)
+	if err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	defer cancel()
+
+	if err := svc.Input(sess.ID, []byte("pwd\r")); err != nil {
+		t.Fatalf("input: %v", err)
+	}
+	evalWebroot, err := filepath.EvalSymlinks(webroot)
+	if err != nil {
+		evalWebroot = webroot
+	}
+	drainUntil(t, events, evalWebroot, 10*time.Second)
+}
+
+func TestResolveDirPriorities(t *testing.T) {
+	svc := newTestService(t, false)
+	homeDir := t.TempDir()
+
+	t.Run("explicit valid dir wins", func(t *testing.T) {
+		explicit := t.TempDir()
+		svc.cfg.Webroot = filepath.Join(t.TempDir(), "webroot")
+		got := svc.resolveDir(homeDir, explicit)
+		if got != explicit {
+			t.Errorf("resolveDir = %q, want %q", got, explicit)
+		}
+	})
+
+	t.Run("explicit invalid dir falls back to webroot", func(t *testing.T) {
+		invalid := filepath.Join(t.TempDir(), "no-such-dir")
+		webroot := filepath.Join(t.TempDir(), "webroot")
+		svc.cfg.Webroot = webroot
+		got := svc.resolveDir(homeDir, invalid)
+		if got != webroot {
+			t.Errorf("resolveDir = %q, want %q", got, webroot)
+		}
+		if fi, err := os.Stat(webroot); err != nil || !fi.IsDir() {
+			t.Fatalf("webroot was not created: %v", err)
+		}
+	})
+
+	t.Run("webroot existing with 0700 is chmodded to 0755", func(t *testing.T) {
+		webroot := filepath.Join(t.TempDir(), "webroot")
+		if err := os.MkdirAll(webroot, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		svc.cfg.Webroot = webroot
+		got := svc.resolveDir(homeDir)
+		if got != webroot {
+			t.Errorf("resolveDir = %q, want %q", got, webroot)
+		}
+		fi, err := os.Stat(webroot)
+		if err != nil || fi.Mode().Perm()&0o755 != 0o755 {
+			t.Errorf("webroot permissions = %v, want 0755", fi.Mode().Perm())
+		}
+	})
+
+	t.Run("webroot inaccessible falls back to home or var www", func(t *testing.T) {
+		svc.cfg.Webroot = "/proc/invalid/cannot/create"
+		got := svc.resolveDir(homeDir)
+		if fi, err := os.Stat("/var/www"); err == nil && fi.IsDir() {
+			if got != "/var/www" {
+				t.Errorf("resolveDir = %q, want /var/www", got)
+			}
+		} else {
+			if got != homeDir {
+				t.Errorf("resolveDir = %q, want homeDir %q", got, homeDir)
+			}
+		}
+	})
+
+	t.Run("everything missing falls back to root", func(t *testing.T) {
+		svc.cfg.Webroot = ""
+		got := svc.resolveDir(filepath.Join(t.TempDir(), "no-such-home"))
+		if fi, err := os.Stat("/var/www"); err == nil && fi.IsDir() {
+			if got != "/var/www" {
+				t.Errorf("resolveDir = %q, want /var/www", got)
+			}
+		} else {
+			if got != "/" {
+				t.Errorf("resolveDir = %q, want /", got)
+			}
+		}
+	})
 }

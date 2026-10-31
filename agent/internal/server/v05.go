@@ -122,14 +122,25 @@ func (s *Server) handleTermStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTermStart(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Cols int `json:"cols"`
-		Rows int `json:"rows"`
+		Cols   int    `json:"cols"`
+		Rows   int    `json:"rows"`
+		Dir    string `json:"dir"`
+		Domain string `json:"domain"`
 	}
 	if err := decodeBody(w, r, &req); err != nil {
 		writeError(w, err)
 		return
 	}
-	session, err := s.term.Start(req.Cols, req.Rows)
+	targetDir := req.Dir
+	if req.Domain != "" && s.sites != nil {
+		site, err := s.sites.Get(req.Domain)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		targetDir = site.Root
+	}
+	session, err := s.term.Start(req.Cols, req.Rows, targetDir)
 	if err != nil {
 		writeError(w, err)
 		return

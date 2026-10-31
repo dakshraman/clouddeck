@@ -95,7 +95,7 @@ func New(cfg config.Config, auditLog *audit.Log) *Service {
 }
 
 // Start spawns a shell session and returns it.
-func (s *Service) Start(cols, rows int) (Session, error) {
+func (s *Service) Start(cols, rows int, dir ...string) (Session, error) {
 	if s.cfg.DryRun {
 		return Session{}, apierr.Conflict("term_disabled", "terminal is disabled under dry run")
 	}
@@ -132,6 +132,8 @@ func (s *Service) Start(cols, rows int) (Session, error) {
 		shell = "/bin/bash"
 	}
 
+	chosenDir := s.resolveDir(home, dir...)
+
 	master, slave, err := openPTY()
 	if err != nil {
 		return Session{}, apierr.Internal("term: " + err.Error())
@@ -146,17 +148,20 @@ func (s *Service) Start(cols, rows int) (Session, error) {
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave
+	homeEnv := owner.HomeDir
+	if homeEnv == "" {
+		homeEnv = chosenDir
+	}
 	cmd.Env = []string{
 		"TERM=xterm-256color",
-		"HOME=" + home,
+		"HOME=" + homeEnv,
 		"USER=" + owner.Username,
 		"SHELL=" + shell,
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"LANG=C.UTF-8",
+		"PWD=" + chosenDir,
 	}
-	if fi, statErr := os.Stat(home); statErr == nil && fi.IsDir() {
-		cmd.Dir = home
-	}
+	cmd.Dir = chosenDir
 	cmd.SysProcAttr = termSysProcAttr(uid, gid, switchUser)
 
 	if err := cmd.Start(); err != nil {
@@ -637,5 +642,54 @@ func ensureSudoers(username string) {
 	if data, err := os.ReadFile(file); err != nil || !strings.Contains(string(data), username) {
 		content := fmt.Sprintf("# CloudDeck web terminal sudo permissions\n%s ALL=(ALL:ALL) ALL\n", username)
 		_ = os.WriteFile(file, []byte(content), 0o440)
+	}
+}
+
+// resolveDir picks the initial working directory for a new terminal session.
+// Priority:
+// a) If explicit dir argument is provided and is a valid directory, use it.
+// b) Else, check cfg.Webroot. If it exists or can be created, use it.
+// c) Else, fallback to /var/www, then home, then /.
+func (s *Service) resolveDir(home string, dir ...string) string {
+	var explicit string
+	if len(dir) > 0 && dir[0] != "" {
+		explicit = dir[0]
+	}
+	if explicit != "" {
+		if fi, err := os.Stat(explicit); err == nil && fi.IsDir() {
+			return explicit
+		}
+	}
+	if s.cfg.Webroot != "" {
+		if fi, err := os.Stat(s.cfg.Webroot); err == nil && fi.IsDir() {
+			ensureDirAccessible(s.cfg.Webroot)
+			return s.cfg.Webroot
+		}
+		if err := os.MkdirAll(s.cfg.Webroot, 0o755); err == nil {
+			ensureDirAccessible(s.cfg.Webroot)
+			if fi, err := os.Stat(s.cfg.Webroot); err == nil && fi.IsDir() {
+				return s.cfg.Webroot
+			}
+		}
+	}
+	if fi, err := os.Stat("/var/www"); err == nil && fi.IsDir() {
+		return "/var/www"
+	}
+	if fi, err := os.Stat(home); err == nil && fi.IsDir() {
+		return home
+	}
+	return "/"
+}
+
+// ensureDirAccessible ensures that path has at least readable and executable
+// permissions (0755) so the terminal user can traverse and access it.
+func ensureDirAccessible(path string) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return
+	}
+	perm := fi.Mode().Perm()
+	if perm&0o755 != 0o755 {
+		_ = os.Chmod(path, perm|0o755)
 	}
 }

@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/components/ui/cn";
-import { PageHeader } from "@/components/page-header";
 import { Maximize2, Minimize2, Play, Square, Terminal as TerminalIcon } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
@@ -55,7 +54,6 @@ export default function TerminalPage() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [startError, setStartError] = useState<string | null>(null);
   const [streamNotice, setStreamNotice] = useState<string | null>(null);
-  const [location, setLocation] = useState<{ host: string; port: string } | null>(null);
   const [fullPage, setFullPage] = useState(false);
   const [fullPageAvailable, setFullPageAvailable] = useState(false);
 
@@ -72,17 +70,24 @@ export default function TerminalPage() {
   const lastSizeRef = useRef<{ cols: number; rows: number } | null>(null);
   const startingRef = useRef(false);
   const disposedRef = useRef(false);
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
-    setLocation({
-      host: window.location.hostname || "this host",
-      port: window.location.port || (window.location.protocol === "https:" ? "443" : "80"),
-    });
     setFullPageAvailable(document.fullscreenEnabled);
   }, []);
 
   useEffect(() => {
-    const onChange = () => setFullPage(document.fullscreenElement === shellRef.current);
+    const onChange = () => {
+      const isFullscreen = document.fullscreenElement === shellRef.current;
+      setFullPage(isFullscreen);
+      window.setTimeout(() => {
+        try {
+          fitRef.current?.fit();
+        } catch {
+          // ignore
+        }
+      }, 80);
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
@@ -211,7 +216,6 @@ export default function TerminalPage() {
       term.loadAddon(fit);
       term.open(container);
       try {
-        // The container may still be mid-layout; the observer fits again later.
         fit.fit();
       } catch {
         // Ignore: xterm falls back to its default 80x24 geometry.
@@ -334,28 +338,34 @@ export default function TerminalPage() {
   }, [stopSession]);
 
   useEffect(() => {
+    disposedRef.current = false;
     return () => {
       disposedRef.current = true;
       stopSession(true);
     };
   }, [stopSession]);
 
+  // Automatically start the terminal session when status is loaded and enabled
+  useEffect(() => {
+    if (state === "ready" && status?.enabled && !autoStartedRef.current && phase === "idle") {
+      autoStartedRef.current = true;
+      const timer = window.setTimeout(() => {
+        void startSession();
+      }, 50);
+      return () => window.clearTimeout(timer);
+    }
+  }, [state, status?.enabled, phase, startSession]);
+
   function startNewSession() {
     stopSession(false);
     void startSession();
   }
 
-  const login = status ? `${status.user || "—"}@${location?.host ?? "…"}` : "";
   const terminalEnabled = status?.enabled === true;
   const overlayVisible = phase === "idle" || phase === "starting";
 
   return (
     <>
-      <PageHeader
-        title="Terminal"
-        description="Interactive shell on this server, streamed from the CloudDeck agent."
-      />
-
       {state === "error" ? (
         <Alert variant="error" className="mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -368,67 +378,105 @@ export default function TerminalPage() {
       ) : null}
 
       {state === "loading" ? (
-        <>
-          <Skeleton className="h-40" />
-          <Skeleton className="mt-6 h-[60vh] min-h-[320px]" />
-        </>
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-border/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="mt-1 h-4 w-72" />
+              <div className="mt-2.5 flex gap-2">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-28 rounded-full" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+          </div>
+          <div className="p-4 sm:p-5">
+            <Skeleton className="h-[72vh] min-h-[420px] w-full rounded-lg" />
+          </div>
+        </Card>
       ) : null}
 
       {state === "ready" && status ? (
-        <>
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Shell session</CardTitle>
-                <CardDescription>PTY-backed shell running on this host through the agent.</CardDescription>
+        <div ref={shellRef} className={cn("w-full", fullPage && "flex h-screen flex-col bg-background")}>
+          <Card
+            className={cn(
+              "overflow-hidden",
+              fullPage && "flex min-h-0 flex-1 flex-col rounded-none border-0 shadow-none",
+            )}
+          >
+            <CardHeader className="shrink-0 flex-col gap-3 border-b border-border/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-base font-semibold sm:text-lg">Terminal</CardTitle>
+                  {phase === "running" ? (
+                    <Badge variant="green">Connected</Badge>
+                  ) : phase === "starting" ? (
+                    <Badge variant="amber">Starting…</Badge>
+                  ) : phase === "ended" ? (
+                    <Badge variant="amber">Ended</Badge>
+                  ) : !terminalEnabled ? (
+                    <Badge variant="amber">Disabled</Badge>
+                  ) : null}
+                </div>
+                <CardDescription className="mt-0.5 text-xs text-muted-foreground">
+                  Interactive shell in your sites webroot (/www/wwwroot).
+                </CardDescription>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge variant="neutral" className="font-mono text-xs">
+                    <span className="text-muted-foreground mr-1">User:</span>
+                    <span className="font-semibold text-foreground">{status.user || "clouddeck"}</span>
+                  </Badge>
+                  <Badge variant="neutral" className="font-mono text-xs">
+                    <span className="text-muted-foreground mr-1">Shell:</span>
+                    <span className="font-semibold text-foreground">{status.shell || "/bin/bash"}</span>
+                  </Badge>
+                  <Badge variant="neutral" className="text-xs">
+                    <span className="text-muted-foreground mr-1">Sessions:</span>
+                    <span className="font-semibold text-foreground">{status.sessions}</span>
+                  </Badge>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {phase === "starting" ? <Badge variant="amber">Starting…</Badge> : null}
-                {phase === "running" ? <Badge variant="green">Connected</Badge> : null}
-                {phase === "ended" ? <Badge variant="amber">Ended</Badge> : null}
-                <Badge variant={terminalEnabled ? "indigo" : "amber"}>
-                  {terminalEnabled ? "Enabled" : "Disabled"}
-                </Badge>
+
+              <div className="flex flex-wrap items-center gap-2">
                 {phase === "running" ? (
                   <Button variant="secondary" size="sm" onClick={() => stopSession(true)}>
                     <Square size={13} aria-hidden="true" />
                     End session
                   </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => (phase === "ended" ? startNewSession() : void startSession())}
+                    loading={phase === "starting"}
+                    disabled={!terminalEnabled}
+                  >
+                    {phase === "starting" ? null : <Play size={13} aria-hidden="true" />}
+                    {phase === "starting" ? "Starting…" : "Start session"}
+                  </Button>
+                )}
+                {fullPageAvailable ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void toggleFullPage()}
+                    aria-pressed={fullPage}
+                  >
+                    {fullPage ? (
+                      <Minimize2 size={13} aria-hidden="true" />
+                    ) : (
+                      <Maximize2 size={13} aria-hidden="true" />
+                    )}
+                    {fullPage ? "Exit full page" : "Full page"}
+                  </Button>
                 ) : null}
               </div>
             </CardHeader>
-            <CardBody className="grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Login</p>
-                  <p className="mt-1 truncate font-mono text-sm text-foreground" title={login}>
-                    {login}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Agent shell user</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Shell</p>
-                  <p className="mt-1 truncate font-mono text-sm text-foreground" title={status.shell}>
-                    {status.shell || "—"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">AGENT_TERM_SHELL</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Panel port</p>
-                  <p className="mt-1 truncate font-mono text-sm text-foreground">{location?.port ?? "…"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    The shell is proxied through the panel; no SSH port is exposed.
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Live sessions
-                  </p>
-                  <p className="mt-1 font-mono text-sm text-foreground">{status.sessions}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">At most 4; 15 minutes idle timeout</p>
-                </div>
-              </div>
 
+            <CardBody className={cn("p-4 sm:p-5", fullPage && "flex min-h-0 flex-1 flex-col")}>
               {!terminalEnabled ? (
                 <Alert variant="warning">
                   <p className="font-medium">The web terminal is disabled.</p>
@@ -441,67 +489,7 @@ export default function TerminalPage() {
                   </p>
                 </Alert>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Sessions run as{" "}
-                  <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground/80">
-                    {status.user || "—"}
-                  </code>{" "}
-                  and end when you close this page or after 15 minutes without keystrokes.
-                </p>
-              )}
-            </CardBody>
-          </Card>
-
-          {terminalEnabled ? (
-            <div ref={shellRef} className={cn(fullPage && "flex h-screen flex-col bg-background")}>
-              <Card
-                className={cn(
-                  "mt-6 overflow-hidden",
-                  fullPage && "mt-0 flex min-h-0 flex-1 flex-col rounded-none border-0 shadow-none",
-                )}
-              >
-                <CardHeader className="shrink-0">
-                  <div>
-                    <CardTitle>Shell</CardTitle>
-                    <CardDescription>
-                      {phase === "running"
-                        ? "Interactive session - type commands below."
-                        : phase === "ended"
-                          ? "The shell exited. Start a new session to keep going."
-                          : "Start a session to open a shell inside the panel."}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {phase === "running" ? (
-                      <Button variant="secondary" size="sm" onClick={() => stopSession(true)}>
-                        <Square size={13} aria-hidden="true" />
-                        End session
-                      </Button>
-                    ) : null}
-                    {phase === "ended" ? (
-                      <Button size="sm" onClick={startNewSession}>
-                        <Play size={13} aria-hidden="true" />
-                        Start new session
-                      </Button>
-                    ) : null}
-                    {fullPageAvailable ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void toggleFullPage()}
-                        aria-pressed={fullPage}
-                      >
-                        {fullPage ? (
-                          <Minimize2 size={13} aria-hidden="true" />
-                        ) : (
-                          <Maximize2 size={13} aria-hidden="true" />
-                        )}
-                        {fullPage ? "Exit full page" : "Full page"}
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardHeader>
-                <div className={cn("px-5 pb-5 pt-4", fullPage && "flex min-h-0 flex-1 flex-col")}>
+                <>
                   {startError ? (
                     <Alert variant="error" className="mb-3">
                       {startError}
@@ -514,19 +502,22 @@ export default function TerminalPage() {
                   ) : null}
                   {phase === "ended" ? (
                     <Alert variant="info" className="mb-3">
-                      The shell session ended. Its output is kept above for reference.
+                      The shell session ended. Its output is kept above for reference. Click &ldquo;Start session&rdquo; to begin a new session.
                     </Alert>
                   ) : null}
-  
+
                   <div
                     className={cn(
                       "relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]",
-                      fullPage && "min-h-0 flex-1",
+                      fullPage && "flex min-h-0 flex-1 flex-col",
                     )}
                   >
                     <div
                       ref={containerRef}
-                      className={cn("w-full", fullPage ? "h-full" : "h-[60vh] min-h-[320px]")}
+                      className={cn(
+                        "w-full",
+                        fullPage ? "h-full min-h-0 flex-1" : "h-[72vh] min-h-[420px]",
+                      )}
                     />
                     {overlayVisible ? (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
@@ -536,7 +527,7 @@ export default function TerminalPage() {
                         <div>
                           <p className="text-sm font-medium text-zinc-100">Open a shell on this server</p>
                           <p className="mt-1 max-w-sm text-xs text-zinc-400">
-                            The session runs as {status.user || "—"} with {status.shell || "—"}. Closing this
+                            The session runs as {status.user || "clouddeck"} with {status.shell || "/bin/bash"}. Closing this
                             page ends it.
                           </p>
                         </div>
@@ -551,11 +542,11 @@ export default function TerminalPage() {
                       </div>
                     ) : null}
                   </div>
-                </div>
-              </Card>
-            </div>
-          ) : null}
-        </>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        </div>
       ) : null}
     </>
   );
