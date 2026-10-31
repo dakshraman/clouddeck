@@ -3,15 +3,46 @@
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ---------- header ---------- */
+  /* ---------- header scroll & active nav ---------- */
 
   const header = document.querySelector("[data-header]");
   const onScroll = () => {
     if (!header) return;
-    header.classList.toggle("is-scrolled", window.scrollY > 8);
+    header.classList.toggle("is-scrolled", window.scrollY > 12);
   };
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
+
+  // Section observer for active nav highlighting
+  const navLinks = Array.from(document.querySelectorAll(".primary-nav a, .mobile-menu a"));
+  const sectionIds = ["top", "comparison", "features", "applications", "security", "install", "docs"];
+  const sections = sectionIds
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+
+  if ("IntersectionObserver" in window && sections.length > 0) {
+    const navObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const currentId = entry.target.id;
+            navLinks.forEach((link) => {
+              const href = link.getAttribute("href");
+              const isActive = href === `#${currentId}`;
+              link.classList.toggle("is-active", isActive);
+              if (isActive) {
+                link.setAttribute("aria-current", "page");
+              } else if (link.getAttribute("aria-current") === "page") {
+                link.removeAttribute("aria-current");
+              }
+            });
+          }
+        });
+      },
+      { threshold: 0.25, rootMargin: "-10% 0px -50% 0px" },
+    );
+    sections.forEach((sec) => navObserver.observe(sec));
+  }
 
   /* ---------- mobile menu ---------- */
 
@@ -25,6 +56,7 @@
     menuToggle.setAttribute("aria-expanded", String(open));
     menuToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     if (menuIcon) menuIcon.setAttribute("href", open ? "#i-close" : "#i-menu");
+    document.body.style.overflow = open ? "hidden" : "";
   };
 
   menuToggle?.addEventListener("click", () => {
@@ -64,7 +96,7 @@
     revealItems.forEach((item) => observer.observe(item));
   }
 
-  /* ---------- copy buttons ---------- */
+  /* ---------- copy buttons with animated feedback ---------- */
 
   const cleanCommand = (text) =>
     text
@@ -91,31 +123,104 @@
     textarea.remove();
   };
 
-  document.querySelectorAll("[data-copy-target]").forEach((button) => {
+  document.querySelectorAll("[data-copy-target], [data-copy-text]").forEach((button) => {
     button.addEventListener("click", async () => {
-      const targetId = button.getAttribute("data-copy-target");
-      const target = targetId ? document.getElementById(targetId) : null;
-      if (!target) return;
-
-      const text = cleanCommand(target.textContent || "");
+      let text = button.getAttribute("data-copy-text") || "";
+      if (!text) {
+        const targetId = button.getAttribute("data-copy-target");
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+        text = cleanCommand(target.textContent || "");
+      }
       if (!text) return;
 
+      const tooltip = button.querySelector(".copy-tooltip");
+      const originalTooltipText = tooltip ? tooltip.textContent : "";
       const originalLabel = button.getAttribute("aria-label");
+
       try {
         await copyText(text);
         button.classList.add("is-copied");
-        button.setAttribute("aria-label", "Copied");
+        button.setAttribute("aria-label", "Copied to clipboard");
+        if (tooltip) tooltip.textContent = "Copied to clipboard!";
+
         window.setTimeout(() => {
           button.classList.remove("is-copied");
           if (originalLabel) button.setAttribute("aria-label", originalLabel);
-        }, 1800);
+          if (tooltip && originalTooltipText) tooltip.textContent = originalTooltipText;
+        }, 2200);
       } catch {
         button.setAttribute("aria-label", "Copy failed");
+        if (tooltip) tooltip.textContent = "Failed to copy";
+        window.setTimeout(() => {
+          if (originalLabel) button.setAttribute("aria-label", originalLabel);
+          if (tooltip && originalTooltipText) tooltip.textContent = originalTooltipText;
+        }, 2000);
       }
     });
   });
 
-  /* ---------- install tabs ---------- */
+  /* ---------- interactive hero preview tabs ---------- */
+
+  const previewTabs = Array.from(document.querySelectorAll("[data-preview-tab]"));
+  const previewViews = Array.from(document.querySelectorAll("[data-preview-view]"));
+  const sidebarNavItems = Array.from(document.querySelectorAll("[data-preview-nav]"));
+
+  const activatePreviewTab = (id, focus = false) => {
+    previewTabs.forEach((tab) => {
+      const match = tab.getAttribute("data-preview-tab") === id;
+      tab.classList.toggle("is-active", match);
+      tab.setAttribute("aria-selected", String(match));
+      tab.tabIndex = match ? 0 : -1;
+      if (match && focus) tab.focus();
+    });
+
+    previewViews.forEach((view) => {
+      const match = view.getAttribute("data-preview-view") === id;
+      view.hidden = !match;
+      view.classList.toggle("is-active", match);
+    });
+
+    // Also sync the visual active item in the dashboard sidebar
+    sidebarNavItems.forEach((navItem) => {
+      const match = navItem.getAttribute("data-preview-nav") === id;
+      navItem.classList.toggle("active", match);
+    });
+  };
+
+  previewTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => {
+      const targetId = tab.getAttribute("data-preview-tab");
+      if (targetId) activatePreviewTab(targetId);
+    });
+
+    tab.addEventListener("keydown", (event) => {
+      const last = previewTabs.length - 1;
+      let next = index;
+
+      if (event.key === "ArrowRight") next = index === last ? 0 : index + 1;
+      else if (event.key === "ArrowLeft") next = index === 0 ? last : index - 1;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = last;
+      else return;
+
+      event.preventDefault();
+      const target = previewTabs[next];
+      const targetId = target.getAttribute("data-preview-tab");
+      if (targetId) activatePreviewTab(targetId, true);
+    });
+  });
+
+  // Allow clicking on sidebar items to switch view too
+  sidebarNavItems.forEach((navItem) => {
+    navItem.style.cursor = "pointer";
+    navItem.addEventListener("click", () => {
+      const targetId = navItem.getAttribute("data-preview-nav");
+      if (targetId) activatePreviewTab(targetId);
+    });
+  });
+
+  /* ---------- install tabs (Linux VPS vs Source) ---------- */
 
   const tabButtons = Array.from(document.querySelectorAll("[data-tab]"));
   const tabPanels = Array.from(document.querySelectorAll("[data-panel]"));
@@ -152,6 +257,19 @@
       event.preventDefault();
       const target = tabButtons[next];
       activateTab(target.getAttribute("data-tab") || "linux", true);
+    });
+  });
+
+  /* ---------- interactive FAQ accordion ---------- */
+
+  const faqItems = Array.from(document.querySelectorAll(".faq-list details"));
+  faqItems.forEach((details) => {
+    details.addEventListener("toggle", () => {
+      if (details.open) {
+        details.classList.add("is-open");
+      } else {
+        details.classList.remove("is-open");
+      }
     });
   });
 

@@ -43,7 +43,7 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/assets/styles.css?v=20261031" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20261031b" />
     <script>
       document.documentElement.classList.add("has-js");
     </script>
@@ -201,10 +201,11 @@
     </header>
 
     <main id="main">
-      <section class="hero" id="top">
+            <section class="hero" id="top">
+        <div class="hero-ambient-glow" aria-hidden="true"></div>
         <div class="container hero-layout">
           <div class="hero-copy">
-            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> The Modern cPanel Alternative <span class="eyebrow-sep">/</span> v0.6.26</p>
+            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> The Modern cPanel Alternative <span class="eyebrow-sep">/</span> <span class="eyebrow-ver">v0.6.26</span></p>
             <h1 class="reveal" style="--delay: 60ms">The modern cPanel alternative. <span class="text-gradient">Fast, free, and secure.</span></h1>
             <p class="hero-lede reveal" style="--delay: 120ms">
               Say goodbye to $60/month cPanel licenses and risky root-level web panels. CloudDeck delivers a blazing-fast Next.js 15 interface backed by an unprivileged Go daemon — full LEMP hosting, multi-PHP (8.1–8.4), Node/Python/Go apps, production mail, PowerDNS, and 1-click panel SSL in <strong>under 50MB of RAM</strong>.
@@ -231,19 +232,21 @@
           </div>
 
           <div class="hero-side reveal" style="--delay: 160ms">
-            <div class="install-card">
+            <div class="install-card hero-installer-card">
               <div class="install-card-bar">
-                <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="window-dots" aria-hidden="true"><i class="dot-red"></i><i class="dot-yellow"></i><i class="dot-green"></i></span>
                 <span class="install-card-title">quick-install.sh</span>
                 <span class="badge badge-cyan"><svg class="icon" aria-hidden="true"><use href="#i-zap" /></svg> 1 command</span>
               </div>
               <div class="install-card-body">
                 <p class="install-label">On a fresh Linux VPS (Ubuntu / Debian)</p>
-                <div class="code-line code-line-stack">
-                  <code id="hero-command">curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code>
-                  <button class="copy-btn" type="button" data-copy-target="hero-command" aria-label="Copy install command">
+                <div class="code-line code-line-high-tech">
+                  <span class="code-prompt" aria-hidden="true">$</span>
+                  <code id="hero-command" class="syntax-cmd"><span class="tok-cmd">curl</span> <span class="tok-flag">-fsSL</span> <span class="tok-url">https://clouddeck.dakshraman.in/install.sh</span> <span class="tok-pipe">|</span> <span class="tok-sudo">sudo</span> <span class="tok-cmd">bash</span></code>
+                  <button class="copy-btn copy-btn-tooltip" type="button" data-copy-target="hero-command" aria-label="Copy install command">
                     <svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg>
                     <svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg>
+                    <span class="copy-tooltip">Copy command</span>
                   </button>
                 </div>
                 <div class="install-checks" aria-label="Installer provisions">
@@ -258,11 +261,11 @@
                 </div>
                 <div class="install-ready">
                   <span class="status-pulse" aria-hidden="true"></span>
-                  <span>Panel ready at <code>http://your-server:2083</code></span>
+                  <span>Panel ready at <code>https://your-server-ip:2083</code></span>
                 </div>
               </div>
             </div>
-            <p class="hero-note"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> No agent exposed. No root web app. No shell strings.</p>
+            <p class="hero-note"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> No agent exposed. No root web app. Zero shell injection.</p>
           </div>
         </div>
 
@@ -285,12 +288,38 @@
           </div>
         </div>
 
+        <!-- Interactive Live Panel Preview Window -->
         <div class="container hero-visual reveal" style="--delay: 220ms">
-          <div class="browser" role="img" aria-label="Preview of the CloudDeck dashboard showing server metrics, sites, and recent agent tasks">
+          <div class="browser" role="region" aria-label="Interactive live preview of CloudDeck control panel">
             <div class="browser-bar">
-              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-              <span class="browser-url"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> clouddeck.dakshraman.in:2083</span>
-              <span class="browser-live"><span class="status-pulse" aria-hidden="true"></span> live deck</span>
+              <div class="window-dots" aria-hidden="true">
+                <i class="dot-red"></i>
+                <i class="dot-yellow"></i>
+                <i class="dot-green"></i>
+              </div>
+              <div class="browser-url">
+                <svg class="icon padlock-icon" aria-hidden="true"><use href="#i-lock" /></svg>
+                <span class="url-text">https://142.93.18.240:2083</span>
+                <span class="ssl-pill"><span class="ssl-dot"></span> 1-Click SSL Valid (IP SAN)</span>
+              </div>
+              <div class="preview-tabs" role="tablist" aria-label="Live panel views">
+                <button type="button" class="preview-tab is-active" data-preview-tab="overview" role="tab" aria-selected="true" aria-controls="view-overview">
+                  <svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg>
+                  <span>Overview</span>
+                </button>
+                <button type="button" class="preview-tab" data-preview-tab="sites" role="tab" aria-selected="false" aria-controls="view-sites">
+                  <svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg>
+                  <span>Sites</span>
+                </button>
+                <button type="button" class="preview-tab" data-preview-tab="databases" role="tab" aria-selected="false" aria-controls="view-databases">
+                  <svg class="icon" aria-hidden="true"><use href="#i-database" /></svg>
+                  <span>Databases</span>
+                </button>
+                <button type="button" class="preview-tab" data-preview-tab="terminal" role="tab" aria-selected="false" aria-controls="view-terminal">
+                  <svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
+                  <span>Terminal</span>
+                </button>
+              </div>
             </div>
 
             <div class="panel">
@@ -301,14 +330,14 @@
                 </div>
                 <div class="panel-nav">
                   <p>Overview</p>
-                  <span class="panel-nav-item active"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg> Dashboard</span>
+                  <span class="panel-nav-item active" data-preview-nav="overview"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg> Dashboard</span>
                   <p>Web &amp; SSL</p>
-                  <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg> Sites</span>
+                  <span class="panel-nav-item" data-preview-nav="sites"><svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg> Sites</span>
                   <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg> File Manager</span>
                   <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg> Applications</span>
-                  <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-cloud" /></svg> FTP</span>
+                  <span class="panel-nav-item" data-preview-nav="terminal"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg> Terminal</span>
                   <p>Data &amp; Mail</p>
-                  <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg> Databases</span>
+                  <span class="panel-nav-item" data-preview-nav="databases"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg> Databases</span>
                   <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-network" /></svg> DNS</span>
                   <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-mail" /></svg> Mail</span>
                   <span class="panel-nav-item"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Backups</span>
@@ -319,74 +348,233 @@
                 </div>
               </aside>
 
-              <div class="panel-main" aria-hidden="true">
-                <div class="panel-topbar">
-                  <span class="panel-crumb">Overview <span>/</span> Dashboard</span>
-                  <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> 1-click SSL active · localhost agent connected</span>
-                  <span class="avatar avatar-sm">DR</span>
+              <div class="panel-main">
+                <!-- VIEW 1: OVERVIEW / DASHBOARD -->
+                <div class="preview-view is-active" id="view-overview" data-preview-view="overview">
+                  <div class="panel-topbar">
+                    <span class="panel-crumb">Overview <span>/</span> Dashboard</span>
+                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> 1-click SSL active · localhost agent connected</span>
+                    <span class="avatar avatar-sm">DR</span>
+                  </div>
+
+                  <div class="panel-body">
+                    <div class="panel-heading">
+                      <span>
+                        <strong>Dashboard</strong>
+                        <small>Server health, websites, applications, and agent task status.</small>
+                      </span>
+                      <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> New site</span>
+                    </div>
+
+                    <div class="metric-grid">
+                      <div class="metric">
+                        <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg> CPU</span>
+                        <strong>28<span>%</span></strong>
+                        <span class="meter"><i style="width: 28%"></i></span>
+                        <small>8 vCPU · load 0.94</small>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-server" /></svg> Memory</span>
+                        <strong>38<span> MB</span></strong>
+                        <span class="meter meter-ok"><i style="width: 12%"></i></span>
+                        <small>panel &amp; agent idle</small>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg> Disk</span>
+                        <strong>42<span> GB</span></strong>
+                        <span class="meter"><i style="width: 52%"></i></span>
+                        <small>of 80 GB used</small>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> Services</span>
+                        <strong class="metric-ok">7<span>/7</span></strong>
+                        <span class="meter meter-ok"><i style="width: 100%"></i></span>
+                        <small>all probes healthy</small>
+                      </div>
+                    </div>
+
+                    <div class="panel-grid">
+                      <div class="panel-card">
+                        <div class="panel-card-head">
+                          <span><strong>Sites &amp; Virtual Hosts</strong><small>Nginx + Multi PHP-FPM</small></span>
+                          <span class="panel-link">View all <svg class="icon" aria-hidden="true"><use href="#i-chevron" /></svg></span>
+                        </div>
+                        <div class="site-table">
+                          <div class="site-row site-row-head"><span>Domain</span><span>Runtime</span><span>TLS</span><span>Status</span></div>
+                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> acme.studio</span><span>PHP 8.4</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
+                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> api.northwind.dev</span><span>Node 22</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Valid TLS</span><span class="pill pill-green">active</span></div>
+                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> shop.lumen.co</span><span>PHP 8.3</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
+                        </div>
+                      </div>
+
+                      <div class="panel-card">
+                        <div class="panel-card-head">
+                          <span><strong>Recent tasks</strong><small>handled by Go agent</small></span>
+                          <span class="pill pill-cyan"><span class="status-pulse" aria-hidden="true"></span> live</span>
+                        </div>
+                        <ul class="task-list">
+                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span><span><strong>Panel SSL configured</strong><small>port 2083 · HTTPS active</small></span><time>1m</time></li>
+                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>SQL dump exported</strong><small>acme_prod.sql.gz · 1-click</small></span><time>6m</time></li>
+                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>App deployed</strong><small>api.northwind.dev · systemd</small></span><time>14m</time></li>
+                        </ul>
+                        <div class="panel-footer-note"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> every mutation is in the audit log</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="panel-body">
-                  <div class="panel-heading">
-                    <span>
-                      <strong>Dashboard</strong>
-                      <small>Server health, websites, applications, and agent task status.</small>
-                    </span>
-                    <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> New site</span>
+                <!-- VIEW 2: SITES & VIRTUAL HOSTS -->
+                <div class="preview-view" id="view-sites" data-preview-view="sites" hidden>
+                  <div class="panel-topbar">
+                    <span class="panel-crumb">Web &amp; SSL <span>/</span> Sites &amp; Virtual Hosts</span>
+                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> 4 virtual hosts · Nginx 1.24 active</span>
+                    <span class="avatar avatar-sm">DR</span>
                   </div>
 
-                  <div class="metric-grid">
-                    <div class="metric">
-                      <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg> CPU</span>
-                      <strong>28<span>%</span></strong>
-                      <span class="meter"><i style="width: 28%"></i></span>
-                      <small>8 vCPU · load 0.94</small>
+                  <div class="panel-body">
+                    <div class="panel-heading">
+                      <span>
+                        <strong>Virtual Hosts &amp; Domains</strong>
+                        <small>Nginx configuration with multi PHP-FPM coexistence and reverse proxying.</small>
+                      </span>
+                      <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> Create site</span>
                     </div>
-                    <div class="metric">
-                      <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-server" /></svg> Memory</span>
-                      <strong>38<span> MB</span></strong>
-                      <span class="meter meter-ok"><i style="width: 12%"></i></span>
-                      <small>panel &amp; agent idle</small>
+
+                    <div class="preview-table-card">
+                      <div class="preview-data-table">
+                        <div class="pdt-head">
+                          <span>Domain &amp; Root</span>
+                          <span>Runtime</span>
+                          <span>SSL Certificate</span>
+                          <span>Status</span>
+                          <span>Actions</span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>acme.studio</strong><small>/www/wwwroot/acme.studio/public</small></span>
+                          <span class="pdt-badge-rt">PHP 8.4</span>
+                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
+                          <span><span class="pill pill-green"><span class="status-pulse"></span> active</span></span>
+                          <span class="pdt-actions"><button type="button" class="btn-micro">Config</button><button type="button" class="btn-micro">Logs</button></span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>api.northwind.dev</strong><small>Proxy &rarr; 127.0.0.1:3107</small></span>
+                          <span class="pdt-badge-rt rt-node">Node 22</span>
+                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
+                          <span><span class="pill pill-green"><span class="status-pulse"></span> supervised</span></span>
+                          <span class="pdt-actions"><button type="button" class="btn-micro">Restart</button><button type="button" class="btn-micro">Logs</button></span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>shop.lumen.co</strong><small>/www/wwwroot/shop.lumen.co</small></span>
+                          <span class="pdt-badge-rt">PHP 8.3</span>
+                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
+                          <span><span class="pill pill-green"><span class="status-pulse"></span> active</span></span>
+                          <span class="pdt-actions"><button type="button" class="btn-micro">Config</button><button type="button" class="btn-micro">Logs</button></span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>blog.devops.io</strong><small>WSGI Gunicorn &rarr; 127.0.0.1:8000</small></span>
+                          <span class="pdt-badge-rt rt-py">Python 3.12</span>
+                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
+                          <span><span class="pill pill-green"><span class="status-pulse"></span> supervised</span></span>
+                          <span class="pdt-actions"><button type="button" class="btn-micro">Restart</button><button type="button" class="btn-micro">Logs</button></span>
+                        </div>
+                      </div>
                     </div>
-                    <div class="metric">
-                      <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg> Disk</span>
-                      <strong>42<span> GB</span></strong>
-                      <span class="meter"><i style="width: 52%"></i></span>
-                      <small>of 80 GB used</small>
-                    </div>
-                    <div class="metric">
-                      <span class="metric-label"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> Services</span>
-                      <strong class="metric-ok">7<span>/7</span></strong>
-                      <span class="meter meter-ok"><i style="width: 100%"></i></span>
-                      <small>all probes healthy</small>
+                    <div class="preview-footnote">
+                      <svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg>
+                      <span>Multi-PHP coexistence: switch any site between PHP 8.1, 8.2, 8.3, and 8.4 instantly without restarting Nginx.</span>
                     </div>
                   </div>
+                </div>
 
-                  <div class="panel-grid">
-                    <div class="panel-card">
-                      <div class="panel-card-head">
-                        <span><strong>Sites &amp; Virtual Hosts</strong><small>Nginx + Multi PHP-FPM</small></span>
-                        <span class="panel-link">View all <svg class="icon" aria-hidden="true"><use href="#i-chevron" /></svg></span>
-                      </div>
-                      <div class="site-table">
-                        <div class="site-row site-row-head"><span>Domain</span><span>Runtime</span><span>TLS</span><span>Status</span></div>
-                        <div class="site-row"><span class="site-name"><i class="site-dot"></i> acme.studio</span><span>PHP 8.4</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
-                        <div class="site-row"><span class="site-name"><i class="site-dot"></i> api.northwind.dev</span><span>Node 22</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Valid TLS</span><span class="pill pill-green">active</span></div>
-                        <div class="site-row"><span class="site-name"><i class="site-dot"></i> shop.lumen.co</span><span>PHP 8.3</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
-                      </div>
+                <!-- VIEW 3: DATABASES & PHPMYADMIN -->
+                <div class="preview-view" id="view-databases" data-preview-view="databases" hidden>
+                  <div class="panel-topbar">
+                    <span class="panel-crumb">Data <span>/</span> MariaDB Databases &amp; phpMyAdmin</span>
+                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> MariaDB 10.11 · SSO isolated</span>
+                    <span class="avatar avatar-sm">DR</span>
+                  </div>
+
+                  <div class="panel-body">
+                    <div class="panel-heading">
+                      <span>
+                        <strong>Databases &amp; Single-Sign-On</strong>
+                        <small>MariaDB databases with deep-linked phpMyAdmin and 1-click SQL dump export/restore.</small>
+                      </span>
+                      <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> New database</span>
                     </div>
 
-                    <div class="panel-card">
-                      <div class="panel-card-head">
-                        <span><strong>Recent tasks</strong><small>handled by Go agent</small></span>
-                        <span class="pill pill-cyan"><span class="status-pulse" aria-hidden="true"></span> live</span>
+                    <div class="preview-table-card">
+                      <div class="preview-data-table">
+                        <div class="pdt-head">
+                          <span>Database Name</span>
+                          <span>Tables &amp; Size</span>
+                          <span>User</span>
+                          <span>phpMyAdmin SSO</span>
+                          <span>SQL Backup</span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>acme_prod</strong><small>utf8mb4_unicode_ci</small></span>
+                          <span>14 tables · <strong>42.8 MB</strong></span>
+                          <span><code>acme_user</code></span>
+                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
+                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>northwind_db</strong><small>utf8mb4_general_ci</small></span>
+                          <span>38 tables · <strong>118.4 MB</strong></span>
+                          <span><code>northwind_app</code></span>
+                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
+                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
+                        </div>
+                        <div class="pdt-row">
+                          <span class="pdt-domain"><strong>lumen_store</strong><small>utf8mb4_unicode_ci</small></span>
+                          <span>22 tables · <strong>64.2 MB</strong></span>
+                          <span><code>lumen_admin</code></span>
+                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
+                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
+                        </div>
                       </div>
-                      <ul class="task-list">
-                        <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span><span><strong>Panel SSL configured</strong><small>port 2083 · HTTPS active</small></span><time>1m</time></li>
-                        <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>SQL dump exported</strong><small>acme_prod.sql.gz · 1-click</small></span><time>6m</time></li>
-                        <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>App deployed</strong><small>api.northwind.dev · systemd</small></span><time>14m</time></li>
-                      </ul>
-                      <div class="panel-footer-note"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> every mutation is in the audit log</div>
+                    </div>
+                    <div class="preview-callout">
+                      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+                      <span><strong>Isolated Database Scope:</strong> Single-sign-on authenticates directly into the target database. System schemas (<code>information_schema</code>, <code>mysql</code>, <code>performance_schema</code>) are completely hidden from non-root sessions.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VIEW 4: WEB TERMINAL -->
+                <div class="preview-view" id="view-terminal" data-preview-view="terminal" hidden>
+                  <div class="panel-topbar">
+                    <span class="panel-crumb">System <span>/</span> Web Terminal &amp; SSH</span>
+                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> PTY connected · SSE streaming</span>
+                    <span class="avatar avatar-sm">DR</span>
+                  </div>
+
+                  <div class="panel-body">
+                    <div class="terminal-window">
+                      <div class="terminal-bar">
+                        <span class="terminal-tab-title"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg> bash — 80x24 (PTY session)</span>
+                        <span class="badge badge-cyan"><span class="status-pulse" aria-hidden="true"></span> auto-synchronized sudo</span>
+                      </div>
+                      <div class="terminal-console">
+                        <p class="term-line"><span class="term-prompt">clouddeck@vps-prod:~$</span> sudo -i</p>
+                        <p class="term-line"><span class="term-dim">[sudo] password for clouddeck: ******</span></p>
+                        <p class="term-line"><span class="term-prompt-root">root@vps-prod:~#</span> clouddeck status</p>
+                        <p class="term-line term-success"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ● clouddeck-panel.service - CloudDeck Web Panel (Next.js 15)</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;Active: active (running) · 38.2 MB RAM · listening on 0.0.0.0:2083 (HTTPS)</p>
+                        <p class="term-line term-success"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ● clouddeck-agent.service - Privileged Host Daemon (Go stdlib)</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;Active: active (running) · 9.4 MB RAM · bound 127.0.0.1:9090 (Token Auth)</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● nginx.service: active (running) · LEMP HTTP/HTTPS</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● mariadb.service: active (running) · port 3306</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● pdns.service: active (running) · authoritative DNS</p>
+                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● postfix &amp; dovecot: active (running) · mail stack</p>
+                        <p class="term-line term-highlight">Status: ALL 7 HOST SERVICES HEALTHY · IDLE RAM 47.6 MB · 0 ROOT WEB PROCESSES</p>
+                        <p class="term-line"><span class="term-prompt-root">root@vps-prod:~#</span> <span class="term-cursor"></span></p>
+                      </div>
+                    </div>
+                    <div class="preview-footnote">
+                      <svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg>
+                      <span>Web terminal runs unprivileged with sudoers synchronization. Password changes automatically synchronize to Linux PAM.</span>
                     </div>
                   </div>
                 </div>
@@ -412,7 +600,9 @@
       </div>
 
       <!-- COMPARISON SECTION -->
+            <!-- COMPARISON SECTION -->
       <section class="section comparison" id="comparison">
+        <div class="comparison-ambient-glow" aria-hidden="true"></div>
         <div class="container">
           <div class="section-heading reveal">
             <p class="eyebrow"><span class="eyebrow-dot"></span> Head-to-Head Comparison</p>
@@ -435,9 +625,9 @@
                     <th scope="col" class="th-feature">Feature / Metric</th>
                     <th scope="col" class="th-highlight">
                       <div class="deck-col-header">
-                        <span class="col-badge">Recommended</span>
-                        <strong>CloudDeck</strong>
-                        <span class="col-version">v0.6.26 (2026)</span>
+                        <span class="col-badge"><span class="badge-dot"></span> Recommended Winner</span>
+                        <strong class="col-title">CloudDeck</strong>
+                        <span class="col-version">v0.6.26 (Free &amp; Open Source)</span>
                       </div>
                     </th>
                     <th scope="col">
@@ -467,8 +657,8 @@
                       <small>Per server recurring bill</small>
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>$0 Free &amp; Open Source</span></td>
-                    <td><span class="comp-val comp-val-bad">$30–$60+/mo ($360–$720+/yr)</span></td>
-                    <td><span class="comp-val">Freemium ($15–$25/mo Pro)</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>$30–$60+/mo ($360–$720+/yr)</span></td>
+                    <td><span class="comp-val comp-val-warn">Freemium ($15–$25/mo Pro)</span></td>
                     <td><span class="comp-val">$0 self-hosted ($5/mo cloud)</span></td>
                   </tr>
 
@@ -478,9 +668,9 @@
                       <small>Web login to root exposure</small>
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Unprivileged UI + Local Go Daemon</span></td>
-                    <td><span class="comp-val comp-val-bad">Root Perl monolith (`whostmgrd`)</span></td>
-                    <td><span class="comp-val comp-val-bad">Web app runs as root (High CVE risk)</span></td>
-                    <td><span class="comp-val">Docker PaaS (`docker.sock` root)</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Root Perl monolith (whostmgrd)</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Web app runs as root (High CVE risk)</span></td>
+                    <td><span class="comp-val comp-val-warn">Docker PaaS (docker.sock root)</span></td>
                   </tr>
 
                   <tr>
@@ -489,9 +679,9 @@
                       <small>Idle RAM consumption</small>
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>&lt; 50 MB RAM idle</span></td>
-                    <td><span class="comp-val comp-val-bad">1.0 – 2.0+ GB RAM idle</span></td>
-                    <td><span class="comp-val">400 MB – 800 MB RAM</span></td>
-                    <td><span class="comp-val">500 MB – 1.0 GB RAM</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>1.0 – 2.0+ GB RAM idle</span></td>
+                    <td><span class="comp-val comp-val-warn">400 MB – 800 MB RAM</span></td>
+                    <td><span class="comp-val comp-val-warn">500 MB – 1.0 GB RAM</span></td>
                   </tr>
 
                   <tr>
@@ -500,7 +690,7 @@
                       <small>Underlying framework &amp; engine</small>
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Next.js 15 (React 19) + Go stdlib</span></td>
-                    <td><span class="comp-val">Legacy 1990s Perl / CGI monolith</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Legacy 1990s Perl / CGI monolith</span></td>
                     <td><span class="comp-val">Python 3 / Flask / old templates</span></td>
                     <td><span class="comp-val">Laravel / Livewire / Docker</span></td>
                   </tr>
@@ -513,7 +703,7 @@
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Nginx + Multi PHP-FPM (8.1–8.4)</span></td>
                     <td><span class="comp-val">Apache / LiteSpeed (heavy configs)</span></td>
                     <td><span class="comp-val">Nginx / Apache / OpenLiteSpeed</span></td>
-                    <td><span class="comp-val">Docker containerized PHP only</span></td>
+                    <td><span class="comp-val comp-val-warn">Containerized PHP only</span></td>
                   </tr>
 
                   <tr>
@@ -522,7 +712,7 @@
                       <small>Node.js, Python, Go, Ruby</small>
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Native systemd supervision + reverse proxy</span></td>
-                    <td><span class="comp-val comp-val-bad">Clunky Passenger / CloudLinux extra fees</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Clunky Passenger / CloudLinux extra fees</span></td>
                     <td><span class="comp-val">Limited Python/Node manager plugins</span></td>
                     <td><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>First-class Docker PaaS / Nixpacks</span></td>
                   </tr>
@@ -534,7 +724,7 @@
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>MariaDB + Deep-Linked phpMyAdmin + 1-Click Dump</span></td>
                     <td><span class="comp-val">MySQL/MariaDB + phpMyAdmin</span></td>
-                    <td><span class="comp-val">MySQL/MariaDB (runs as root)</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>MySQL/MariaDB (runs as root)</span></td>
                     <td><span class="comp-val">Standalone Docker DB containers</span></td>
                   </tr>
 
@@ -556,7 +746,7 @@
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Postfix + Dovecot + DKIM + SPF/DMARC</span></td>
                     <td><span class="comp-val">Exim + Dovecot + cPanel Mail</span></td>
-                    <td><span class="comp-val comp-val-bad">Paid Mail plugin / CyberPanel bugs</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Paid Mail plugin / CyberPanel bugs</span></td>
                     <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>None (requires external service)</span></td>
                   </tr>
 
@@ -589,7 +779,7 @@
                     </td>
                     <td class="td-highlight"><span class="comp-val comp-val-best"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>PTY xterm.js + auto-synchronized sudo</span></td>
                     <td><span class="comp-val">Jailed shell or SSH only</span></td>
-                    <td><span class="comp-val comp-val-bad">Web terminal runs directly as root</span></td>
+                    <td><span class="comp-val comp-val-bad"><svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>Web terminal runs directly as root</span></td>
                     <td><span class="comp-val">Docker container exec terminal</span></td>
                   </tr>
 
@@ -622,112 +812,278 @@
       </section>
 
       <!-- FEATURES SECTION -->
+            <!-- FEATURES SECTION / BENTO GRID -->
       <section class="section features" id="features">
+        <div class="features-ambient-glow" aria-hidden="true"></div>
         <div class="container">
           <div class="section-heading reveal">
             <p class="eyebrow"><span class="eyebrow-dot"></span> The Feature Surface</p>
-            <h2>Everything the server needs.<br /><span class="text-muted">Nothing you have to SSH for.</span></h2>
+            <h2>Built for performance.<br /><span class="text-gradient">Engineered without compromise.</span></h2>
             <p>
               CloudDeck covers every routine task a web hosting operator or developer handles — while keeping dangerous operations safely behind a typed, audited Go daemon.
             </p>
           </div>
 
-          <div class="feature-grid">
-            <!-- 1. Websites & SSL -->
-            <article class="feature-card reveal" style="--delay: 0ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg></span>
-              <h3>Sites &amp; Virtual Hosts</h3>
-              <p>Create Nginx vhosts with confined webroots under <code>/www/wwwroot</code>. Subdomains, URL redirects, CIDR IP blocker, and live access/error logs.</p>
-              <ul class="feature-tags"><li>Nginx</li><li>subdomains</li><li>redirects</li></ul>
+          <!-- BENTO GRID -->
+          <div class="bento-grid">
+            <!-- Card 1: 1-Click Panel SSL on Port 2083 (Heroic Bento: 8 cols) -->
+            <article class="bento-card bento-heroic reveal">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> Zero-Friction TLS</span>
+                  <span class="badge-new">New v0.6.25</span>
+                </div>
+                <h3>1-Click Panel SSL on Port 2083</h3>
+                <p>Secure the panel on port 2083 with one click. Generates Self-Signed certs with IP SANs for direct IP access without red browser warnings, or Let's Encrypt for domains — with automated HTTP-to-HTTPS 301 redirect.</p>
+              </div>
+              <div class="bento-visual visual-ssl">
+                <div class="visual-ssl-bar">
+                  <span class="ssl-lock"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg></span>
+                  <span class="ssl-url">https://142.93.18.240:2083</span>
+                  <span class="ssl-badge-ok">✓ Valid IP SAN</span>
+                </div>
+                <div class="visual-ssl-modes">
+                  <div class="ssl-mode active">
+                    <span class="mode-radio"></span>
+                    <div>
+                      <strong>Self-Signed (IP SANs)</strong>
+                      <small>Direct IP browsing with valid SANs</small>
+                    </div>
+                  </div>
+                  <div class="ssl-mode">
+                    <span class="mode-radio"></span>
+                    <div>
+                      <strong>Let's Encrypt (Domain)</strong>
+                      <small>Auto-renewing 90-day certificates</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="visual-ssl-footer">
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Nginx reverse proxy :2083 &rarr; :3000</span>
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Auto HTTPS 301 Redirect</span>
+                </div>
+              </div>
+              <ul class="feature-tags"><li>1-Click SSL</li><li>IP SANs</li><li>Let's Encrypt</li><li>Port 2083</li></ul>
             </article>
 
-            <!-- 2. 1-Click Panel SSL (NEW in v0.6.25) -->
-            <article class="feature-card reveal" style="--delay: 50ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span>
-              <h3>1-Click Panel SSL <span class="badge-new">New v0.6.25</span></h3>
-              <p>Secure the panel on port 2083 with one click. Generates Self-Signed certs with IP SANs for direct IP access or Let's Encrypt for domains, with auto HTTPS redirect.</p>
-              <ul class="feature-tags"><li>1-Click SSL</li><li>IP SANs</li><li>Let's Encrypt</li></ul>
+            <!-- Card 2: Isolated phpMyAdmin (Showcase Tile: 4 cols) -->
+            <article class="bento-card reveal" style="--delay: 50ms">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg> Database Security</span>
+                  <span class="badge-new">Updated v0.6.26</span>
+                </div>
+                <h3>Isolated phpMyAdmin SSO</h3>
+                <p>Single-sign-on deep-links directly into your database tables. System schemas (<code>information_schema</code>, <code>mysql</code>) are hidden to prevent accidental or malicious exposure.</p>
+              </div>
+              <div class="bento-visual visual-pma">
+                <div class="pma-db-box">
+                  <div class="pma-db-title">
+                    <svg class="icon" aria-hidden="true"><use href="#i-database" /></svg>
+                    <span>acme_prod</span>
+                    <span class="pma-tag">14 tables</span>
+                  </div>
+                  <div class="pma-sso-btn">
+                    <span>Open phpMyAdmin</span>
+                    <svg class="icon" aria-hidden="true"><use href="#i-external" /></svg>
+                  </div>
+                </div>
+                <div class="pma-shield-list">
+                  <span class="pma-item active"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> acme_prod (Active Scope)</span>
+                  <span class="pma-item hidden-schema"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> information_schema (Hidden)</span>
+                  <span class="pma-item hidden-schema"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> mysql (Hidden)</span>
+                </div>
+                <div class="pma-dump-pill">
+                  <svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg>
+                  <span>1-Click SQL Dump .sql.gz</span>
+                </div>
+              </div>
+              <ul class="feature-tags"><li>MariaDB</li><li>phpMyAdmin SSO</li><li>1-Click Dump</li></ul>
             </article>
 
-            <!-- 3. 2FA Authentication (NEW in v0.6.24) -->
-            <article class="feature-card reveal" style="--delay: 100ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg></span>
-              <h3>2FA Security <span class="badge-new">New v0.6.24</span></h3>
-              <p>RFC 6238 TOTP two-factor authentication for Google Authenticator, Authy, and 1Password. Features dynamic SVG QR codes and 8 emergency recovery codes.</p>
+            <!-- Card 3: 2FA TOTP Security (Showcase Tile: 4 cols) -->
+            <article class="bento-card reveal" style="--delay: 100ms">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> RFC 6238 TOTP</span>
+                  <span class="badge-new">New v0.6.24</span>
+                </div>
+                <h3>2FA Authenticator Security</h3>
+                <p>Two-factor authentication for Google Authenticator, Authy, and 1Password. Features dynamic SVG QR codes and 8 emergency single-use recovery codes.</p>
+              </div>
+              <div class="bento-visual visual-2fa">
+                <div class="qr-container">
+                  <div class="qr-box">
+                    <svg class="qr-svg" viewBox="0 0 100 100" width="80" height="80">
+                      <rect width="100" height="100" fill="#081014" rx="8" />
+                      <rect x="10" y="10" width="24" height="24" fill="none" stroke="#22d3ee" stroke-width="4" rx="2" />
+                      <rect x="16" y="16" width="12" height="12" fill="#22d3ee" />
+                      <rect x="66" y="10" width="24" height="24" fill="none" stroke="#22d3ee" stroke-width="4" rx="2" />
+                      <rect x="72" y="16" width="12" height="12" fill="#22d3ee" />
+                      <rect x="10" y="66" width="24" height="24" fill="none" stroke="#22d3ee" stroke-width="4" rx="2" />
+                      <rect x="16" y="72" width="12" height="12" fill="#22d3ee" />
+                      <rect x="42" y="12" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="52" y="12" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="42" y="22" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="42" y="42" width="16" height="16" fill="#22d3ee" />
+                      <rect x="12" y="42" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="24" y="48" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="68" y="42" width="8" height="6" fill="#a5f3fc" />
+                      <rect x="80" y="52" width="6" height="6" fill="#a5f3fc" />
+                      <rect x="42" y="68" width="6" height="8" fill="#a5f3fc" />
+                      <rect x="52" y="78" width="8" height="6" fill="#a5f3fc" />
+                      <rect x="70" y="70" width="16" height="16" fill="#a5f3fc" />
+                    </svg>
+                    <div class="qr-scan-line"></div>
+                  </div>
+                  <div class="qr-meta">
+                    <span class="pill pill-green"><span class="status-pulse"></span> 2FA Active</span>
+                    <small>RFC 6238 TOTP</small>
+                  </div>
+                </div>
+                <div class="recovery-pills-row">
+                  <span>a8f2-9c10</span>
+                  <span>b3e4-1102</span>
+                  <span>7f89-c451</span>
+                  <span class="pill-more">+5 more</span>
+                </div>
+              </div>
               <ul class="feature-tags"><li>TOTP</li><li>QR Code</li><li>Recovery Codes</li></ul>
             </article>
 
-            <!-- 4. Application Runtimes -->
-            <article class="feature-card reveal" style="--delay: 0ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg></span>
-              <h3>Multi-Runtime Apps</h3>
-              <p>Host Node.js, Python, Go, Ruby, and custom apps as supervised processes. Runtime detection, version pickers, port assignment, and reverse proxying.</p>
-              <ul class="feature-tags"><li>systemd</li><li>PM2</li><li>Node/Python/Go</li></ul>
-            </article>
-
-            <!-- 5. Databases & Deep-Linked phpMyAdmin -->
-            <article class="feature-card reveal" style="--delay: 50ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg></span>
-              <h3>Databases &amp; phpMyAdmin <span class="badge-new">Updated v0.6.26</span></h3>
-              <p>MariaDB/MySQL databases with isolated phpMyAdmin (system schemas hidden, strictly scoped to the selected database), plus 1-click <code>.sql</code> / <code>.sql.gz</code> dump export and restore.</p>
-              <ul class="feature-tags"><li>MariaDB</li><li>phpMyAdmin Isolated</li><li>1-Click Dump</li></ul>
-            </article>
-
-            <!-- 6. Advanced File Manager -->
-            <article class="feature-card reveal" style="--delay: 100ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg></span>
-              <h3>Advanced File Manager <span class="badge-new">New v0.6.24</span></h3>
-              <p>Hostinger-inspired tree browser with syntax-highlighted code editor, permissions (chmod), archive tools (<code>.tar.gz</code>/<code>.zip</code>), and symlink protection.</p>
+            <!-- Card 4: Advanced File Manager (Showcase Tile: 4 cols) -->
+            <article class="bento-card reveal" style="--delay: 150ms">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg> Webroot Confined</span>
+                  <span class="badge-new">New v0.6.24</span>
+                </div>
+                <h3>Advanced File Manager</h3>
+                <p>Tree browser with syntax-highlighted code editor, granular permission control (chmod), archive tools (.tar.gz/.zip), and strict symlink traversal prevention.</p>
+              </div>
+              <div class="bento-visual visual-editor">
+                <div class="editor-bar">
+                  <span class="editor-file">server.js</span>
+                  <span class="editor-mode">0644 &middot; www-data</span>
+                </div>
+                <pre class="editor-code"><code><span class="tok-num">1</span> <span class="tok-kw">const</span> http = require(<span class="tok-str">'http'</span>);
+<span class="tok-num">2</span> <span class="tok-kw">const</span> srv = http.createServer();
+<span class="tok-num">3</span> srv.listen(process.env.PORT);</code></pre>
+                <div class="editor-badges">
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-key" /></svg> chmod 755</span>
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> .zip / .tar.gz</span>
+                  <span><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> No symlink escape</span>
+                </div>
+              </div>
               <ul class="feature-tags"><li>Code Editor</li><li>chmod</li><li>zip / tar</li></ul>
             </article>
 
-            <!-- 7. Production Mail -->
-            <article class="feature-card reveal" style="--delay: 0ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-mail" /></svg></span>
-              <h3>Production Mail Server</h3>
-              <p>Postfix + Dovecot mail domains, mailboxes, quotas, forwarders, and autoresponders. Generates RSA-2048 DKIM keys with 1-click DNS record publishing.</p>
-              <ul class="feature-tags"><li>Postfix</li><li>Dovecot</li><li>DKIM + SPF</li></ul>
+            <!-- Card 5: Multi-Runtime Native Apps (Showcase Tile: 4 cols) -->
+            <article class="bento-card reveal" style="--delay: 200ms">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg> Native systemd</span>
+                </div>
+                <h3>Multi-Runtime Native Apps</h3>
+                <p>Host Node.js, Python, Go, and Ruby applications as supervised processes with zero container virtualization overhead. Automatic port allocation, auto-restart, and live logs.</p>
+              </div>
+              <div class="bento-visual visual-apps">
+                <div class="runtime-pills-row">
+                  <span class="rt-node">Node 22</span>
+                  <span class="rt-py">Python 3.12</span>
+                  <span class="rt-go">Go 1.23</span>
+                  <span class="rt-ruby">Ruby 3.3</span>
+                </div>
+                <div class="app-process-card">
+                  <div class="app-proc-head">
+                    <strong>northwind-api</strong>
+                    <span class="pill pill-green"><span class="status-pulse"></span> active</span>
+                  </div>
+                  <div class="app-proc-details">
+                    <span>Port :3107 auto</span>
+                    <span>systemd supervised</span>
+                    <span>RAM: 28MB</span>
+                  </div>
+                  <div class="app-proc-route">api.northwind.dev &rarr; 127.0.0.1:3107</div>
+                </div>
+              </div>
+              <ul class="feature-tags"><li>systemd</li><li>Node/Python/Go/Ruby</li><li>PM2</li></ul>
             </article>
 
-            <!-- 8. Authoritative DNS -->
-            <article class="feature-card reveal" style="--delay: 50ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-network" /></svg></span>
-              <h3>Authoritative DNS</h3>
-              <p>PowerDNS SQLite nameserver with A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records. Publish mail authentication records without leaving the deck.</p>
-              <ul class="feature-tags"><li>PowerDNS</li><li>zones</li><li>records</li></ul>
+            <!-- Card 6: Production Mail & DNS (Heroic Bento: 8 cols) -->
+            <article class="bento-card bento-heroic reveal" style="--delay: 250ms">
+              <div class="bento-header">
+                <div class="bento-pills">
+                  <span class="bento-pill"><svg class="icon" aria-hidden="true"><use href="#i-mail" /></svg> Postfix + Dovecot + PowerDNS</span>
+                </div>
+                <h3>Production Mail &amp; 1-Click DNS Sync</h3>
+                <p>Enterprise mail suite with mailboxes, quotas, forwarders, and RSA-2048 DKIM keys. With one click, CloudDeck publishes DKIM, SPF, and DMARC TXT records directly to the local PowerDNS SQLite nameserver for 10/10 deliverability.</p>
+              </div>
+              <div class="bento-visual visual-mail">
+                <div class="mail-pipeline">
+                  <div class="pipeline-step">
+                    <svg class="icon" aria-hidden="true"><use href="#i-mail" /></svg>
+                    <span>Postfix DKIM (RSA-2048)</span>
+                  </div>
+                  <div class="pipeline-arrow"><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></div>
+                  <div class="pipeline-step highlight">
+                    <svg class="icon" aria-hidden="true"><use href="#i-zap" /></svg>
+                    <span>1-Click DNS Sync</span>
+                  </div>
+                  <div class="pipeline-arrow"><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></div>
+                  <div class="pipeline-step">
+                    <svg class="icon" aria-hidden="true"><use href="#i-network" /></svg>
+                    <span>PowerDNS SQLite</span>
+                  </div>
+                </div>
+                <div class="mail-records-preview">
+                  <div class="dns-record"><span class="rec-type">TXT</span><code>default._domainkey.acme.studio "v=DKIM1; k=rsa; p=..."</code></div>
+                  <div class="dns-record"><span class="rec-type">TXT</span><code>@ "v=spf1 mx a ~all"</code></div>
+                  <div class="dns-record"><span class="rec-type">TXT</span><code>_dmarc "v=DMARC1; p=reject"</code></div>
+                </div>
+              </div>
+              <ul class="feature-tags"><li>Postfix</li><li>Dovecot</li><li>PowerDNS</li><li>DKIM + SPF + DMARC</li></ul>
             </article>
+          </div>
 
-            <!-- 9. Backups & Off-Site Sync -->
-            <article class="feature-card reveal" style="--delay: 100ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg></span>
-              <h3>Backups &amp; Cloud Sync</h3>
-              <p>Archive site files and databases with SHA-256 integrity verification. Scheduled daily/weekly runs with off-site sync to Google Drive, MEGA, Dropbox, and Telegram.</p>
-              <ul class="feature-tags"><li>rclone</li><li>Telegram</li><li>restore</li></ul>
-            </article>
-
-            <!-- 10. Security & Firewall -->
-            <article class="feature-card reveal" style="--delay: 0ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span>
-              <h3>Firewall, fail2ban &amp; WAF</h3>
-              <p>Manage UFW/firewalld rules, inspect fail2ban jails with 1-click unban, see ModSecurity/OWASP CRS posture, and inspect SSH hardening checklist.</p>
-              <ul class="feature-tags"><li>UFW</li><li>fail2ban</li><li>ModSecurity</li></ul>
-            </article>
-
-            <!-- 11. Web Terminal & SSH -->
-            <article class="feature-card reveal" style="--delay: 50ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg></span>
-              <h3>Web Terminal &amp; SSH</h3>
-              <p>In-browser PTY shell streamed over SSE to xterm.js. Automatic sudoers rights and admin password synchronization allow seamless root elevation via <code>sudo -i</code>.</p>
-              <ul class="feature-tags"><li>xterm.js</li><li>PTY</li><li>sudo -i</li></ul>
-            </article>
-
-            <!-- 12. Monitoring & Operations -->
-            <article class="feature-card reveal" style="--delay: 100ms">
-              <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg></span>
-              <h3>Monitoring &amp; Operations</h3>
-              <p>Real-time CPU, RAM, disk, and load. Service probes for Nginx, MariaDB, and PHP-FPM with 1-click restart, top processes, and live async task streaming.</p>
-              <ul class="feature-tags"><li>health probes</li><li>task logs</li><li>cron</li></ul>
-            </article>
+          <!-- Secondary Features Matrix -->
+          <div class="features-secondary reveal" style="--delay: 300ms">
+            <div class="secondary-header">
+              <p class="eyebrow"><span class="eyebrow-dot"></span> Full Host Control</p>
+              <h3>More built-in capabilities</h3>
+            </div>
+            <div class="secondary-grid">
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg></span>
+                <h4>Sites &amp; Virtual Hosts</h4>
+                <p>Nginx vhosts with confined webroots under <code>/www/wwwroot</code>, subdomains, URL redirects, and multi PHP-FPM (8.1–8.4) coexistence.</p>
+              </div>
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg></span>
+                <h4>Web Terminal &amp; SSH</h4>
+                <p>In-browser PTY shell streamed over SSE to xterm.js. Automatic sudoers rights and admin password synchronization allow seamless <code>sudo -i</code>.</p>
+              </div>
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg></span>
+                <h4>Backups &amp; Cloud Sync</h4>
+                <p>Archive site files and databases with SHA-256 verification. Scheduled runs with off-site sync to Google Drive, MEGA, Dropbox, and Telegram.</p>
+              </div>
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span>
+                <h4>Firewall, fail2ban &amp; WAF</h4>
+                <p>UFW/firewalld rules, fail2ban jails with 1-click unban, ModSecurity/OWASP CRS posture, and SSH hardening checklist.</p>
+              </div>
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg></span>
+                <h4>Monitoring &amp; Operations</h4>
+                <p>Real-time CPU, RAM (&lt;50MB idle), disk, service health probes for Nginx, MariaDB, and PHP with 1-click restart, and live task streaming.</p>
+              </div>
+              <div class="secondary-card">
+                <span class="secondary-icon"><svg class="icon" aria-hidden="true"><use href="#i-network" /></svg></span>
+                <h4>Authoritative PowerDNS</h4>
+                <p>PowerDNS SQLite nameserver with A, AAAA, CNAME, MX, TXT, NS, SRV, and CAA records. Manage host DNS without third-party services.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1026,27 +1382,45 @@
 
           <div class="faq-list reveal" style="--delay: 100ms">
             <details>
-              <summary>Why choose CloudDeck over cPanel?<span class="faq-plus" aria-hidden="true"></span></summary>
+              <summary>
+                <span>Why choose CloudDeck over cPanel?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
               <p>cPanel costs $30–$60+/month per server ($360–$720+/yr) and consumes over 1.5GB of RAM running a legacy 1990s Perl monolith directly as root. CloudDeck is 100% free and open-source, runs on under 50MB of idle RAM, uses Next.js 15 + Go, and never exposes a root process behind a browser login.</p>
             </details>
             <details>
-              <summary>How is CloudDeck safer than aaPanel or CyberPanel?<span class="faq-plus" aria-hidden="true"></span></summary>
+              <summary>
+                <span>How is CloudDeck safer than aaPanel or CyberPanel?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
               <p>aaPanel and CyberPanel run their entire Python web app directly as root, creating a history of critical remote code execution (RCE) vulnerabilities. CloudDeck enforces strict privilege separation: the browser only reaches an unprivileged Next.js UI, which proxies typed JSON requests to a local Go daemon using explicit argument arrays — preventing <code>sh -c</code> shell injections completely.</p>
             </details>
             <details>
-              <summary>Can I host Node.js, Python, Go, and Ruby applications?<span class="faq-plus" aria-hidden="true"></span></summary>
+              <summary>
+                <span>Can I host Node.js, Python, Go, and Ruby applications?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
               <p>Yes! CloudDeck includes first-class application hosting with automatic port assignment, systemd process supervision, live log streaming, and automatic Nginx reverse proxy configuration. You can mount apps at the site root or at subpaths.</p>
             </details>
             <details>
-              <summary>What Linux distributions are supported?<span class="faq-plus" aria-hidden="true"></span></summary>
+              <summary>
+                <span>What Linux distributions are supported?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
               <p>The one-command installer fully provisions Debian and Ubuntu servers, including Nginx, PHP-FPM, MariaDB, certbot, PowerDNS, and Node.js. On other Linux distributions (Fedora, Arch, AlmaLinux), the installer installs the panel and agent, and you bring your host web stack.</p>
             </details>
             <details>
-              <summary>How does 1-Click Panel SSL work?<span class="faq-plus" aria-hidden="true"></span></summary>
-              <p>With v0.6.25, CloudDeck allows you to enable Panel SSL with a single click. It supports Self-Signed certificates with IP SANs (so browsing directly to <code>https://&lt;your-ip&gt;:2083</code> is valid) or Let's Encrypt for domains. The agent configures an automated Nginx reverse proxy that forwards port 2083 to the internal panel listener with HTTP->HTTPS redirection.</p>
+              <summary>
+                <span>How does 1-Click Panel SSL work?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
+              <p>With v0.6.25, CloudDeck allows you to enable Panel SSL with a single click. It supports Self-Signed certificates with IP SANs (so browsing directly to <code>https://&lt;your-ip&gt;:2083</code> is valid) or Let's Encrypt for domains. The agent configures an automated Nginx reverse proxy that forwards port 2083 to the internal panel listener with HTTP-to-HTTPS redirection.</p>
             </details>
             <details>
-              <summary>How do upgrades work?<span class="faq-plus" aria-hidden="true"></span></summary>
+              <summary>
+                <span>How do upgrades work?</span>
+                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
               <p>Run <code>sudo clouddeck update</code> to seamlessly upgrade to the latest release, or upgrade with one click directly inside the panel Settings page. All databases, site files, and configurations remain untouched.</p>
             </details>
           </div>
@@ -1204,6 +1578,6 @@
       </div>
     </footer>
 
-    <script src="/assets/app.js?v=20261030" defer></script>
+    <script src="/assets/app.js?v=20261031b" defer></script>
   </body>
 </html>
