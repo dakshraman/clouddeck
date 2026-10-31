@@ -55,7 +55,7 @@ export function Hero() {
             className="group flex items-center gap-2 rounded-full border border-[#D2ADAC]/60 bg-white/80 px-3.5 py-1 text-xs font-medium text-[#235361] shadow-sm backdrop-blur transition hover:border-[#6494AC] hover:bg-white"
           >
             <span className="flex h-2 w-2 rounded-full bg-[#38BD87] ring-4 ring-[#38BD87]/20" />
-            <span className="font-semibold text-[#14242B]">v0.6.27 RELEASED</span>
+            <span className="font-semibold text-[#14242B]">LATEST STABLE RELEASE</span>
             <span className="text-[#886351]">•</span>
             <span className="text-[#566E76] group-hover:text-[#235361]">
               The Modern cPanel Alternative

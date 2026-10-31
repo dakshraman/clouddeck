@@ -126,7 +126,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-[#235361] transition"
                 >
-                  Releases (v0.6.27)
+                  Releases (Latest Stable)
                 </a>
               </li>
               <li>
