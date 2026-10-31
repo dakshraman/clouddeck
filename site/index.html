@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CloudDeck — Free Self-Hosted cPanel Alternative for Linux (v0.6.25)</title>
+    <title>CloudDeck — Free Self-Hosted cPanel Alternative for Linux (v0.6.26)</title>
     <meta
       name="description"
       content="CloudDeck is the modern, blazing-fast, open-source cPanel alternative for Linux. Manage websites, multi-PHP (8.1-8.4), Node/Python/Go/Ruby apps, MariaDB, phpMyAdmin, mail, DNS, 1-click panel SSL, and backups on your own VPS. Under 50MB RAM, zero root web app."
@@ -21,7 +21,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CloudDeck" />
     <meta property="og:url" content="https://clouddeck.dakshraman.in/" />
-    <meta property="og:title" content="CloudDeck — Free Self-Hosted cPanel Alternative for Linux (v0.6.25)" />
+    <meta property="og:title" content="CloudDeck — Free Self-Hosted cPanel Alternative for Linux (v0.6.26)" />
     <meta
       property="og:description"
       content="The modern, open-source cPanel alternative. Native LEMP, multi-PHP (8.1-8.4), polyglot apps, MariaDB, mail, DNS, 1-click panel SSL, and backups — under 50MB RAM."
@@ -43,7 +43,7 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/assets/styles.css?v=20261030" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20261031" />
     <script>
       document.documentElement.classList.add("has-js");
     </script>
@@ -63,7 +63,7 @@
             "url": "https://clouddeck.dakshraman.in/",
             "sameAs": ["https://github.com/dakshraman/clouddeck"],
             "codeRepository": "https://github.com/dakshraman/clouddeck",
-            "softwareVersion": "0.6.25",
+            "softwareVersion": "0.6.26",
             "featureList": [
               "1-Click Panel SSL with IP SANs and Let's Encrypt",
               "Two-Factor Authentication (2FA TOTP) with recovery codes",
@@ -204,7 +204,7 @@
       <section class="hero" id="top">
         <div class="container hero-layout">
           <div class="hero-copy">
-            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> The Modern cPanel Alternative <span class="eyebrow-sep">/</span> v0.6.25</p>
+            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> The Modern cPanel Alternative <span class="eyebrow-sep">/</span> v0.6.26</p>
             <h1 class="reveal" style="--delay: 60ms">The modern cPanel alternative. <span class="text-gradient">Fast, free, and secure.</span></h1>
             <p class="hero-lede reveal" style="--delay: 120ms">
               Say goodbye to $60/month cPanel licenses and risky root-level web panels. CloudDeck delivers a blazing-fast Next.js 15 interface backed by an unprivileged Go daemon — full LEMP hosting, multi-PHP (8.1–8.4), Node/Python/Go apps, production mail, PowerDNS, and 1-click panel SSL in <strong>under 50MB of RAM</strong>.
@@ -297,7 +297,7 @@
               <aside class="panel-sidebar" aria-hidden="true">
                 <div class="panel-brand">
                   <span class="panel-brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-clouddeck" /></svg></span>
-                  <span class="panel-brand-text"><strong>CloudDeck</strong><small>v0.6.25</small></span>
+                  <span class="panel-brand-text"><strong>CloudDeck</strong><small>v0.6.26</small></span>
                 </div>
                 <div class="panel-nav">
                   <p>Overview</p>
@@ -437,7 +437,7 @@
                       <div class="deck-col-header">
                         <span class="col-badge">Recommended</span>
                         <strong>CloudDeck</strong>
-                        <span class="col-version">v0.6.25 (2026)</span>
+                        <span class="col-version">v0.6.26 (2026)</span>
                       </div>
                     </th>
                     <th scope="col">
@@ -668,9 +668,9 @@
             <!-- 5. Databases & Deep-Linked phpMyAdmin -->
             <article class="feature-card reveal" style="--delay: 50ms">
               <span class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg></span>
-              <h3>Databases &amp; phpMyAdmin <span class="badge-new">Updated v0.6.25</span></h3>
-              <p>MariaDB/MySQL databases and users with 1-click deep-linked phpMyAdmin per database schema, plus 1-click <code>.sql</code> / <code>.sql.gz</code> dump export and restore.</p>
-              <ul class="feature-tags"><li>MariaDB</li><li>phpMyAdmin Deep Link</li><li>1-Click Dump</li></ul>
+              <h3>Databases &amp; phpMyAdmin <span class="badge-new">Updated v0.6.26</span></h3>
+              <p>MariaDB/MySQL databases with isolated phpMyAdmin (system schemas hidden, strictly scoped to the selected database), plus 1-click <code>.sql</code> / <code>.sql.gz</code> dump export and restore.</p>
+              <ul class="feature-tags"><li>MariaDB</li><li>phpMyAdmin Isolated</li><li>1-Click Dump</li></ul>
             </article>
 
             <!-- 6. Advanced File Manager -->
@@ -890,7 +890,7 @@
                 <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg><span>Installs to <code>/opt/clouddeck</code>, provisions Nginx, PHP-FPM, MariaDB, PowerDNS, certbot, and allows port <code>2083/tcp</code>. Fresh installs securely prompt for admin username and password.</span></div>
                 <div class="install-subhead">Installer flags</div>
                 <div class="flag-grid">
-                  <span><code>--version v0.6.25</code> pin a release</span>
+                  <span><code>--version v0.6.26</code> pin a release</span>
                   <span><code>--panel-port 2083</code> panel port</span>
                   <span><code>--prefix DIR</code> install directory</span>
                   <span><code>--no-panel</code> agent only</span>
@@ -1164,7 +1164,7 @@
             <span class="brand-text"><strong>CloudDeck</strong><span>Hosting console</span></span>
           </a>
           <p>The modern, open-source cPanel alternative for people who would rather own their server than pay monthly subscription taxes.</p>
-          <span class="footer-version">v0.6.25 · Linux x86_64 + arm64</span>
+          <span class="footer-version">v0.6.26 · Linux x86_64 + arm64</span>
         </div>
 
         <div class="footer-col">

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/version-v0.6.25-1cc8e8?style=flat-square" alt="Version v0.6.25" /></a>
+  <a href="https://github.com/dakshraman/clouddeck/releases"><img src="https://img.shields.io/badge/version-v0.6.26-1cc8e8?style=flat-square" alt="Version v0.6.26" /></a>
   <img src="https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-1cc8e8?style=flat-square" alt="Platform Linux" />
   <img src="https://img.shields.io/badge/panel-Next.js%2015-1cc8e8?style=flat-square" alt="Panel Next.js 15" />
   <img src="https://img.shields.io/badge/agent-Go%20stdlib-1cc8e8?style=flat-square" alt="Agent Go stdlib" />
@@ -98,7 +98,12 @@ How does CloudDeck compare against traditional and modern control panels?
 
 ---
 
-## 🌟 What's New in v0.6.24 & v0.6.25
+## 🌟 What's New in v0.6.25 & v0.6.26
+
+### 🗄️ Isolated phpMyAdmin & Unified Brand Icon (v0.6.26)
+- **Strict Database Tree Isolation**: Opening phpMyAdmin from a database row now dynamically restricts phpMyAdmin's navigation sidebar strictly to that chosen database via `only_db` and session cookie.
+- **Hidden System Schemas**: `[information_schema]`, `[mysql]`, `[performance_schema]`, and `[sys]` are completely hidden from the user navigation panel.
+- **Unified Brand & App Icon**: Replaced generic icons across the entire panel (Sidebar, Login Form, Setup Form, Favicons, PWA icons, and Website) with the official 3-tier isometric layered deck in CloudDeck brand cyan (`#1cc8e8`).
 
 ### 🛡️ 1-Click Panel SSL & Auto HTTPS Reverse Proxy (v0.6.25)
 - **Instant Panel HTTPS on Port 2083**: Switch your control panel to encrypted TLS with one click.
@@ -245,7 +250,7 @@ sudo clouddeck user passwd          # Reset password (invalidates all sessions)
 
 # Upgrades & Maintenance
 sudo clouddeck update               # Upgrade to latest release
-sudo clouddeck update v0.6.25       # Install a specific pinned release
+sudo clouddeck update v0.6.26       # Install a specific pinned release
 sudo clouddeck reinstall            # Refresh current version binaries
 sudo clouddeck uninstall            # Remove binaries/services (keeps data)
 sudo clouddeck uninstall --purge    # Remove CloudDeck and all configuration/data
@@ -317,6 +322,7 @@ cd panel && npm run typecheck && npm run build
 
 ## 📜 Release History
 
+- **v0.6.26** — **phpMyAdmin Database Isolation & Unified Brand Icon**: Strict single-database navigation tree scoping via dynamic `only_db` and session cookie, hiding system schemas (`information_schema`, `mysql`, `performance_schema`, `sys`); unified 3-tier isometric deck brand icon across panel sidebar, login/setup authentication screens, favicons, PWA icons, and landing site.
 - **v0.6.25** — **1-Click Panel SSL**: Automated self-signed TLS with IP SANs (raw server IP support) and Let's Encrypt for domains; automatic nginx HTTPS reverse proxy on port 2083; deep-linked phpMyAdmin per database; dashboard failed task status filters.
 - **v0.6.24** — **2FA TOTP Authentication**: RFC 6238 TOTP with live QR code SVG and 8 emergency recovery codes; 1-click database dump (`.sql`/`.sql.gz`) and restore; advanced File Manager with built-in code editor, chmod permissions, and `.tar.gz`/`.zip` archive tools; phpMyAdmin session permissions fix.
 - **v0.6.23** — Automatic terminal sudo configuration: `clouddeck` system user sudoers rights, login shell, and admin password synchronization.
