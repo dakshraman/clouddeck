@@ -98,16 +98,6 @@ export function Hero() {
               WSL 2 &amp; macOS
             </span>
           </a>
-
-          <a
-            href="https://github.com/dakshraman/clouddeck"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-full border border-[#D2ADAC]/60 bg-white/60 px-5 py-3 text-sm font-medium text-[#566E76] transition hover:border-[#6494AC] hover:bg-white hover:text-[#14242B]"
-          >
-            <Globe className="h-4 w-4 text-[#6494AC]" />
-            <span>100% Open Source ($0)</span>
-          </a>
         </div>
 
         {/* 1-Click Terminal Command Bar */}
@@ -170,8 +160,8 @@ export function Hero() {
               type="button"
               onClick={() => setActiveTab("deck")}
               className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "deck"
-                  ? "border-[#74B8CC] text-[#74B8CC]"
-                  : "border-transparent text-[#9BB2BA] hover:text-white"
+                ? "border-[#74B8CC] text-[#74B8CC]"
+                : "border-transparent text-[#9BB2BA] hover:text-white"
                 }`}
             >
               <Server className="h-3.5 w-3.5" />
@@ -181,8 +171,8 @@ export function Hero() {
               type="button"
               onClick={() => setActiveTab("php")}
               className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "php"
-                  ? "border-[#74B8CC] text-[#74B8CC]"
-                  : "border-transparent text-[#9BB2BA] hover:text-white"
+                ? "border-[#74B8CC] text-[#74B8CC]"
+                : "border-transparent text-[#9BB2BA] hover:text-white"
                 }`}
             >
               <Zap className="h-3.5 w-3.5" />
@@ -192,8 +182,8 @@ export function Hero() {
               type="button"
               onClick={() => setActiveTab("apps")}
               className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "apps"
-                  ? "border-[#74B8CC] text-[#74B8CC]"
-                  : "border-transparent text-[#9BB2BA] hover:text-white"
+                ? "border-[#74B8CC] text-[#74B8CC]"
+                : "border-transparent text-[#9BB2BA] hover:text-white"
                 }`}
             >
               <Layers className="h-3.5 w-3.5" />
@@ -203,8 +193,8 @@ export function Hero() {
               type="button"
               onClick={() => setActiveTab("term")}
               className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "term"
-                  ? "border-[#74B8CC] text-[#74B8CC]"
-                  : "border-transparent text-[#9BB2BA] hover:text-white"
+                ? "border-[#74B8CC] text-[#74B8CC]"
+                : "border-transparent text-[#9BB2BA] hover:text-white"
                 }`}
             >
               <Terminal className="h-3.5 w-3.5" />
