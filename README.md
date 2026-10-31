@@ -22,9 +22,11 @@
 <p align="center">
   <a href="https://clouddeck.dakshraman.in">Website</a> ·
   <a href="#quick-install">Quick Install</a> ·
+  <a href="#-local-development-xampp--wamp--mamp-alternative">Local Dev Suite</a> ·
   <a href="#why-clouddeck--comparison-matrix">Comparison Matrix</a> ·
   <a href="#whats-new-in-v0624--v0625">What's New</a> ·
   <a href="docs/">Docs</a> ·
+  <a href="docs/local-development.md">Local Dev Guide</a> ·
   <a href="docs/api.md">API Reference</a> ·
   <a href="docs/deployment.md">Deployment Guide</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
@@ -71,6 +73,42 @@ curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash -s -- --fast -
 > - **Auto-Swapfile (< 2GB RAM)**: Automatically creates and activates a 1GB swapfile on low-memory servers to eliminate OOM kills.
 > - **APT Acceleration**: Uses `--no-install-recommends` and suppresses `man-db` CPU-lockup triggers.
 > - **Parallel Downloads**: Pre-fetches panel and agent assets in background concurrent with APT package installation.
+
+---
+
+## 💻 Local Development (XAMPP / WAMP / MAMP Alternative)
+
+CloudDeck transforms your **Windows** (WSL 2) and **macOS** (Apple Silicon M1–M4 & Intel) workstation into a blazing-fast, modern LEMP development suite.
+
+Say goodbye to Apache `.htaccess` rewrite bugs, fighting PHP versions across projects, and bloated memory hogs. CloudDeck gives you **Nginx production parity**, **1-click multi-PHP (8.1–8.4) coexistence**, **deep-linked phpMyAdmin**, and **automated Local Root CA green padlocks** out of the box in under 50MB of idle RAM.
+
+### 🪟 Windows 10 & 11 (WSL 2)
+
+Run this single command in **PowerShell**:
+
+```powershell
+irm https://clouddeck.dakshraman.in/install.ps1 | iex
+```
+
+- **Instant LEMP on WSL 2**: Provisions core Nginx, MariaDB, and multi-PHP in ~60 seconds with systemd enabled.
+- **Native Windows CLI**: Adds `clouddeck` to your Windows PATH (`clouddeck status`, `start`, `stop`, `open`, `link`, `logs`).
+- **Zero Permission Hassles**: Map `C:\Sites` or `C:\Users\<user>\Projects` directly and edit in VS Code / Cursor with real-time updates and native performance.
+- **Local CA Green Padlocks**: Automatically exports and trusts the CloudDeck Root CA in Windows for instant **trusted HTTPS on `https://*.local`**.
+
+### 🍏 macOS (Apple Silicon & Intel)
+
+Run this single command in **Terminal**:
+
+```bash
+curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+```
+
+- **Apple Silicon Native**: Native `arm64` (M1/M2/M3/M4) and Intel (`x86_64`) static binaries.
+- **Homebrew Web Stack**: Seamlessly provisions and starts `nginx`, `mariadb`, `php`, and `node`.
+- **macOS Service Supervision**: Managed cleanly via `launchctl` LaunchAgents and `brew services`.
+- **System Keychain Trust**: Automatically imports Root CA via `security add-trusted-cert` for green padlocks in Safari and Chrome.
+
+👉 **Complete Local Development & XAMPP/WAMP Migration Guide:** Read [docs/local-development.md](docs/local-development.md).
 
 ---
 

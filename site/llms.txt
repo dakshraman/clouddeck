@@ -55,6 +55,22 @@ Fallback via GitHub releases:
 curl -fsSL https://github.com/dakshraman/clouddeck/releases/latest/download/install.sh | sudo bash
 ```
 
+### Local Development Suite (XAMPP / WAMP / MAMP Alternative)
+
+CloudDeck turns Windows (WSL 2) and macOS into modern LEMP development environments with Nginx production parity, multi-PHP (8.1-8.4) coexistence, deep-linked phpMyAdmin, and automated Local Root CA green padlocks.
+
+- **Windows 10/11 (WSL 2)**:
+  ```powershell
+  irm https://clouddeck.dakshraman.in/install.ps1 | iex
+  ```
+  Provisions core LEMP inside WSL, adds native Windows CLI `clouddeck` (`status`, `start`, `stop`, `open`, `link`, `logs`), maps Windows project folders directly, and imports Root CA into Windows Certificate Store.
+
+- **macOS (Apple Silicon & Intel)**:
+  ```sh
+  curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+  ```
+  Provisions native macOS agent, panel, and Homebrew stack (Nginx, MariaDB, PHP, Node.js), manages services via `launchctl` LaunchAgents, and installs Local Root CA to macOS Keychain.
+
 ## Management CLI
 
 ```sh

@@ -63,5 +63,6 @@ jobs:
           bash -n scripts/install.sh
           bash -n scripts/install-agent.sh
           bash -n scripts/install-test.sh
+          bash -n scripts/install-macos.sh
       - name: Installer lifecycle tests
         run: bash scripts/install-test.sh

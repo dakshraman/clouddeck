@@ -114,6 +114,7 @@ Usage: clouddeck <command> [options]
   clouddeck help
   clouddeck version
   clouddeck status
+  clouddeck open
   clouddeck start [panel|agent]
   clouddeck stop [panel|agent]
   clouddeck restart [panel|agent]
@@ -538,6 +539,26 @@ function cmdStatus(args) {
     if (!health.ok) healthy = false;
   }
   if (!healthy) process.exitCode = 1;
+}
+
+function cmdOpen() {
+  const url = `http://localhost:${PANEL_PORT}`;
+  console.log(`Opening CloudDeck panel: ${url}`);
+  try {
+    if (process.platform === "darwin") {
+      spawnSync("open", [url], { stdio: "inherit" });
+    } else if (process.platform === "win32") {
+      spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+    } else {
+      if (fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || process.env.WSL_DISTRO_NAME) {
+        spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+      } else {
+        spawnSync("xdg-open", [url], { stdio: "inherit" });
+      }
+    }
+  } catch {
+    console.log(`Navigate in your browser to: ${url}`);
+  }
 }
 
 function serviceAction(action, args) {
@@ -977,6 +998,9 @@ async function main() {
       return;
     case "status":
       cmdStatus(args);
+      return;
+    case "open":
+      cmdOpen();
       return;
     case "start":
     case "stop":

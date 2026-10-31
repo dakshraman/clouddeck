@@ -49,6 +49,8 @@ jobs:
           cd agent
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o ../dist/clouddeck-agent-linux-amd64 ./cmd/clouddeck-agent
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o ../dist/clouddeck-agent-linux-arm64 ./cmd/clouddeck-agent
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o ../dist/clouddeck-agent-darwin-amd64 ./cmd/clouddeck-agent
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o ../dist/clouddeck-agent-darwin-arm64 ./cmd/clouddeck-agent
 
       - uses: actions/setup-node@v4
         with:
@@ -74,7 +76,7 @@ jobs:
           test -x ../dist/clouddeck-cli
 
       - name: Checksums
-        run: cd dist && sha256sum clouddeck-agent-linux-amd64 clouddeck-agent-linux-arm64 clouddeck-panel.tar.gz clouddeck-cli > SHA256SUMS
+        run: cd dist && sha256sum clouddeck-agent-linux-amd64 clouddeck-agent-linux-arm64 clouddeck-agent-darwin-amd64 clouddeck-agent-darwin-arm64 clouddeck-panel.tar.gz clouddeck-cli > SHA256SUMS
 
       - name: Verify release artifacts
         run: |
@@ -83,6 +85,8 @@ jobs:
           tar -tzf clouddeck-panel.tar.gz | grep -qx './server.js'
           test -s clouddeck-agent-linux-amd64
           test -s clouddeck-agent-linux-arm64
+          test -s clouddeck-agent-darwin-amd64
+          test -s clouddeck-agent-darwin-arm64
 
       - name: Publish release assets
         env:
@@ -97,4 +101,4 @@ jobs:
           else
             gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
           fi
-          gh release upload "$TAG" dist/* scripts/install.sh --clobber
+          gh release upload "$TAG" dist/* scripts/install.sh scripts/install-windows.ps1 scripts/install-macos.sh --clobber

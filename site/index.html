@@ -228,6 +228,7 @@
               <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> 100% Free &amp; Open-Source ($0/mo)</li>
               <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> &lt;50MB idle RAM (Runs on 1GB VPS)</li>
               <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Zero-Root Web Layer (Next.js 15 + Go)</li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Windows &amp; macOS Local Dev (XAMPP / WAMP Alternative)</li>
             </ul>
           </div>
 
@@ -1223,10 +1224,10 @@
       <section class="section install" id="install">
         <div class="container">
           <div class="section-heading reveal">
-            <p class="eyebrow"><span class="eyebrow-dot"></span> One-Line Install</p>
-            <h2>Fresh VPS to running deck<br /><span class="text-muted">in under 4 minutes.</span></h2>
+            <p class="eyebrow"><span class="eyebrow-dot"></span> One-Line Install &amp; Local Dev</p>
+            <h2>Fresh VPS to running deck<br /><span class="text-muted">or modern local dev on Windows &amp; macOS.</span></h2>
             <p>
-              On Debian or Ubuntu the installer provisions the complete hosting stack. On other Linux distributions it installs the panel and agent, and you bring your web stack.
+              Deploy to Debian or Ubuntu with a fully provisioned hosting stack, or turn your local Windows (WSL 2) and macOS workstation into a modern, lightning-fast XAMPP / MAMP alternative with Nginx parity and multi-PHP.
             </p>
           </div>
 
@@ -1234,6 +1235,8 @@
             <div class="install-tabs reveal">
               <div class="tab-list" role="tablist" aria-label="Install methods">
                 <button class="tab-button is-active" role="tab" aria-selected="true" aria-controls="panel-linux" id="tab-linux" data-tab="linux">Linux VPS <span>recommended</span></button>
+                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-windows" id="tab-windows" tabindex="-1" data-tab="windows">Windows <span>WSL 2</span></button>
+                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-macos" id="tab-macos" tabindex="-1" data-tab="macos">macOS <span>M1–M4 &amp; Intel</span></button>
                 <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-source" id="tab-source" tabindex="-1" data-tab="source">From source</button>
               </div>
 
@@ -1254,6 +1257,42 @@
                   <span><code>--no-panel</code> agent only</span>
                   <span><code>--no-agent</code> panel only</span>
                   <span><code>--uninstall --purge</code> remove everything</span>
+                </div>
+              </div>
+
+              <div class="tab-panel" role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" data-panel="windows" hidden>
+                <p class="tab-lede">Modern XAMPP / WAMP alternative on Windows 10 &amp; 11 (WSL 2). Nginx production parity, multi-PHP (8.1–8.4), MariaDB, native Windows CLI, and automatic Local Root CA trust for green padlocks.</p>
+                <div class="code-block">
+                  <div class="code-block-head"><span>PowerShell (1 command)</span><button class="copy-btn" type="button" data-copy-target="install-windows" aria-label="Copy Windows install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
+                  <pre><code id="install-windows"><span class="code-prompt">&gt;</span> irm https://clouddeck.dakshraman.in/install.ps1 | iex</code></pre>
+                </div>
+                <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg><span>Provisions WSL 2 LEMP stack, maps <code>C:\Sites</code> or <code>Projects</code> with zero permission issues, adds native <code>clouddeck</code> CLI to Windows PATH, and imports Root CA for trusted <code>https://*.local</code> HTTPS.</span></div>
+                <div class="install-subhead">Native Windows CLI commands</div>
+                <div class="flag-grid">
+                  <span><code>clouddeck open</code> open panel in browser</span>
+                  <span><code>clouddeck status</code> check panel &amp; LEMP health</span>
+                  <span><code>clouddeck link C:\Sites\app</code> map Windows project</span>
+                  <span><code>clouddeck start / stop</code> control WSL services</span>
+                  <span><code>clouddeck logs panel -f</code> stream live logs</span>
+                  <span><code>clouddeck trust</code> trust Local Root CA</span>
+                </div>
+              </div>
+
+              <div class="tab-panel" role="tabpanel" id="panel-macos" aria-labelledby="tab-macos" data-panel="macos" hidden>
+                <p class="tab-lede">Modern MAMP / XAMPP alternative for macOS. Native Apple Silicon (M1/M2/M3/M4) and Intel binaries with Homebrew LEMP stack (Nginx, MariaDB, PHP 8.4) and Keychain Root CA trust.</p>
+                <div class="code-block">
+                  <div class="code-block-head"><span>Terminal (1 command)</span><button class="copy-btn" type="button" data-copy-target="install-macos" aria-label="Copy macOS install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
+                  <pre><code id="install-macos"><span class="code-prompt">$</span> curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash</code></pre>
+                </div>
+                <div class="install-note"><svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg><span>Installs native darwin binaries, starts Homebrew services, registers LaunchAgents, imports Root CA into macOS Keychain for green padlocks, and creates <code>clouddeck</code> CLI.</span></div>
+                <div class="install-subhead">Native macOS CLI commands</div>
+                <div class="flag-grid">
+                  <span><code>clouddeck open</code> open panel in browser</span>
+                  <span><code>clouddeck status</code> check stack &amp; brew services</span>
+                  <span><code>clouddeck link ~/Sites/app</code> link project folder</span>
+                  <span><code>clouddeck start / stop</code> control services</span>
+                  <span><code>clouddeck logs panel -f</code> stream live logs</span>
+                  <span><code>clouddeck trust</code> re-import CA into Keychain</span>
                 </div>
               </div>
 
