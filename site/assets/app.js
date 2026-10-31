@@ -260,9 +260,31 @@
     });
   });
 
+  /* ---------- hero platform pill auto-tab switch ---------- */
+
+  document.querySelectorAll(".hero-uni-pills [data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabId = btn.getAttribute("data-tab");
+      if (tabId) activateTab(tabId);
+    });
+  });
+
+  /* ---------- under the hood pill switcher ---------- */
+
+  const hoodPills = Array.from(document.querySelectorAll(".hood-pill"));
+  hoodPills.forEach((pill) => {
+    pill.addEventListener("click", () => {
+      hoodPills.forEach((p) => {
+        const isMatch = p === pill;
+        p.classList.toggle("is-active", isMatch);
+        p.setAttribute("aria-selected", String(isMatch));
+      });
+    });
+  });
+
   /* ---------- interactive FAQ accordion ---------- */
 
-  const faqItems = Array.from(document.querySelectorAll(".faq-list details"));
+  const faqItems = Array.from(document.querySelectorAll(".faq-list details, .faq-accordion details, .faq-item"));
   faqItems.forEach((details) => {
     details.addEventListener("toggle", () => {
       if (details.open) {

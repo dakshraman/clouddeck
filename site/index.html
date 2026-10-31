@@ -37,10 +37,10 @@
     />
     <meta name="twitter:image" content="https://clouddeck.dakshraman.in/assets/og.png" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/styles.css?v=20261031b" />
@@ -140,190 +140,163 @@
         <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></symbol>
         <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
         <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></symbol>
+        <symbol id="i-apple" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.96.04-2.13.64-2.79 1.41-.58.68-1.1 1.76-1.04 2.81 1.07.08 2.16-.54 2.82-1.35Z" fill="currentColor"/></symbol>
+        <symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.48 10.5 4.4v6.86H3V5.48ZM3 12.74h7.5v6.86L3 18.52v-5.78ZM11.8 4.2 21 2.9v8.36h-9.2V4.2ZM21 12.74V21.1l-9.2-1.3v-7.06H21Z" fill="currentColor"/></symbol>
       </defs>
     </svg>
 
-    <div class="ambient" aria-hidden="true">
-      <span class="ambient-glow ambient-glow-a"></span>
-      <span class="ambient-glow ambient-glow-b"></span>
-      <span class="ambient-grid"></span>
+        <div class="ambient" aria-hidden="true">
+      <span class="ambient-blob-peach"></span>
+      <span class="ambient-blob-cyan"></span>
+      <span class="ambient-blob-mauve"></span>
+      <span class="ambient-blob-teal"></span>
     </div>
 
-    <header class="site-header" data-header>
-      <div class="container header-inner">
-        <a class="brand" href="#top" aria-label="CloudDeck home">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" role="img">
-              <path d="M24 8 43 18 24 28 5 18 24 8Z" fill="currentColor" />
-              <path d="M5 25 24 35 43 25" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".72" />
-              <path d="M5 32 24 42 43 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".4" />
-            </svg>
-          </span>
-          <span class="brand-text">
-            <strong>CloudDeck</strong>
-            <span>Hosting console</span>
-          </span>
-        </a>
+    <!-- Top Dynamic Floating Notch (Screenshot 1) -->
+    <div class="top-notch-wrap">
+      <a class="top-notch" href="#top" aria-label="CloudDeck active version">
+        <span class="notch-mark"><svg class="icon"><use href="#i-clouddeck" /></svg></span>
+        <span>CloudDeck v0.6.27</span>
+        <span class="notch-pill-tag"><span class="notch-dot"></span> Active</span>
+      </a>
+    </div>
 
-        <nav class="primary-nav" id="primary-nav" aria-label="Primary">
-          <a href="#comparison">Compare</a>
-          <a href="#features">Features</a>
-          <a href="#applications">Applications</a>
-          <a href="#security">Security</a>
-          <a href="#install">Install</a>
-          <a href="#docs">Docs</a>
-        </nav>
-
-        <div class="header-actions">
-          <a class="btn-github-star" href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer" aria-label="Star CloudDeck on GitHub">
-            <svg class="icon star-icon" aria-hidden="true"><use href="#i-star" /></svg>
-            <span>Star on GitHub</span>
-            <span class="star-badge">★</span>
+        <header class="site-header" data-header>
+      <div class="container">
+        <div class="header-pill">
+          <a class="brand" href="#top" aria-label="CloudDeck home">
+            <span class="brand-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48"><use href="#i-clouddeck" /></svg>
+            </span>
+            <span>CloudDeck</span>
           </a>
-          <a class="btn btn-primary btn-sm header-cta" href="#install">Install</a>
-          <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu" data-menu-toggle>
-            <svg class="icon" aria-hidden="true"><use href="#i-menu" /></svg>
-          </button>
-        </div>
-      </div>
 
-      <div class="mobile-menu" id="mobile-menu" data-mobile-menu hidden>
-        <nav aria-label="Mobile">
-          <a href="#comparison">Compare vs cPanel</a>
-          <a href="#features">Features</a>
-          <a href="#applications">Applications</a>
-          <a href="#security">Security</a>
-          <a href="#install">Install</a>
-          <a href="#docs">Docs</a>
-          <a href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer">Star on GitHub <svg class="icon star-icon" aria-hidden="true"><use href="#i-star" /></svg></a>
-        </nav>
+          <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+            <a href="#top">Overview</a>
+            <a href="#under-the-hood">Under the hood</a>
+            <a href="#features">Features</a>
+            <a href="#comparison">Compare</a>
+            <a href="#install">Install</a>
+            <a href="#faq">FAQ</a>
+            <a href="#docs">Docs</a>
+          </nav>
+
+          <div class="header-actions">
+            <a class="btn-pill-star" href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer" aria-label="Star CloudDeck on GitHub">
+              <svg class="icon star-icon" aria-hidden="true"><use href="#i-star" /></svg>
+              <span>Star on GitHub</span>
+            </a>
+            <a class="btn-pill-cta" href="#install">Quick Install</a>
+            <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu" data-menu-toggle>
+              <svg class="icon" aria-hidden="true"><use href="#i-menu" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="mobile-menu" id="mobile-menu" data-mobile-menu hidden>
+          <nav aria-label="Mobile">
+            <a href="#top">Overview</a>
+            <a href="#under-the-hood">Under the hood</a>
+            <a href="#features">Features</a>
+            <a href="#comparison">Compare</a>
+            <a href="#install">Install</a>
+            <a href="#faq">FAQ</a>
+            <a href="#docs">Docs</a>
+            <a href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer">Star on GitHub ★</a>
+          </nav>
+        </div>
       </div>
     </header>
 
     <main id="main">
-            <section class="hero" id="top">
-        <div class="hero-ambient-glow" aria-hidden="true"></div>
-        <div class="container hero-layout">
-          <div class="hero-copy">
-            <p class="eyebrow reveal"><span class="eyebrow-dot"></span> The Modern cPanel Alternative <span class="eyebrow-sep">/</span> <span class="eyebrow-ver">v0.6.26</span></p>
-            <h1 class="reveal" style="--delay: 60ms">The modern cPanel alternative. <span class="text-gradient">Fast, free, and secure.</span></h1>
-            <p class="hero-lede reveal" style="--delay: 120ms">
-              Say goodbye to $60/month cPanel licenses and risky root-level web panels. CloudDeck delivers a blazing-fast Next.js 15 interface backed by an unprivileged Go daemon — full LEMP hosting, multi-PHP (8.1–8.4), Node/Python/Go apps, production mail, PowerDNS, and 1-click panel SSL in <strong>under 50MB of RAM</strong>.
-            </p>
-            <div class="hero-actions reveal" style="--delay: 180ms">
-              <a class="btn btn-primary" href="#install">
-                Install in one command
-                <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
-              </a>
-              <a class="btn btn-secondary" href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer">
-                <svg class="icon star-icon" aria-hidden="true"><use href="#i-star" /></svg>
-                Star on GitHub
-              </a>
-              <a class="btn btn-ghost" href="#comparison">
-                Compare vs cPanel
-                <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
-              </a>
-            </div>
-            <ul class="hero-meta reveal" style="--delay: 240ms">
-              <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> 100% Free &amp; Open-Source ($0/mo)</li>
-              <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> &lt;50MB idle RAM (Runs on 1GB VPS)</li>
-              <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Zero-Root Web Layer (Next.js 15 + Go)</li>
-              <li><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Windows &amp; macOS Local Dev (XAMPP / WAMP Alternative)</li>
-            </ul>
+                  <section class="hero-uni" id="top">
+        <div class="container hero-uni-content">
+          <div class="hand-label reveal">YOUR MODERN HOSTING DECK</div>
+          <h1 class="hero-uni-title reveal" style="--delay: 60ms">
+            Answers, provisions, and<br />
+            speeds up your web hosting
+          </h1>
+          <p class="hero-uni-lede reveal" style="--delay: 100ms">
+            Ditch $60/month cPanel licenses and sluggish legacy XAMPP/WAMP. A high-performance Next.js 15 + Go deck with native LEMP, multi-PHP (8.1–8.4), isolated phpMyAdmin, dual-mode .zip backups, and instant local SSL — under 50MB RAM.
+          </p>
+          <div class="hero-uni-pills reveal" style="--delay: 140ms">
+            <a class="uni-pill-btn" href="#install" data-tab="macos">
+              <svg class="icon" aria-hidden="true"><use href="#i-apple" /></svg>
+              <span>Download for macOS</span>
+            </a>
+            <a class="uni-pill-btn" href="#install" data-tab="windows">
+              <svg class="icon" aria-hidden="true"><use href="#i-windows" /></svg>
+              <span>Download for Windows</span>
+            </a>
+            <a class="uni-pill-btn primary" href="#install" data-tab="linux">
+              <svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
+              <span>1-Command Linux VPS</span>
+            </a>
           </div>
+          <div class="hero-uni-subtext reveal" style="--delay: 180ms">
+            <span>100% Free &amp; Open Source</span>
+            <span class="dot-sep">·</span>
+            <span>No license fees</span>
+            <span class="dot-sep">·</span>
+            <span>&lt;50MB RAM Idle</span>
+            <span class="dot-sep">·</span>
+            <a href="#install" class="link-sub">Instant Local SSL</a>
+          </div>
+        </div>
 
-          <div class="hero-side reveal" style="--delay: 160ms">
-            <div class="install-card hero-installer-card">
-              <div class="install-card-bar">
-                <span class="window-dots" aria-hidden="true"><i class="dot-red"></i><i class="dot-yellow"></i><i class="dot-green"></i></span>
-                <span class="install-card-title">quick-install.sh</span>
-                <span class="badge badge-cyan"><svg class="icon" aria-hidden="true"><use href="#i-zap" /></svg> 1 command</span>
+        <!-- Grand Device Mockup with Top Notch (Screenshot 1) -->
+        <div class="container hero-device-wrap reveal" style="--delay: 220ms">
+          <div class="uni-device-mockup">
+            <!-- Device Top Notch Bar -->
+            <div class="uni-device-notch-bar">
+              <div class="notch-capsule">
+                <span class="notch-icon-mark"><svg class="icon" aria-hidden="true"><use href="#i-clouddeck" /></svg></span>
+                <div class="notch-command-box">
+                  <span class="notch-prompt">$</span>
+                  <code id="hero-notch-cmd">curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code>
+                </div>
+                <button class="notch-copy copy-btn copy-btn-tooltip" type="button" data-copy-target="hero-notch-cmd" aria-label="Copy install command">
+                  <svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg>
+                  <svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg>
+                  <span class="copy-tooltip">Copy command</span>
+                </button>
               </div>
-              <div class="install-card-body">
-                <p class="install-label">On a fresh Linux VPS (Ubuntu / Debian)</p>
-                <div class="code-line code-line-high-tech">
-                  <span class="code-prompt" aria-hidden="true">$</span>
-                  <code id="hero-command" class="syntax-cmd"><span class="tok-cmd">curl</span> <span class="tok-flag">-fsSL</span> <span class="tok-url">https://clouddeck.dakshraman.in/install.sh</span> <span class="tok-pipe">|</span> <span class="tok-sudo">sudo</span> <span class="tok-cmd">bash</span></code>
-                  <button class="copy-btn copy-btn-tooltip" type="button" data-copy-target="hero-command" aria-label="Copy install command">
-                    <svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg>
-                    <svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg>
-                    <span class="copy-tooltip">Copy command</span>
+            </div>
+
+            <!-- Device Screen with live preview tabs & panel -->
+            <div class="uni-device-screen">
+              <div class="screen-top-bar">
+                <div class="window-dots" aria-hidden="true">
+                  <i class="dot-red"></i>
+                  <i class="dot-yellow"></i>
+                  <i class="dot-green"></i>
+                </div>
+                <div class="screen-url">
+                  <svg class="icon padlock-icon" aria-hidden="true"><use href="#i-lock" /></svg>
+                  <span class="url-text">https://142.93.18.240:2083</span>
+                  <span class="ssl-pill"><span class="ssl-dot"></span> 1-Click SSL Valid (IP SAN)</span>
+                </div>
+                <div class="preview-tabs" role="tablist" aria-label="Live panel views">
+                  <button type="button" class="preview-tab is-active" data-preview-tab="overview" role="tab" aria-selected="true" aria-controls="view-overview">
+                    <svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg>
+                    <span>Overview</span>
+                  </button>
+                  <button type="button" class="preview-tab" data-preview-tab="sites" role="tab" aria-selected="false" aria-controls="view-sites">
+                    <svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg>
+                    <span>Sites</span>
+                  </button>
+                  <button type="button" class="preview-tab" data-preview-tab="databases" role="tab" aria-selected="false" aria-controls="view-databases">
+                    <svg class="icon" aria-hidden="true"><use href="#i-database" /></svg>
+                    <span>Databases</span>
+                  </button>
+                  <button type="button" class="preview-tab" data-preview-tab="terminal" role="tab" aria-selected="false" aria-controls="view-terminal">
+                    <svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
+                    <span>Terminal</span>
                   </button>
                 </div>
-                <div class="install-checks" aria-label="Installer provisions">
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Nginx</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> PHP 8.1–8.4</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> MariaDB</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Certbot</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> PowerDNS</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Postfix + Dovecot</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> Node 22</span>
-                  <span><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ModSecurity WAF</span>
-                </div>
-                <div class="install-ready">
-                  <span class="status-pulse" aria-hidden="true"></span>
-                  <span>Panel ready at <code>https://your-server-ip:2083</code></span>
-                </div>
               </div>
-            </div>
-            <p class="hero-note"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> No agent exposed. No root web app. Zero shell injection.</p>
-          </div>
-        </div>
 
-        <div class="container hero-stats reveal" style="--delay: 200ms">
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">&lt; 50 MB</span>
-            <span class="hero-stat-label">Idle RAM footprint (30x lighter than cPanel)</span>
-          </div>
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">$0 / mo</span>
-            <span class="hero-stat-label">100% Free &amp; Open Source (Save $360–$720/yr)</span>
-          </div>
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">0 Root</span>
-            <span class="hero-stat-label">Web processes behind the browser login</span>
-          </div>
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">PHP 8.1–8.4</span>
-            <span class="hero-stat-label">+ Node.js, Python, Go, and Ruby with systemd</span>
-          </div>
-        </div>
-
-        <!-- Interactive Live Panel Preview Window -->
-        <div class="container hero-visual reveal" style="--delay: 220ms">
-          <div class="browser" role="region" aria-label="Interactive live preview of CloudDeck control panel">
-            <div class="browser-bar">
-              <div class="window-dots" aria-hidden="true">
-                <i class="dot-red"></i>
-                <i class="dot-yellow"></i>
-                <i class="dot-green"></i>
-              </div>
-              <div class="browser-url">
-                <svg class="icon padlock-icon" aria-hidden="true"><use href="#i-lock" /></svg>
-                <span class="url-text">https://142.93.18.240:2083</span>
-                <span class="ssl-pill"><span class="ssl-dot"></span> 1-Click SSL Valid (IP SAN)</span>
-              </div>
-              <div class="preview-tabs" role="tablist" aria-label="Live panel views">
-                <button type="button" class="preview-tab is-active" data-preview-tab="overview" role="tab" aria-selected="true" aria-controls="view-overview">
-                  <svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg>
-                  <span>Overview</span>
-                </button>
-                <button type="button" class="preview-tab" data-preview-tab="sites" role="tab" aria-selected="false" aria-controls="view-sites">
-                  <svg class="icon" aria-hidden="true"><use href="#i-globe" /></svg>
-                  <span>Sites</span>
-                </button>
-                <button type="button" class="preview-tab" data-preview-tab="databases" role="tab" aria-selected="false" aria-controls="view-databases">
-                  <svg class="icon" aria-hidden="true"><use href="#i-database" /></svg>
-                  <span>Databases</span>
-                </button>
-                <button type="button" class="preview-tab" data-preview-tab="terminal" role="tab" aria-selected="false" aria-controls="view-terminal">
-                  <svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
-                  <span>Terminal</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="panel">
+              <div class="panel">
               <aside class="panel-sidebar" aria-hidden="true">
                 <div class="panel-brand">
                   <span class="panel-brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-clouddeck" /></svg></span>
@@ -393,193 +366,64 @@
                         <small>all probes healthy</small>
                       </div>
                     </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                    <div class="panel-grid">
-                      <div class="panel-card">
-                        <div class="panel-card-head">
-                          <span><strong>Sites &amp; Virtual Hosts</strong><small>Nginx + Multi PHP-FPM</small></span>
-                          <span class="panel-link">View all <svg class="icon" aria-hidden="true"><use href="#i-chevron" /></svg></span>
-                        </div>
-                        <div class="site-table">
-                          <div class="site-row site-row-head"><span>Domain</span><span>Runtime</span><span>TLS</span><span>Status</span></div>
-                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> acme.studio</span><span>PHP 8.4</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
-                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> api.northwind.dev</span><span>Node 22</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Valid TLS</span><span class="pill pill-green">active</span></div>
-                          <div class="site-row"><span class="site-name"><i class="site-dot"></i> shop.lumen.co</span><span>PHP 8.3</span><span class="tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span><span class="pill pill-green">active</span></div>
-                        </div>
-                      </div>
+      <!-- SECTION: Under the hood (Screenshot 2) -->
+      <section class="section-under-hood" id="under-the-hood">
+        <div class="container text-center">
+          <div class="hood-pill-switcher" role="tablist" aria-label="Feature categories">
+            <button class="hood-pill is-active" type="button" role="tab" aria-selected="true">Ask anything</button>
+            <button class="hood-pill" type="button" role="tab" aria-selected="false">Quick actions</button>
+            <button class="hood-pill" type="button" role="tab" aria-selected="false">Speech-to-text</button>
+          </div>
+          <div>
+            <span class="hand-label reveal">AND MORE</span>
+          </div>
+          <h2 class="section-hood-title reveal">Under the hood</h2>
 
-                      <div class="panel-card">
-                        <div class="panel-card-head">
-                          <span><strong>Recent tasks</strong><small>handled by Go agent</small></span>
-                          <span class="pill pill-cyan"><span class="status-pulse" aria-hidden="true"></span> live</span>
-                        </div>
-                        <ul class="task-list">
-                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></span><span><strong>Panel SSL configured</strong><small>port 2083 · HTTPS active</small></span><time>1m</time></li>
-                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>SQL dump exported</strong><small>acme_prod.sql.gz · 1-click</small></span><time>6m</time></li>
-                          <li><span class="task-icon task-ok"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg></span><span><strong>App deployed</strong><small>api.northwind.dev · systemd</small></span><time>14m</time></li>
-                        </ul>
-                        <div class="panel-footer-note"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg> every mutation is in the audit log</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- VIEW 2: SITES & VIRTUAL HOSTS -->
-                <div class="preview-view" id="view-sites" data-preview-view="sites" hidden>
-                  <div class="panel-topbar">
-                    <span class="panel-crumb">Web &amp; SSL <span>/</span> Sites &amp; Virtual Hosts</span>
-                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> 4 virtual hosts · Nginx 1.24 active</span>
-                    <span class="avatar avatar-sm">DR</span>
-                  </div>
-
-                  <div class="panel-body">
-                    <div class="panel-heading">
-                      <span>
-                        <strong>Virtual Hosts &amp; Domains</strong>
-                        <small>Nginx configuration with multi PHP-FPM coexistence and reverse proxying.</small>
-                      </span>
-                      <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> Create site</span>
-                    </div>
-
-                    <div class="preview-table-card">
-                      <div class="preview-data-table">
-                        <div class="pdt-head">
-                          <span>Domain &amp; Root</span>
-                          <span>Runtime</span>
-                          <span>SSL Certificate</span>
-                          <span>Status</span>
-                          <span>Actions</span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>acme.studio</strong><small>/www/wwwroot/acme.studio/public</small></span>
-                          <span class="pdt-badge-rt">PHP 8.4</span>
-                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
-                          <span><span class="pill pill-green"><span class="status-pulse"></span> active</span></span>
-                          <span class="pdt-actions"><button type="button" class="btn-micro">Config</button><button type="button" class="btn-micro">Logs</button></span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>api.northwind.dev</strong><small>Proxy &rarr; 127.0.0.1:3107</small></span>
-                          <span class="pdt-badge-rt rt-node">Node 22</span>
-                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
-                          <span><span class="pill pill-green"><span class="status-pulse"></span> supervised</span></span>
-                          <span class="pdt-actions"><button type="button" class="btn-micro">Restart</button><button type="button" class="btn-micro">Logs</button></span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>shop.lumen.co</strong><small>/www/wwwroot/shop.lumen.co</small></span>
-                          <span class="pdt-badge-rt">PHP 8.3</span>
-                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
-                          <span><span class="pill pill-green"><span class="status-pulse"></span> active</span></span>
-                          <span class="pdt-actions"><button type="button" class="btn-micro">Config</button><button type="button" class="btn-micro">Logs</button></span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>blog.devops.io</strong><small>WSGI Gunicorn &rarr; 127.0.0.1:8000</small></span>
-                          <span class="pdt-badge-rt rt-py">Python 3.12</span>
-                          <span class="pdt-tls"><svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg> Let's Encrypt</span>
-                          <span><span class="pill pill-green"><span class="status-pulse"></span> supervised</span></span>
-                          <span class="pdt-actions"><button type="button" class="btn-micro">Restart</button><button type="button" class="btn-micro">Logs</button></span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="preview-footnote">
-                      <svg class="icon" aria-hidden="true"><use href="#i-spark" /></svg>
-                      <span>Multi-PHP coexistence: switch any site between PHP 8.1, 8.2, 8.3, and 8.4 instantly without restarting Nginx.</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- VIEW 3: DATABASES & PHPMYADMIN -->
-                <div class="preview-view" id="view-databases" data-preview-view="databases" hidden>
-                  <div class="panel-topbar">
-                    <span class="panel-crumb">Data <span>/</span> MariaDB Databases &amp; phpMyAdmin</span>
-                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> MariaDB 10.11 · SSO isolated</span>
-                    <span class="avatar avatar-sm">DR</span>
-                  </div>
-
-                  <div class="panel-body">
-                    <div class="panel-heading">
-                      <span>
-                        <strong>Databases &amp; Single-Sign-On</strong>
-                        <small>MariaDB databases with deep-linked phpMyAdmin and 1-click SQL dump export/restore.</small>
-                      </span>
-                      <span class="panel-button"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> New database</span>
-                    </div>
-
-                    <div class="preview-table-card">
-                      <div class="preview-data-table">
-                        <div class="pdt-head">
-                          <span>Database Name</span>
-                          <span>Tables &amp; Size</span>
-                          <span>User</span>
-                          <span>phpMyAdmin SSO</span>
-                          <span>SQL Backup</span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>acme_prod</strong><small>utf8mb4_unicode_ci</small></span>
-                          <span>14 tables · <strong>42.8 MB</strong></span>
-                          <span><code>acme_user</code></span>
-                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
-                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>northwind_db</strong><small>utf8mb4_general_ci</small></span>
-                          <span>38 tables · <strong>118.4 MB</strong></span>
-                          <span><code>northwind_app</code></span>
-                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
-                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
-                        </div>
-                        <div class="pdt-row">
-                          <span class="pdt-domain"><strong>lumen_store</strong><small>utf8mb4_unicode_ci</small></span>
-                          <span>22 tables · <strong>64.2 MB</strong></span>
-                          <span><code>lumen_admin</code></span>
-                          <span><button type="button" class="btn-pma-sso"><svg class="icon" aria-hidden="true"><use href="#i-external" /></svg> Open phpMyAdmin ↗</button></span>
-                          <span><button type="button" class="btn-micro"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg> Dump .sql.gz</button></span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="preview-callout">
-                      <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-                      <span><strong>Isolated Database Scope:</strong> Single-sign-on authenticates directly into the target database. System schemas (<code>information_schema</code>, <code>mysql</code>, <code>performance_schema</code>) are completely hidden from non-root sessions.</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- VIEW 4: WEB TERMINAL -->
-                <div class="preview-view" id="view-terminal" data-preview-view="terminal" hidden>
-                  <div class="panel-topbar">
-                    <span class="panel-crumb">System <span>/</span> Web Terminal &amp; SSH</span>
-                    <span class="panel-top-status"><span class="status-pulse" aria-hidden="true"></span> PTY connected · SSE streaming</span>
-                    <span class="avatar avatar-sm">DR</span>
-                  </div>
-
-                  <div class="panel-body">
-                    <div class="terminal-window">
-                      <div class="terminal-bar">
-                        <span class="terminal-tab-title"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg> bash — 80x24 (PTY session)</span>
-                        <span class="badge badge-cyan"><span class="status-pulse" aria-hidden="true"></span> auto-synchronized sudo</span>
-                      </div>
-                      <div class="terminal-console">
-                        <p class="term-line"><span class="term-prompt">clouddeck@vps-prod:~$</span> sudo -i</p>
-                        <p class="term-line"><span class="term-dim">[sudo] password for clouddeck: ******</span></p>
-                        <p class="term-line"><span class="term-prompt-root">root@vps-prod:~#</span> clouddeck status</p>
-                        <p class="term-line term-success"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ● clouddeck-panel.service - CloudDeck Web Panel (Next.js 15)</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;Active: active (running) · 38.2 MB RAM · listening on 0.0.0.0:2083 (HTTPS)</p>
-                        <p class="term-line term-success"><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg> ● clouddeck-agent.service - Privileged Host Daemon (Go stdlib)</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;Active: active (running) · 9.4 MB RAM · bound 127.0.0.1:9090 (Token Auth)</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● nginx.service: active (running) · LEMP HTTP/HTTPS</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● mariadb.service: active (running) · port 3306</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● pdns.service: active (running) · authoritative DNS</p>
-                        <p class="term-line term-dim">&nbsp;&nbsp;&nbsp;● postfix &amp; dovecot: active (running) · mail stack</p>
-                        <p class="term-line term-highlight">Status: ALL 7 HOST SERVICES HEALTHY · IDLE RAM 47.6 MB · 0 ROOT WEB PROCESSES</p>
-                        <p class="term-line"><span class="term-prompt-root">root@vps-prod:~#</span> <span class="term-cursor"></span></p>
-                      </div>
-                    </div>
-                    <div class="preview-footnote">
-                      <svg class="icon" aria-hidden="true"><use href="#i-lock" /></svg>
-                      <span>Web terminal runs unprivileged with sudoers synchronization. Password changes automatically synchronize to Linux PAM.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div class="hood-grid reveal" style="--delay: 100ms">
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg></div>
+              <h3>Zero-Root Security</h3>
+              <p>Local Go daemon, unprivileged web UI</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-cpu" /></svg></div>
+              <h3>&lt;50MB Idle RAM</h3>
+              <p>30x lighter than cPanel, runs on 1GB VPS</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-layers" /></svg></div>
+              <h3>Multi-PHP (8.1–8.4)</h3>
+              <p>Coexisting isolated Unix sockets per site</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-server" /></svg></div>
+              <h3>Local Dev Suite</h3>
+              <p>Windows &amp; macOS XAMPP replacement with SSL</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg></div>
+              <h3>Dual-Mode .zip Backups</h3>
+              <p>PC download &amp; 1-click in-place restore</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-database" /></svg></div>
+              <h3>Isolated phpMyAdmin</h3>
+              <p>SSO into tables, system schemas hidden</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-mail" /></svg></div>
+              <h3>Production Mail &amp; DNS</h3>
+              <p>Postfix, Dovecot, DKIM, PowerDNS SQLite</p>
+            </div>
+            <div class="hood-item">
+              <div class="hood-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg></div>
+              <h3>Web Terminal PTY</h3>
+              <p>Browser shell with auto-synced sudo elevation</p>
             </div>
           </div>
         </div>
@@ -1266,17 +1110,17 @@
           </div>
 
           <div class="install-layout">
-            <div class="install-tabs reveal">
-              <div class="tab-list" role="tablist" aria-label="Install methods">
-                <button class="tab-button is-active" role="tab" aria-selected="true" aria-controls="panel-linux" id="tab-linux" data-tab="linux">Linux VPS <span>recommended</span></button>
-                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-windows" id="tab-windows" tabindex="-1" data-tab="windows">Windows <span>WSL 2</span></button>
-                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-macos" id="tab-macos" tabindex="-1" data-tab="macos">macOS <span>M1–M4 &amp; Intel</span></button>
-                <button class="tab-button" role="tab" aria-selected="false" aria-controls="panel-source" id="tab-source" tabindex="-1" data-tab="source">From source</button>
+            <div class="install-card-container reveal">
+              <div class="install-tab-list" role="tablist" aria-label="Install methods">
+                <button class="install-tab-btn is-active" role="tab" aria-selected="true" aria-controls="panel-linux" id="tab-linux" data-tab="linux">Linux VPS <span>recommended</span></button>
+                <button class="install-tab-btn" role="tab" aria-selected="false" aria-controls="panel-windows" id="tab-windows" tabindex="-1" data-tab="windows">Windows <span>WSL 2</span></button>
+                <button class="install-tab-btn" role="tab" aria-selected="false" aria-controls="panel-macos" id="tab-macos" tabindex="-1" data-tab="macos">macOS <span>M1–M4 &amp; Intel</span></button>
+                <button class="install-tab-btn" role="tab" aria-selected="false" aria-controls="panel-source" id="tab-source" tabindex="-1" data-tab="source">From source</button>
               </div>
 
               <div class="tab-panel is-active" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" data-panel="linux">
                 <p class="tab-lede">Root access on a fresh Linux server (Ubuntu or Debian) — x86_64 or arm64. The installer configures systemd units, web stack, and allows port 2083.</p>
-                <div class="code-block">
+                <div class="install-code-box">
                   <div class="code-block-head"><span>terminal (recommended)</span><button class="copy-btn" type="button" data-copy-target="install-linux" aria-label="Copy Linux install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
                   <pre><code id="install-linux"><span class="code-prompt">$</span> curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code></pre>
                 </div>
@@ -1296,7 +1140,7 @@
 
               <div class="tab-panel" role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" data-panel="windows" hidden>
                 <p class="tab-lede">Modern XAMPP / WAMP alternative on Windows 10 &amp; 11 (WSL 2). Nginx production parity, multi-PHP (8.1–8.4), MariaDB, native Windows CLI, and automatic Local Root CA trust for green padlocks.</p>
-                <div class="code-block">
+                <div class="install-code-box">
                   <div class="code-block-head"><span>PowerShell (1 command)</span><button class="copy-btn" type="button" data-copy-target="install-windows" aria-label="Copy Windows install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
                   <pre><code id="install-windows"><span class="code-prompt">&gt;</span> irm https://clouddeck.dakshraman.in/install.ps1 | iex</code></pre>
                 </div>
@@ -1314,7 +1158,7 @@
 
               <div class="tab-panel" role="tabpanel" id="panel-macos" aria-labelledby="tab-macos" data-panel="macos" hidden>
                 <p class="tab-lede">Modern MAMP / XAMPP alternative for macOS. Native Apple Silicon (M1/M2/M3/M4) and Intel binaries with Homebrew LEMP stack (Nginx, MariaDB, PHP 8.4) and Keychain Root CA trust.</p>
-                <div class="code-block">
+                <div class="install-code-box">
                   <div class="code-block-head"><span>Terminal (1 command)</span><button class="copy-btn" type="button" data-copy-target="install-macos" aria-label="Copy macOS install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
                   <pre><code id="install-macos"><span class="code-prompt">$</span> curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash</code></pre>
                 </div>
@@ -1332,7 +1176,7 @@
 
               <div class="tab-panel" role="tabpanel" id="panel-source" aria-labelledby="tab-source" data-panel="source" hidden>
                 <p class="tab-lede">Run the panel on any OS with Node 20+, and the agent in dry-run mode without root or nginx.</p>
-                <div class="code-block">
+                <div class="install-code-box">
                   <div class="code-block-head"><span>panel</span><button class="copy-btn" type="button" data-copy-target="install-source" aria-label="Copy source commands"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button></div>
                   <pre><code id="install-source"><span class="code-prompt">$</span> cd panel
 <span class="code-prompt">$</span> npm install
@@ -1437,163 +1281,111 @@
         </div>
       </section>
 
-      <section class="section faq" id="docs">
-        <div class="container faq-layout">
-          <div class="faq-copy reveal">
-            <p class="eyebrow"><span class="eyebrow-dot"></span> Documentation &amp; FAQ</p>
-            <h2>Go deeper<br /><span class="text-muted">when you need to.</span></h2>
-            <p>Essential management commands are right below. Complete architecture guides, deployment details, API contracts, and roadmap are available on GitHub.</p>
-            <div class="doc-links">
-              <a href="#commands"><span>CLI commands</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a href="https://github.com/dakshraman/clouddeck#readme" target="_blank" rel="noreferrer"><span>GitHub README</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md" target="_blank" rel="noreferrer"><span>Deployment guide</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/api.md" target="_blank" rel="noreferrer"><span>API reference</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a href="/llms.txt"><span>AI-readable product brief (llms.txt)</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-              <a href="https://github.com/dakshraman/clouddeck/blob/main/docs/roadmap.md" target="_blank" rel="noreferrer"><span>Roadmap</span><svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            </div>
-          </div>
+            <!-- SECTION: Frequently Asked Questions (Screenshot 3) -->
+      <section class="section-faq" id="faq">
+        <div class="container text-center">
+          <h2 class="faq-title reveal">Frequently Asked Questions</h2>
 
-          <div class="faq-list reveal" style="--delay: 100ms">
-            <details>
-              <summary>
-                <span>Why choose CloudDeck over cPanel?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>cPanel costs $30–$60+/month per server ($360–$720+/yr) and consumes over 1.5GB of RAM running a legacy 1990s Perl monolith directly as root. CloudDeck is 100% free and open-source, runs on under 50MB of idle RAM, uses Next.js 15 + Go, and never exposes a root process behind a browser login.</p>
-            </details>
-            <details>
-              <summary>
-                <span>How is CloudDeck safer than aaPanel or CyberPanel?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>aaPanel and CyberPanel run their entire Python web app directly as root, creating a history of critical remote code execution (RCE) vulnerabilities. CloudDeck enforces strict privilege separation: the browser only reaches an unprivileged Next.js UI, which proxies typed JSON requests to a local Go daemon using explicit argument arrays — preventing <code>sh -c</code> shell injections completely.</p>
-            </details>
-            <details>
-              <summary>
-                <span>Can I host Node.js, Python, Go, and Ruby applications?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>Yes! CloudDeck includes first-class application hosting with automatic port assignment, systemd process supervision, live log streaming, and automatic Nginx reverse proxy configuration. You can mount apps at the site root or at subpaths.</p>
-            </details>
-            <details>
-              <summary>
-                <span>What Linux distributions are supported?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>The one-command installer fully provisions Debian and Ubuntu servers, including Nginx, PHP-FPM, MariaDB, certbot, PowerDNS, and Node.js. On other Linux distributions (Fedora, Arch, AlmaLinux), the installer installs the panel and agent, and you bring your host web stack.</p>
-            </details>
-            <details>
-              <summary>
-                <span>How does 1-Click Panel SSL work?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>With v0.6.25, CloudDeck allows you to enable Panel SSL with a single click. It supports Self-Signed certificates with IP SANs (so browsing directly to <code>https://&lt;your-ip&gt;:2083</code> is valid) or Let's Encrypt for domains. The agent configures an automated Nginx reverse proxy that forwards port 2083 to the internal panel listener with HTTP-to-HTTPS redirection.</p>
-            </details>
-            <details>
-              <summary>
-                <span>How do upgrades work?</span>
-                <svg class="icon faq-chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-              </summary>
-              <p>Run <code>sudo clouddeck update</code> to seamlessly upgrade to the latest release, or upgrade with one click directly inside the panel Settings page. All databases, site files, and configurations remain untouched.</p>
-            </details>
-          </div>
-        </div>
-
-        <div class="container">
-          <div class="command-deck reveal" id="commands">
-            <div class="command-deck-bar">
-              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-              <span class="command-deck-title">clouddeck — command reference</span>
-              <span class="badge badge-cyan"><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg> 8 commands</span>
-            </div>
-            <div class="command-deck-body">
-              <div class="command-grid">
-                <div class="command command-wide">
-                  <div class="command-name"><span>Install</span><small>fresh Linux VPS (Debian / Ubuntu)</small></div>
-                  <div class="command-line">
-                    <code id="cmd-install">curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-install" aria-label="Copy install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+          <div class="faq-card-container reveal" style="--delay: 100ms">
+            <div class="faq-accordion">
+              <details class="faq-item" open>
+                <summary class="faq-summary">
+                  <span>Does CloudDeck work offline or locally without internet?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>Yes. When installed on Windows (WSL 2) or macOS via the Local Development Suite, CloudDeck runs completely offline on <code>localhost:2083</code>. Your local sites, multi-PHP runtimes, MariaDB databases, and local SSL certificates operate without an active internet connection.</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Status</span><small>panel + agent state</small></div>
-                  <div class="command-line">
-                    <code id="cmd-status">clouddeck status</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-status" aria-label="Copy status command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>What are the minimum server specs for Linux VPS?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>CloudDeck is ultra-lightweight and consumes under 50MB of RAM idle. It runs comfortably on a $3.50/mo 1 vCPU, 1GB RAM VPS (Ubuntu 22.04/24.04 or Debian 11/12). The installer automatically provisions a 1GB swapfile on systems with &lt;2GB RAM to ensure build reliability.</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Restart</span><small>both services</small></div>
-                  <div class="command-line">
-                    <code id="cmd-restart">sudo clouddeck restart</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-restart" aria-label="Copy restart command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>How does CloudDeck replace XAMPP, WAMP, and MAMP for local development?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>Unlike XAMPP/WAMP which use legacy Win32 Apache binaries prone to <code>.htaccess</code> rewrite bugs, CloudDeck provides 100% production parity with high-performance Nginx, 1-click multi-PHP switching (8.1, 8.2, 8.3, 8.4), isolated phpMyAdmin, and automatic Local Root CA green padlocks on Windows and macOS.</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Logs</span><small>follow panel output</small></div>
-                  <div class="command-line">
-                    <code id="cmd-logs">clouddeck logs panel -f</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-logs" aria-label="Copy logs command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>How do the new Dual-Mode .zip Backups work?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>CloudDeck packages both entire websites and MariaDB databases as standard <code>.zip</code> files. You can download archives directly to your personal computer for off-site cold storage (and restore anytime via the drag-and-drop dropzone) or keep them safely stored on the server for instant 1-click restoration.</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Update</span><small>latest release</small></div>
-                  <div class="command-line">
-                    <code id="cmd-update">sudo clouddeck update</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-update" aria-label="Copy update command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>Is CloudDeck completely free? Are there any hidden fees or paywalled features?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>CloudDeck is 100% free and open-source under the MIT license ($0/month). There are zero per-site limits, zero artificial tiers, and zero paywalled features. You can host unlimited websites, databases, and mail domains across as many servers as you like.</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Add user</span><small>create an operator</small></div>
-                  <div class="command-line">
-                    <code id="cmd-user-add">sudo clouddeck user add ops --email ops@example.com</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-user-add" aria-label="Copy add user command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>Why is CloudDeck safer than aaPanel or CyberPanel?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>Panels like aaPanel and CyberPanel run their entire Python/PHP web layer directly as root, which has led to critical remote code execution (RCE) vulnerabilities. CloudDeck runs its Next.js 15 UI as an unprivileged user, communicating over loopback with a privileged Go daemon using strict, typed exec arrays without shell invocation (<code>no sh -c</code>).</p>
                 </div>
+              </details>
 
-                <div class="command">
-                  <div class="command-name"><span>Reset password</span><small>signs out all sessions</small></div>
-                  <div class="command-line">
-                    <code id="cmd-user-passwd">sudo clouddeck user passwd</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-user-passwd" aria-label="Copy password reset command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
+              <details class="faq-item">
+                <summary class="faq-summary">
+                  <span>Can I manage Node.js, Python, and Go apps alongside PHP?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="faq-answer">
+                  <p>Yes. CloudDeck includes polyglot application hosting. You can deploy Node.js, Python, Go, and Ruby applications with automatic port assignment, systemd supervision, reverse proxying through Nginx, and live log streaming from the dashboard.</p>
                 </div>
-
-                <div class="command command-wide">
-                  <div class="command-name"><span>Uninstall</span><small>remove everything</small></div>
-                  <div class="command-line">
-                    <code id="cmd-uninstall">sudo clouddeck uninstall --purge</code>
-                    <button class="copy-btn" type="button" data-copy-target="cmd-uninstall" aria-label="Copy uninstall command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
-                  </div>
-                </div>
-              </div>
-              <p class="command-deck-foot">
-                <svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
-                <span>Run <code>clouddeck help</code> for the full command list. Service control, account changes, update, and uninstall require <code>sudo</code>.</span>
-              </p>
+              </details>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="final-cta">
-        <div class="container final-cta-inner reveal">
-          <div class="final-cta-glow" aria-hidden="true"></div>
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Your server. Your rules.</p>
-          <h2>Take the deck<br /><span class="text-gradient">for a spin.</span></h2>
-          <p>One command on a fresh Linux VPS. No recurring license bills, no per-site limits, no root web app.</p>
-          <div class="final-actions">
-            <a class="btn btn-primary btn-lg" href="#install">Install CloudDeck <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-            <a class="btn btn-secondary btn-lg" href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer"><svg class="icon star-icon" aria-hidden="true"><use href="#i-star" /></svg> Star on GitHub</a>
-          </div>
-          <div class="final-command">
-            <code id="final-command">curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code>
-            <button class="copy-btn" type="button" data-copy-target="final-command" aria-label="Copy install command"><svg class="icon copy-icon" aria-hidden="true"><use href="#i-copy" /></svg><svg class="icon check-icon" aria-hidden="true"><use href="#i-check" /></svg></button>
+            <section class="section-cta">
+        <div class="container">
+          <div class="cta-banner-card reveal">
+            <div class="hand-label">ZERO SUBSCRIPTION FEES</div>
+            <h2>Take the deck for a spin.</h2>
+            <p>One command on a fresh Linux VPS, Windows (WSL 2), or macOS workstation. No recurring license bills, no per-site limits, no root web layer.</p>
+            <div class="hero-uni-pills" style="margin-bottom: 24px;">
+              <a class="uni-pill-btn primary" href="#install">
+                <svg class="icon"><use href="#i-terminal" /></svg>
+                <span>Install CloudDeck Now</span>
+              </a>
+              <a class="uni-pill-btn" href="https://github.com/dakshraman/clouddeck" target="_blank" rel="noreferrer">
+                <svg class="icon star-icon"><use href="#i-star" /></svg>
+                <span>Star on GitHub</span>
+              </a>
+            </div>
+            <div class="install-code-box" style="max-width: 580px; margin: 0 auto;">
+              <pre><code><span class="code-prompt">$</span>curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash</code></pre>
+              <button class="copy-btn copy-btn-tooltip" type="button" data-copy-text="curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash" aria-label="Copy install command">
+                <svg class="icon copy-icon"><use href="#i-copy" /></svg>
+                <svg class="icon check-icon"><use href="#i-check" /></svg>
+                <span class="copy-tooltip">Copy command</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
