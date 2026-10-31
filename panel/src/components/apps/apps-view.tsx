@@ -308,7 +308,7 @@ export function AppsView() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                       loading={busy === `${key}/delete`}
                       disabled={busy !== null}
                       onClick={() => void removeApp(app)}

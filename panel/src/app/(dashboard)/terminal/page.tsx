@@ -530,12 +530,12 @@ export default function TerminalPage() {
                     />
                     {overlayVisible ? (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center">
-                        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60 text-brand">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300">
                           <TerminalIcon size={22} aria-hidden="true" />
                         </span>
                         <div>
-                          <p className="text-sm font-medium text-foreground">Open a shell on this server</p>
-                          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                          <p className="text-sm font-medium text-zinc-100">Open a shell on this server</p>
+                          <p className="mt-1 max-w-sm text-xs text-zinc-400">
                             The session runs as {status.user || "—"} with {status.shell || "—"}. Closing this
                             page ends it.
                           </p>

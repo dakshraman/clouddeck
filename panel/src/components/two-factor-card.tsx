@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Check, CheckCircle2, Copy, KeyRound, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { apiFetch, readError } from "@/components/api";
 import { Alert, type AlertVariant } from "@/components/ui/alert";
@@ -282,7 +282,7 @@ export function TwoFactorCard({ initialEnabled = false, onStatusChange }: TwoFac
                       className="h-7 px-2 text-xs"
                     >
                       {copiedSecret ? (
-                        <Check size={13} className="text-emerald-400" />
+                        <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
                       ) : (
                         <Copy size={13} />
                       )}

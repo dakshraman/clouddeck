@@ -353,7 +353,7 @@ export function SiteDetail({ domain }: { domain: string }) {
                 Deleting a site removes its nginx configuration and stops serving it.
               </CardDescription>
             </div>
-            <Trash2 size={16} className="mt-0.5 shrink-0 text-red-400/80" aria-hidden="true" />
+            <Trash2 size={16} className="mt-0.5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
           </CardHeader>
           <CardBody className="grid gap-4">
             {deleteError ? <Alert variant="error">{deleteError}</Alert> : null}

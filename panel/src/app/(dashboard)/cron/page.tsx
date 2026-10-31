@@ -108,7 +108,7 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-foreground hover:text-red-400"
+                            className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                             disabled={busy}
                             onClick={() => onDelete(domain, job.id)}
                             aria-label={`Delete cron job ${job.schedule} on ${domain}`}
@@ -120,7 +120,7 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
                       </div>
                       {rowError ? (
                         <p
-                          className="mt-1 max-w-64 truncate text-right text-xs text-red-400"
+                          className="mt-1 max-w-64 truncate text-right text-xs text-red-600 dark:text-red-400 font-medium"
                           title={rowError}
                         >
                           {rowError}

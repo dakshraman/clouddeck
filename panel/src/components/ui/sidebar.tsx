@@ -14,7 +14,7 @@ import {
   type Ref,
 } from "react";
 import { Slot } from "@radix-ui/react-slot";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import { cva } from "class-variance-authority";
 import { PanelLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";

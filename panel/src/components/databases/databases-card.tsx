@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { formatBytes } from "@/components/format";
 import { cn } from "@/components/ui/cn";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Database, Download, ExternalLink, FileText, Plus, Trash2, Upload, UploadCloud, X } from "lucide-react";
 
 const DATABASE_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;

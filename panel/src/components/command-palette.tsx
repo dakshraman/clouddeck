@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, CornerDownLeft, Search, X } from "lucide-react";
 import { cn } from "@/components/ui/cn";

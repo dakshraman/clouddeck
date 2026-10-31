@@ -63,7 +63,7 @@ export function CopyButton({ value, label = "Copy", className }: CopyButtonProps
         {state === "copied" ? "Copied" : label}
       </Button>
       {state === "failed" ? (
-        <span className="text-xs text-red-400">Copy failed - select it manually.</span>
+        <span className="text-xs text-red-600 dark:text-red-400">Copy failed - select it manually.</span>
       ) : null}
     </span>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ExternalLink,
   Globe,
@@ -211,16 +211,16 @@ export function PanelSSLDialog({
             {successStatus ? (
               <div className="space-y-4 rounded-lg border border-success/30 bg-success/5 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">
                     <ShieldCheck size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-emerald-300">
+                    <h3 className="text-sm font-semibold text-emerald-950 dark:text-emerald-300">
                       Panel HTTPS Active!
                     </h3>
-                    <p className="mt-0.5 text-xs text-emerald-400/90 leading-relaxed">
+                    <p className="mt-0.5 text-xs text-emerald-900/90 dark:text-emerald-400/90 leading-relaxed">
                       SSL has been configured and is actively listening on port{" "}
-                      <strong className="font-mono text-emerald-300">{destinationPort}</strong>.
+                      <strong className="font-mono text-emerald-950 dark:text-emerald-300">{destinationPort}</strong>.
                       Your session cookies and credentials are now secured with TLS encryption.
                     </p>
                   </div>
@@ -260,7 +260,7 @@ export function PanelSSLDialog({
               <div className="rounded-lg border border-border bg-card/60 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
                     <span className="text-xs font-semibold text-foreground">
                       Current SSL Certificate
                     </span>
@@ -328,7 +328,7 @@ export function PanelSSLDialog({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="text-red-400 hover:text-red-300 hover:bg-destructive/10"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-destructive/10"
                       onClick={() => setConfirmingDisable(true)}
                       disabled={busy}
                     >
@@ -464,7 +464,7 @@ export function PanelSSLDialog({
               <form onSubmit={onLetsEncryptSubmit} className="space-y-4">
                 <div className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                   <div className="flex items-center gap-1.5 font-medium text-foreground">
-                    <Lock size={14} className="text-emerald-400" />
+                    <Lock size={14} className="text-emerald-700 dark:text-emerald-400" />
                     Automated Let's Encrypt SSL
                   </div>
                   <p>
@@ -478,7 +478,7 @@ export function PanelSSLDialog({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="le-domain">
-                    Domain Name <span className="text-red-400">*</span>
+                    Domain Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="le-domain"
@@ -493,7 +493,7 @@ export function PanelSSLDialog({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="le-email">
-                    Email Address <span className="text-red-400">*</span>
+                    Email Address <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="le-email"
@@ -554,7 +554,7 @@ export function PanelSSLDialog({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="custom-key">
-                    Private Key (PEM) <span className="text-red-400">*</span>
+                    Private Key (PEM) <span className="text-destructive">*</span>
                   </Label>
                   <textarea
                     id="custom-key"
@@ -570,7 +570,7 @@ export function PanelSSLDialog({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="custom-cert">
-                    Certificate (PEM) <span className="text-red-400">*</span>
+                    Certificate (PEM) <span className="text-destructive">*</span>
                   </Label>
                   <textarea
                     id="custom-cert"

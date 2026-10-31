@@ -11,7 +11,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@animate-ui/react/primitives/radix-ui/dropdown-menu";
 import type { FileEntry, FileListResponse, FileUploadResponse } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";

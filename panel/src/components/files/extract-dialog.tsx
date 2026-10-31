@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import * as Dialog from "@animate-ui/react/primitives/radix-ui/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import type { FileEntry } from "@/lib/types";
 import { apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";

@@ -300,7 +300,7 @@ export function UploadBackupCard({ onRefresh }: UploadBackupCardProps) {
         {uploadedArchive && !restoreTaskId ? (
           <div className="grid gap-4 sm:max-w-xl rounded-xl border border-border bg-muted/30 p-5">
             <div className="flex items-start gap-3">
-              <CheckCircle2 size={22} className="text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2 size={22} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <div className="grid gap-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">Archive Uploaded Successfully</span>
