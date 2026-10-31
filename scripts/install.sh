@@ -121,7 +121,7 @@ ${TC_SKY}${CLR_BOLD}   ____ _                 _ ____             _
  | |___| | (_) | |_| | (_| | |_| |  __/ (__|   < 
   \____|_|\___/ \__,_|\__,_|____/ \___|\___|_|\_\
 ${CLR_RESET}
-${TC_BG_MARINE}${TC_SKY}${CLR_BOLD}  CLOUDDECK  ${CLR_RESET} ${TC_PEACH}The Modern cPanel Alternative Built for 2026${CLR_RESET}
+${TC_BG_MARINE}${TC_SKY}${CLR_BOLD}  CLOUDDECK  ${CLR_RESET} ${TC_PEACH}The Modern, Lightweight cPanel Alternative${CLR_RESET}
 ${TC_STEEL}Unified Cross-Platform Installer • Uni Design Palette Edition${CLR_RESET}
 EOF
 }

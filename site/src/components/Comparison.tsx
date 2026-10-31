@@ -102,7 +102,7 @@ export function Comparison() {
                   <th className="p-4 sm:p-5 font-bold bg-[#74B8CC]/15 text-[#235361]">
                     <div className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-[#38BD87]" />
-                      <span>CloudDeck (2026)</span>
+                      <span>CloudDeck</span>
                     </div>
                   </th>
                   <th className="p-4 sm:p-5 font-semibold text-[#566E76]">cPanel / WHM</th>

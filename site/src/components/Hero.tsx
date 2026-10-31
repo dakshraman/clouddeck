@@ -68,7 +68,7 @@ export function Hero() {
         <div className="mt-8 text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#14242B] sm:text-6xl sm:leading-[1.1] md:text-7xl">
             The modern hosting deck <br className="hidden sm:inline" />
-            built for <span className="text-[#235361] underline decoration-[#FAAA93] decoration-wavy decoration-2 underline-offset-8">2026</span>.
+            built to <span className="text-[#235361] underline decoration-[#FAAA93] decoration-wavy decoration-2 underline-offset-8">replace cPanel</span>.
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-base text-[#566E76] sm:text-xl sm:leading-relaxed">

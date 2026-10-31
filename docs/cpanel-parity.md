@@ -1,7 +1,7 @@
 # cPanel-class parity: what we learned from the cPanel installer
 
 CloudDeck aims to be cPanel-class hosting management, built original — no copied
-cPanel code, assets, or wording. This document records what the public 2026
+cPanel code, assets, or wording. This document records what the public
 cPanel layer-1 installer (v00189) actually does, based on reading its own
 scripts, and maps it to the CloudDeck plan.
 

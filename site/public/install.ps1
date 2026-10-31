@@ -70,7 +70,7 @@ function Write-Banner {
     Write-Host " | |___| | (_) | |_| | (_| | |_| |  __/ (__|   < "
     Write-Host "  \____|_|\___/ \__,_|\__,_|____/ \___|\___|_|\_\${clrReset}"
     Write-Host ""
-    Write-Host "${tcBgMarine}${tcSky}${clrBold}  CLOUDDECK  ${clrReset} ${tcPeach}The Modern cPanel Alternative Built for 2026${clrReset}"
+    Write-Host "${tcBgMarine}${tcSky}${clrBold}  CLOUDDECK  ${clrReset} ${tcPeach}The Modern, Lightweight cPanel Alternative${clrReset}"
     Write-Host "${tcSteel}Windows & WSL 2 Local Development Suite • Uni Palette Edition${clrReset}"
     Write-Host ""
 }

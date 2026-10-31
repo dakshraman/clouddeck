@@ -704,7 +704,7 @@ export default function SshPage() {
                       id="ssh-key-name"
                       value={genName}
                       onChange={(event) => setGenName(event.target.value)}
-                      placeholder="laptop-2026"
+                      placeholder="workstation-key"
                       autoComplete="off"
                       spellCheck={false}
                       autoFocus

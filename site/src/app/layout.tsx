@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "CloudDeck — The Modern cPanel Alternative Built for 2026",
+  title: "CloudDeck — Modern, Blazing-Fast cPanel Alternative",
   description:
     "Websites, multi-PHP (8.1–8.4), polyglot app runtimes, MariaDB, Postfix/Dovecot email, and PowerDNS — all from one elegant deck consuming under 50MB idle RAM with zero root web processes.",
   metadataBase: new URL("https://clouddeck.dakshraman.in"),

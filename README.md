@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>The modern, blazing-fast, open-source cPanel alternative built for 2026.</strong><br />
+  <strong>The modern, blazing-fast, open-source cPanel alternative.</strong><br />
   Websites, multi-PHP (8.1–8.4), polyglot app runtimes, MariaDB, production email, PowerDNS, 1-click panel SSL, and backups — all from one elegant deck, consuming <strong>under 50MB of idle RAM</strong> without ever exposing a root process to the browser.
 </p>
 
@@ -158,7 +158,7 @@ Web hosting panels haven't evolved in decades. **cPanel** charges exorbitant per
 
 How does CloudDeck compare against traditional and modern control panels?
 
-| Feature / Metric | 🚀 CloudDeck (2026) | 🏛️ cPanel / WHM | ⚠️ aaPanel / CyberPanel | 🐳 Coolify |
+| Feature / Metric | 🚀 CloudDeck | 🏛️ cPanel / WHM | ⚠️ aaPanel / CyberPanel | 🐳 Coolify |
 | :--- | :--- | :--- | :--- | :--- |
 | **Monthly Cost** | **$0 Free & Open Source** | **$30–$60+/mo** per server ($360–$720+/yr) | Freemium ($15–$25/mo for Pro plugins) | $0 self-hosted ($5/mo cloud) |
 | **Security Architecture** | **Unprivileged UI + Local Go Daemon** (Token-authenticated localhost API, typed exec arrays) | Monolithic root Perl/CGI web server (`whostmgrd`) | Web app runs directly as root (frequent RCE CVEs) | Container PaaS (requires `docker.sock` root access) |

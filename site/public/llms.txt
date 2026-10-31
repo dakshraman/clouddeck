@@ -1,6 +1,6 @@
 # CloudDeck
 
-> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative built for 2026. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS — consuming under 50MB of idle RAM with zero root web processes.
+> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS — consuming under 50MB of idle RAM with zero root web processes.
 
 ## What It Is
 
