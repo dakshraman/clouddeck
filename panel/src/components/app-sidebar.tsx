@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { CloudDeckLogo } from "@/components/brand/clouddeck-logo";
 import { Nav } from "@/components/nav";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -24,7 +24,7 @@ export function AppSidebar({ username, email }: { username: string; email: strin
             <SidebarMenuButton asChild size="lg" tooltip="CloudDeck">
               <Link href="/" aria-label="CloudDeck dashboard">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-                  <Layers size={16} aria-hidden="true" />
+                  <CloudDeckLogo size={18} aria-hidden="true" />
                 </span>
                 <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]/sidebar:hidden">
                   <span className="truncate text-sm font-semibold tracking-tight">CloudDeck</span>

@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Layers, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { CloudDeckLogo } from "@/components/brand/clouddeck-logo";
 import { readError } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -79,7 +80,7 @@ export function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sidebar-primary-foreground shadow-lg shadow-brand/20">
-            <Layers size={16} aria-hidden="true" />
+            <CloudDeckLogo size={18} aria-hidden="true" />
           </span>
           <span className="text-lg font-semibold tracking-tight text-foreground">CloudDeck</span>
         </div>
