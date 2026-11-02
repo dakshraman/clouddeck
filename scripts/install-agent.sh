@@ -137,6 +137,10 @@ fi
 # ---------------------------------------------------------------------------
 if command -v useradd >/dev/null 2>&1; then
   id clouddeck >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin clouddeck
+  if id www-data >/dev/null 2>&1; then
+    usermod -a -G www-data clouddeck 2>/dev/null || true
+    usermod -a -G clouddeck www-data 2>/dev/null || true
+  fi
 fi
 mkdir -p /var/lib/clouddeck/agent /www/wwwroot
 

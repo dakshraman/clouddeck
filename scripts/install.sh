@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.43"
+      VERSION="v0.6.44"
     fi
   fi
 }
@@ -1144,6 +1144,10 @@ run_linux_installer() {
       mkdir -p /www/wwwroot
       chown -R clouddeck:clouddeck /www/wwwroot 2>/dev/null || true
       chmod -R 775 /www /www/wwwroot 2>/dev/null || true
+      if id www-data >/dev/null 2>&1; then
+        usermod -a -G www-data clouddeck 2>/dev/null || true
+        usermod -a -G clouddeck www-data 2>/dev/null || true
+      fi
       usermod -aG sudo clouddeck 2>/dev/null || usermod -aG wheel clouddeck 2>/dev/null || true
       mkdir -p /etc/sudoers.d
       cat > /etc/sudoers.d/clouddeck << 'EOF'

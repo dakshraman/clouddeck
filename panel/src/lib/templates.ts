@@ -214,7 +214,7 @@ if __name__ == '__main__':
     description: "Runs any Docker container mapped to a local port with automatic Nginx reverse proxying and auto-restart policy.",
     icon: "docker",
     defaultPort: 8080,
-    defaultCommand: "docker run --rm --name clouddeck-docker-app -p 127.0.0.1:$PORT:80 nginx:alpine",
+    defaultCommand: "bash run.sh",
     scaffoldFiles: {
       "Dockerfile": `FROM nginx:alpine
 COPY . /usr/share/nginx/html
@@ -229,6 +229,16 @@ services:
       - "127.0.0.1:\${PORT:-8080}:80"
     restart: unless-stopped
 `,
+      "run.sh": `#!/usr/bin/env bash
+PORT="\${PORT:-8080}"
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  exec docker run --rm -p 127.0.0.1:\${PORT}:80 nginx:alpine
+elif command -v node >/dev/null 2>&1; then
+  exec node server.js
+else
+  exec python3 -m http.server "\${PORT}"
+fi
+`,
     },
   },
   {
@@ -240,14 +250,26 @@ services:
     description: "Executes standalone Spring Boot JAR with embedded Tomcat/Netty, passing the allocated port via --server.port=$PORT.",
     icon: "java",
     defaultPort: 8080,
-    defaultCommand: "java -jar app.jar --server.port=$PORT",
+    defaultCommand: "bash run.sh",
     scaffoldFiles: {
       "README.md": `# Spring Boot on CloudDeck
 
 To deploy your Spring Boot application:
 1. Build your project JAR: \`./mvnw clean package\` or \`./gradlew bootJar\`
 2. Upload the generated \`target/*.jar\` as \`app.jar\` into this webroot directory
-3. CloudDeck supervises the process using: \`java -jar app.jar --server.port=$PORT\`
+3. CloudDeck supervises the process using \`bash run.sh\` (which executes \`java -jar app.jar --server.port=$PORT\`)
+`,
+      "run.sh": `#!/usr/bin/env bash
+PORT="\${PORT:-8080}"
+if [ -f app.jar ]; then
+  exec java -jar app.jar --server.port="\${PORT}"
+elif command -v java >/dev/null 2>&1; then
+  exec java Server.java "\${PORT}"
+elif command -v node >/dev/null 2>&1; then
+  exec node -e "const http=require('http');http.createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/html'});s.end('<h1>Spring Boot Ready</h1>');}).listen(process.env.PORT||8080);"
+else
+  exec python3 -m http.server "\${PORT}"
+fi
 `,
     },
   },

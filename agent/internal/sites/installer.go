@@ -314,6 +314,17 @@ func (s *Service) resolveRunAs() (int, int, error) {
 	return u, g, nil
 }
 
+// resolvePhpUser returns the uid and gid for the user executing PHP-FPM
+// (typically www-data, nginx, or apache), falling back to the given defaults.
+func resolvePhpUser(fallbackUid, fallbackGid int) (int, int) {
+	for _, u := range []string{"www-data", "nginx", "apache", "http"} {
+		if uid, gid, err := runas.Lookup(u); err == nil {
+			return uid, gid
+		}
+	}
+	return fallbackUid, fallbackGid
+}
+
 // ---------------- WordPress Installer ----------------
 
 func (s *Service) installWordPress(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
@@ -444,8 +455,9 @@ require_once ABSPATH . 'wp-settings.php';
 	}
 	logs = append(logs, fmt.Sprintf("configured wp-config.php with database %s and cryptographic salts", opts.DBName))
 
-	// Apply 0755 for dirs, 0644 for files, chown if uid >= 0
-	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+	// Apply 0755 for dirs, 0644 for files, chown to PHP-FPM execution user (e.g. www-data)
+	phpUid, phpGid := resolvePhpUser(uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, phpUid, phpGid); err != nil {
 		return logs, err
 	}
 	logs = append(logs, "applied 0755/0644 webroot permissions")
@@ -627,9 +639,10 @@ func installLaravelWithComposer(ctx context.Context, targetRoot string, opts Tem
 	}
 	_ = os.WriteFile(envPath, []byte(envStr), 0o644)
 
-	_ = applyPermissions(filepath.Join(targetRoot, "storage"), 0o777, 0o666, -1, -1)
-	_ = applyPermissions(filepath.Join(targetRoot, "bootstrap", "cache"), 0o777, 0o666, -1, -1)
-	logs = append(logs, "applied recursive 0777 permissions on storage and bootstrap/cache")
+	phpUid, phpGid := resolvePhpUser(-1, -1)
+	_ = applyPermissions(filepath.Join(targetRoot, "storage"), 0o777, 0o666, phpUid, phpGid)
+	_ = applyPermissions(filepath.Join(targetRoot, "bootstrap", "cache"), 0o777, 0o666, phpUid, phpGid)
+	logs = append(logs, "applied recursive 0777 permissions on storage and bootstrap/cache (owned by PHP execution user)")
 	return logs, nil
 }
 
@@ -652,13 +665,15 @@ func replaceEnvKey(content, key, val string) string {
 
 func (s *Service) installLaravel(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
 	var logs []string
+	phpUid, phpGid := resolvePhpUser(uid, gid)
+
 	// Try official Composer installation first if composer is installed on host
 	composerLogs, err := installLaravelWithComposer(ctx, site.Root, opts)
 	if err == nil {
 		logs = append(logs, composerLogs...)
 		_ = applyPermissions(site.Root, 0o755, 0o644, uid, gid)
-		_ = applyPermissions(filepath.Join(site.Root, "storage"), 0o777, 0o666, -1, -1)
-		_ = applyPermissions(filepath.Join(site.Root, "bootstrap", "cache"), 0o777, 0o666, -1, -1)
+		_ = applyPermissions(filepath.Join(site.Root, "storage"), 0o777, 0o666, phpUid, phpGid)
+		_ = applyPermissions(filepath.Join(site.Root, "bootstrap", "cache"), 0o777, 0o666, phpUid, phpGid)
 		_ = os.Chmod(filepath.Join(site.Root, "artisan"), 0o755)
 		logs = append(logs, "configured permissions (0777 on storage & cache, 0755 on artisan)")
 
@@ -672,6 +687,9 @@ func (s *Service) installLaravel(ctx context.Context, site store.Site, opts Temp
 			} else {
 				logs = append(logs, "database schema migrated successfully (sessions, users, cache, jobs)")
 			}
+			// Re-apply PHP-FPM ownership to storage & bootstrap/cache after artisan commands executed as root
+			_ = applyPermissions(filepath.Join(site.Root, "storage"), 0o777, 0o666, phpUid, phpGid)
+			_ = applyPermissions(filepath.Join(site.Root, "bootstrap", "cache"), 0o777, 0o666, phpUid, phpGid)
 		}
 
 		logs = append(logs, "Laravel application installed successfully")
@@ -945,7 +963,8 @@ return [
 		}
 	}
 
-	// Create directories with specific 0775 permissions
+	// Create directories with specific 0775 permissions owned by PHP execution user
+	phpFallbackUid, phpFallbackGid := resolvePhpUser(uid, gid)
 	dirs775 := []string{
 		"storage/framework/views",
 		"storage/framework/sessions",
@@ -961,8 +980,8 @@ return [
 		if err := os.Chmod(target, 0o775); err != nil {
 			return logs, fmt.Errorf("chmod %s: %w", d, err)
 		}
-		if uid >= 0 && gid >= 0 {
-			_ = os.Chown(target, uid, gid)
+		if phpFallbackUid >= 0 && phpFallbackGid >= 0 {
+			_ = os.Chown(target, phpFallbackUid, phpFallbackGid)
 		}
 	}
 
@@ -1633,11 +1652,26 @@ server.listen(port, host, () => {
 }
 `
 
+	runSH := `#!/usr/bin/env bash
+PORT="${PORT:-8080}"
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  echo "Starting Docker container on port ${PORT}..."
+  exec docker run --rm -p 127.0.0.1:${PORT}:80 nginx:alpine
+elif command -v node >/dev/null 2>&1; then
+  echo "Docker daemon not running; launching standalone Node runner on port ${PORT}..."
+  exec node server.js
+else
+  echo "Launching standard Python HTTP runner on port ${PORT}..."
+  exec python3 -m http.server "${PORT}"
+fi
+`
+
 	files := map[string]string{
 		"Dockerfile":         dockerfile,
 		"docker-compose.yml": dockerCompose,
 		"server.js":          serverJS,
 		"package.json":       packageJSON,
+		"run.sh":             runSH,
 	}
 
 	for relPath, content := range files {
@@ -1645,13 +1679,18 @@ server.listen(port, host, () => {
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
-		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+		perm := os.FileMode(0o644)
+		if strings.HasSuffix(relPath, ".sh") {
+			perm = 0o755
+		}
+		if err := os.WriteFile(target, []byte(content), perm); err != nil {
 			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
+	_ = os.Chmod(filepath.Join(site.Root, "run.sh"), 0o755)
 	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
 		return logs, err
 	}
@@ -1764,10 +1803,64 @@ spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 		opts.DBPass,
 	)
 
+	serverJava := `import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+
+public class Server {
+    public static void main(String[] args) throws IOException {
+        int port = 8080;
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.isEmpty()) {
+            try { port = Integer.parseInt(envPort); } catch (Exception ignored) {}
+        } else if (args.length > 0) {
+            try { port = Integer.parseInt(args[0]); } catch (Exception ignored) {}
+        }
+        HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+        server.createContext("/", new HttpHandler() {
+            @Override
+            public void handle(HttpExchange exchange) throws IOException {
+                String response = "<!DOCTYPE html><html><head><title>Spring Boot on CloudDeck</title><style>body{font-family:ui-sans-serif,system-ui,sans-serif;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}div{background:#1e293b;border:1px solid #334155;padding:36px;border-radius:12px;text-align:center;max-width:500px;}h1{color:#6db33f;}p{color:#94a3b8;}</style></head><body><div><h1>Spring Boot Ready</h1><p>Java service active on port " + port + ". Build your application with <code>./mvnw clean package</code> and deploy <code>app.jar</code>.</p></div></body></html>";
+                byte[] bytes = response.getBytes();
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+                exchange.sendResponseHeaders(200, bytes.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(bytes);
+                os.close();
+            }
+        });
+        server.start();
+        System.out.println("Spring Boot standalone server listening on port " + port);
+    }
+}
+`
+
+	runSH := `#!/usr/bin/env bash
+PORT="${PORT:-8080}"
+if [ -f app.jar ]; then
+  echo "Starting Spring Boot JAR on port ${PORT}..."
+  exec java -jar app.jar --server.port="${PORT}"
+elif command -v java >/dev/null 2>&1; then
+  echo "Launching single-file Java HTTP server on port ${PORT}..."
+  exec java Server.java "${PORT}"
+elif command -v node >/dev/null 2>&1; then
+  echo "Java not detected; launching standalone Node runner on port ${PORT}..."
+  exec node -e "const http=require('http');http.createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});s.end('<!DOCTYPE html><html><head><title>Spring Boot Ready</title></head><body style=\"font-family:sans-serif;background:#0f172a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0\"><div style=\"background:#1e293b;padding:32px;border-radius:12px;text-align:center\"><h1 style=\"color:#6db33f\">Spring Boot Application Ready</h1><p style=\"color:#94a3b8\">Listening on port ' + (process.env.PORT||8080) + '. Upload app.jar or install Java runtime to run production JAR.</p></div></body></html>');}).listen(process.env.PORT||${PORT});"
+else
+  echo "Launching Python HTTP server on port ${PORT}..."
+  exec python3 -m http.server "${PORT}"
+fi
+`
+
 	files := map[string]string{
 		"pom.xml": pomXML,
 		"src/main/java/com/example/demo/Application.java": applicationJava,
 		"src/main/resources/application.properties":       appProperties,
+		"Server.java": serverJava,
+		"run.sh":      runSH,
 	}
 
 	for relPath, content := range files {
@@ -1775,13 +1868,18 @@ spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
-		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+		perm := os.FileMode(0o644)
+		if strings.HasSuffix(relPath, ".sh") {
+			perm = 0o755
+		}
+		if err := os.WriteFile(target, []byte(content), perm); err != nil {
 			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
+	_ = os.Chmod(filepath.Join(site.Root, "run.sh"), 0o755)
 	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
 		return logs, err
 	}
