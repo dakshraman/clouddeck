@@ -477,8 +477,8 @@ render_system_card() {
 }
 
 prompt_component_selection() {
-  # If non-interactive flag was explicitly passed or no tty attached, apply profile and return
-  if [ "$NON_INTERACTIVE" = "1" ] || [ "$HAS_TTY" = "0" ]; then
+  # If non-interactive flag was explicitly passed, no tty attached, or updating an existing installation, apply profile and return
+  if [ "$NON_INTERACTIVE" = "1" ] || [ "$HAS_TTY" = "0" ] || [ -f "$PREFIX/.clouddeck-install" ]; then
     case "$INSTALL_PROFILE" in
       fast)
         DO_EMAIL=0; DO_DNS=0; DO_SECURITY=0; DO_PHP_MULTI=0

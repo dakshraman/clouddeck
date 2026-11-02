@@ -844,6 +844,7 @@ function runInstaller(version, force) {
       String(AGENT_PORT),
       "--panel-port",
       String(PANEL_PORT),
+      "-y",
     ];
     if (version) args.push("--version", version);
     if (NO_SYSTEMD === "1") args.push("--no-systemd");
