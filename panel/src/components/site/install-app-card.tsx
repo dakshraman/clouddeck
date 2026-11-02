@@ -203,6 +203,8 @@ export function InstallAppCard({
           let runCmd = selectedTemplate.defaultCommand || "npm start";
           if (selectedTemplate.id === "nextjs") {
             runCmd = "node server.js";
+          } else if (selectedTemplate.id === "django" || selectedTemplate.id === "flask") {
+            runCmd = "python3 app.py";
           } else if (selectedTemplate.id === "docker") {
             runCmd = `docker run --rm --name ${selectedTemplate.id}-${cleanDomain} -p 127.0.0.1:${targetPort}:80 ${dockerImage}`;
           }

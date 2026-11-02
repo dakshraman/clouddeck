@@ -2,8 +2,10 @@ package sites
 
 import (
 	"bytes"
+	"context"
 	"text/template"
 
+	"clouddeck/agent/internal/safeexec"
 	"clouddeck/agent/internal/store"
 )
 
@@ -11,6 +13,7 @@ import (
 // Declaring it here keeps the sites package free of an apps import cycle.
 type AppLister interface {
 	ProxyFor(site string) []store.App
+	DeleteForSite(ctx context.Context, log safeexec.Logger, site string) error
 }
 
 // appProxy is one supervised app behind a site's vhost.

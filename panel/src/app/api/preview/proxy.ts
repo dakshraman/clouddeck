@@ -136,8 +136,8 @@ export async function proxyPreview(req: NextRequest, rawDomain: string, subpath:
             if (lower === "set-cookie") {
               const cookies = Array.isArray(val) ? val : [val];
               for (let c of cookies) {
-                // Strip domain restriction so cookie works on localhost preview
-                c = c.replace(/;\s*Domain=[^;]+/gi, "");
+                // Strip domain and secure restriction so cookie works in local preview
+                c = c.replace(/;\s*Domain=[^;]+/gi, "").replace(/;\s*Secure/gi, "");
                 responseHeaders.append("set-cookie", c);
               }
               continue;

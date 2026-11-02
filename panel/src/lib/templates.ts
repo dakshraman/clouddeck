@@ -100,7 +100,7 @@ SESSION_LIFETIME=120
     description: "Deploys a supervised Node.js process running Next.js App Router, mapped through Nginx reverse proxy with live WebSocket support.",
     icon: "nextjs",
     defaultPort: 3000,
-    defaultCommand: "npm run start",
+    defaultCommand: "node server.js",
     scaffoldFiles: {
       "package.json": JSON.stringify(
         {
@@ -146,7 +146,7 @@ server.listen(port, () => console.log('Next.js starter active on port ' + port))
     description: "Provisions Python WSGI application managed under Gunicorn, mapped to local port with static assets reverse-proxied.",
     icon: "django",
     defaultPort: 8000,
-    defaultCommand: "python3 -m gunicorn myproject.wsgi:application --bind 127.0.0.1:$PORT",
+    defaultCommand: "python3 app.py",
     scaffoldFiles: {
       "requirements.txt": `Django>=5.1
 gunicorn>=23.0.0
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     description: "Scaffolds app.py with Gunicorn production WSGI server, supervised by systemd and proxied through Nginx.",
     icon: "flask",
     defaultPort: 5000,
-    defaultCommand: "python3 -m gunicorn app:app --bind 127.0.0.1:$PORT",
+    defaultCommand: "python3 app.py",
     scaffoldFiles: {
       "requirements.txt": `Flask>=3.1.0
 gunicorn>=23.0.0

@@ -235,6 +235,13 @@ func (s *Service) provision(ctx context.Context, log tasks.LogFunc, site store.S
 }
 
 func (s *Service) deprovision(ctx context.Context, log tasks.LogFunc, site store.Site) error {
+	// Stop and remove any supervised background applications belonging to this site
+	if s.apps != nil {
+		if err := s.apps.DeleteForSite(ctx, log, site.Domain); err != nil {
+			log("warn", fmt.Sprintf("clean up apps for %s: %v", site.Domain, err))
+		}
+	}
+
 	confPath := s.confPath(site.Domain)
 	switch err := os.Remove(confPath); {
 	case err == nil:

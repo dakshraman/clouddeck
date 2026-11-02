@@ -147,9 +147,17 @@ func (s *Service) Create(ctx context.Context, log safeexec.Logger, in CreateInpu
 		if err != nil {
 			return App{}, err
 		}
-	}
-	if err := s.checkPortFree(site.Domain, port); err != nil {
-		return App{}, err
+	} else if err := s.checkPortFree(site.Domain, port); err != nil {
+		// If the requested port is the runtime default port and is busy, fall back to auto-allocating a free port
+		if in.Port == runtimes.DefaultPort(kind) {
+			if freePort, allocErr := s.allocatePort(site.Domain, kind); allocErr == nil {
+				port = freePort
+			} else {
+				return App{}, err
+			}
+		} else {
+			return App{}, err
+		}
 	}
 	if err := s.ensureRuntime(kind, in.Version, in.Bin); err != nil {
 		return App{}, err
@@ -286,6 +294,20 @@ func (s *Service) Delete(ctx context.Context, log safeexec.Logger, site, name st
 		return apierr.Internal(fmt.Sprintf("update nginx for %s: %v", site, err))
 	}
 	s.record(audit.Record{Action: "app.delete", Params: map[string]any{"site": site, "name": name}, Result: audit.ResultAccepted})
+	return nil
+}
+
+// DeleteForSite stops and removes every app belonging to a site.
+func (s *Service) DeleteForSite(ctx context.Context, log safeexec.Logger, site string) error {
+	for _, app := range s.st.ListApps() {
+		if app.Site == site {
+			spec := specFromStore(app)
+			if err := s.Remove(ctx, log, spec); err != nil {
+				log("warn", fmt.Sprintf("remove app %s on %s: %v", app.Name, site, err))
+			}
+			_ = s.st.DeleteApp(site, app.Name)
+		}
+	}
 	return nil
 }
 

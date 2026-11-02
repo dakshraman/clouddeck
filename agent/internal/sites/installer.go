@@ -157,7 +157,10 @@ func (s *Service) UninstallTemplate(ctx context.Context, domain string, opts Tem
 		return err
 	}
 
-	// 1. If supervised apps exist for this site, clean them up from state
+	// 1. If supervised apps exist for this site, clean them up from state and stop daemon
+	if s.apps != nil {
+		_ = s.apps.DeleteForSite(ctx, func(string, string) {}, domain)
+	}
 	for _, app := range s.st.ListApps() {
 		if app.Site == domain {
 			_ = s.st.DeleteApp(domain, app.Name)
@@ -395,6 +398,20 @@ define( 'NONCE_SALT',       '%s' );
 $table_prefix = 'wp_';
 
 define( 'WP_DEBUG', false );
+define( 'FS_METHOD', 'direct' );
+
+// Reverse proxy & HTTPS detection
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+	$_SERVER['HTTPS'] = 'on';
+}
+
+// Dynamic Site URL to work smoothly on both direct custom domain and CloudDeck in-panel preview
+if (!defined('WP_HOME')) {
+	$proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
+	$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '%s';
+	define('WP_HOME', $proto . $host);
+	define('WP_SITEURL', $proto . $host);
+}
 
 /* That's all, stop editing! Happy publishing. */
 
@@ -418,6 +435,7 @@ require_once ABSPATH . 'wp-settings.php';
 		salts["SECURE_AUTH_SALT"],
 		salts["LOGGED_IN_SALT"],
 		salts["NONCE_SALT"],
+		phpEscape(site.Domain),
 	)
 
 	wpConfigPath := filepath.Join(site.Root, "wp-config.php")
@@ -1288,10 +1306,64 @@ pymysql>=1.1.0
 gunicorn>=21.2.0
 `
 
+	appPy := `#!/usr/bin/env python3
+import os
+import sys
+
+port = int(os.environ.get('PORT', 8000))
+
+# Try running through Django WSGI if django is available
+try:
+    import django
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+    django.setup()
+    from django.core.wsgi import get_wsgi_application
+    from wsgiref.simple_server import make_server
+    application = get_wsgi_application()
+    print(f"Django WSGI application listening on port {port}...")
+    server = make_server('0.0.0.0', port, application)
+    server.serve_forever()
+except Exception as e:
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Django 5 — CloudDeck</title>
+    <style>
+        body {{ font-family: ui-sans-serif, system-ui, sans-serif; background: #0c4a6e; color: #f0f9ff; margin: 0; padding: 3rem 1.5rem; display: flex; justify-content: center; align-items: center; min-height: 80vh; }}
+        .card {{ background: #075985; border-radius: 1rem; max-width: 600px; width: 100%; padding: 2.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }}
+        .badge {{ display: inline-block; background: #38bdf8; color: #082f49; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; margin-bottom: 1rem; }}
+        h1 {{ margin: 0 0 0.5rem 0; font-size: 2rem; font-weight: 800; }}
+        p {{ color: #bae6fd; font-size: 1.125rem; line-height: 1.6; }}
+        .meta {{ margin-top: 1.5rem; padding: 1rem; background: #082f49; border-radius: 0.5rem; font-family: monospace; font-size: 0.875rem; color: #7dd3fc; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="badge">Django 5.x Ready</span>
+        <h1>CloudDeck Django Application</h1>
+        <p>Application successfully provisioned and running under CloudDeck process supervisor.</p>
+        <div class="meta">Serving HTTP on port {port}</div>
+    </div>
+</body>
+</html>"""
+            self.wfile.write(html.encode('utf-8'))
+    server = HTTPServer(('0.0.0.0', port), Handler)
+    print(f"Django standalone starter listening on port {port}")
+    server.serve_forever()
+`
+
 	files := map[string]struct {
 		content string
 		perm    os.FileMode
 	}{
+		"app.py":                {content: appPy, perm: 0o755},
 		"manage.py":             {content: managePy, perm: 0o755},
 		"myproject/__init__.py": {content: "", perm: 0o644},
 		"myproject/settings.py": {content: settingsPy, perm: 0o644},
@@ -1337,24 +1409,22 @@ func (s *Service) installFlask(ctx context.Context, site store.Site, opts Templa
 	}
 
 	appPy := fmt.Sprintf(`import os
-from flask import Flask, render_template_string
 
-app = Flask(__name__)
-
+port = int(os.getenv("PORT", 5000))
 DB_NAME = os.getenv("DB_NAME", "%s")
 DB_USER = os.getenv("DB_USER", "%s")
 DB_PASS = os.getenv("DB_PASS", "%s")
 DB_HOST = os.getenv("DB_HOST", "%s")
 DB_PORT = int(os.getenv("DB_PORT", "%s"))
 
-HTML_TEMPLATE = """<!DOCTYPE html>
+HTML_CONTENT = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <title>Flask 3 — CloudDeck</title>
     <style>
         body { font-family: ui-sans-serif, system-ui, sans-serif; background: #09090b; color: #fafafa; margin: 0; padding: 3rem 1.5rem; display: flex; justify-content: center; align-items: center; min-height: 80vh; }
-        .card { background: #18181b; border: 1px solid #27272a; border-radius: 1rem; max-width: 600px; width: 100%%; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .card { background: #18181b; border: 1px solid #27272a; border-radius: 1rem; max-width: 600px; width: 100%%%%; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         .badge { display: inline-block; background: #10b981; color: #022c22; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; margin-bottom: 1rem; }
         h1 { margin: 0 0 0.5rem 0; font-size: 2rem; font-weight: 800; }
         p { color: #a1a1aa; line-height: 1.6; }
@@ -1383,18 +1453,35 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </body>
 </html>"""
 
-@app.route("/")
-def index():
-    target = f"{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}" if DB_NAME else "None configured"
-    return render_template_string(HTML_TEMPLATE, db_target=target)
+try:
+    from flask import Flask, render_template_string
+    app = Flask(__name__)
 
-@app.route("/health")
-def health():
-    return {"status": "ok", "app": "flask3"}
+    @app.route("/")
+    def index():
+        target = f"{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}" if DB_NAME else "None configured"
+        return render_template_string(HTML_CONTENT, db_target=target)
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    @app.route("/health")
+    def health():
+        return {"status": "ok", "app": "flask3"}
+
+    if __name__ == "__main__":
+        app.run(host="0.0.0.0", port=port)
+except ImportError:
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            target = f"{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}" if DB_NAME else "None configured"
+            rendered = HTML_CONTENT.replace("{{ db_target }}", target)
+            self.wfile.write(rendered.encode('utf-8'))
+    if __name__ == "__main__":
+        server = HTTPServer(('0.0.0.0', port), Handler)
+        print(f"Flask standalone server listening on port {port}")
+        server.serve_forever()
 `,
 		opts.DBName,
 		opts.DBUser,

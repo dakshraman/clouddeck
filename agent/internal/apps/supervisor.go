@@ -44,9 +44,11 @@ func (s *Service) writeSystemdUnit(app Spec) error {
 	if _, ok := app.Env["PORT"]; !ok {
 		envLines.WriteString("Environment=" + quoteUnit("PORT="+strconv.Itoa(app.Port)) + "\n")
 	}
+	pathEnv := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	if app.Bin != "" {
-		envLines.WriteString("Environment=" + quoteUnit("PATH="+filepath.Dir(app.Bin)+":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin") + "\n")
+		pathEnv = filepath.Dir(app.Bin) + ":" + pathEnv
 	}
+	envLines.WriteString("Environment=" + quoteUnit("PATH="+pathEnv) + "\n")
 
 	unit := fmt.Sprintf(`# managed-by: clouddeck
 [Unit]
