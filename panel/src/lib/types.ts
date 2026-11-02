@@ -42,6 +42,22 @@ export interface Site {
   createdAt: string;
   updatedAt: string;
   wafEnabled?: boolean;
+  appTemplate?: string;
+  appMeta?: Record<string, string>;
+}
+
+export interface InstalledAppInfo {
+  installed: boolean;
+  template?: string;
+  name?: string;
+  version?: string;
+  runtime?: string;
+  status?: string;
+  webroot?: string;
+  adminUrl?: string;
+  siteUrl?: string;
+  meta?: Record<string, string>;
+  installedAt?: string;
 }
 
 export interface SiteListResponse {

@@ -27,6 +27,29 @@ type TemplateInstallOptions struct {
 	DBUser   string `json:"dbUser,omitempty"`
 	DBPass   string `json:"dbPass,omitempty"`
 	DBHost   string `json:"dbHost,omitempty"`
+	Port     int    `json:"port,omitempty"`
+	Title    string `json:"title,omitempty"`
+	Admin    string `json:"admin,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
+type TemplateUninstallOptions struct {
+	RemoveFiles bool `json:"removeFiles"`
+	RemoveDB    bool `json:"removeDb"`
+}
+
+type InstalledAppInfo struct {
+	Installed   bool              `json:"installed"`
+	Template    string            `json:"template"`
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
+	Runtime     string            `json:"runtime"`
+	Status      string            `json:"status"`
+	Webroot     string            `json:"webroot"`
+	AdminURL    string            `json:"adminUrl,omitempty"`
+	SiteURL     string            `json:"siteUrl"`
+	Meta        map[string]string `json:"meta,omitempty"`
+	InstalledAt string            `json:"installedAt,omitempty"`
 }
 
 const (
@@ -58,24 +81,221 @@ func (s *Service) InstallTemplate(ctx context.Context, domain string, opts Templ
 	}
 
 	tpl := strings.ToLower(strings.TrimSpace(opts.Template))
+	var installErr error
 	switch tpl {
 	case "wordpress":
-		return s.installWordPress(ctx, site, opts, uid, gid)
+		installErr = s.installWordPress(ctx, site, opts, uid, gid)
 	case "laravel":
-		return s.installLaravel(ctx, site, opts, uid, gid)
+		installErr = s.installLaravel(ctx, site, opts, uid, gid)
 	case "nextjs", "next.js":
-		return s.installNextJS(ctx, site, opts, uid, gid)
+		tpl = "nextjs"
+		installErr = s.installNextJS(ctx, site, opts, uid, gid)
 	case "django":
-		return s.installDjango(ctx, site, opts, uid, gid)
+		installErr = s.installDjango(ctx, site, opts, uid, gid)
 	case "flask":
-		return s.installFlask(ctx, site, opts, uid, gid)
+		installErr = s.installFlask(ctx, site, opts, uid, gid)
 	case "docker":
-		return s.installDocker(ctx, site, opts, uid, gid)
+		installErr = s.installDocker(ctx, site, opts, uid, gid)
 	case "springboot", "spring-boot":
-		return s.installSpringBoot(ctx, site, opts, uid, gid)
+		tpl = "springboot"
+		installErr = s.installSpringBoot(ctx, site, opts, uid, gid)
 	default:
 		return apierr.BadRequest("invalid_template", fmt.Sprintf("unsupported template %q", opts.Template))
 	}
+
+	if installErr != nil {
+		return installErr
+	}
+
+	meta := map[string]string{
+		"installedAt": time.Now().UTC().Format(time.RFC3339),
+		"template":    tpl,
+	}
+	if opts.DBName != "" {
+		meta["dbName"] = opts.DBName
+	}
+	if opts.DBUser != "" {
+		meta["dbUser"] = opts.DBUser
+	}
+	if opts.DBHost != "" {
+		meta["dbHost"] = opts.DBHost
+	}
+	if opts.Port > 0 {
+		meta["port"] = fmt.Sprintf("%d", opts.Port)
+	}
+	if opts.Title != "" {
+		meta["title"] = opts.Title
+	}
+	if opts.Admin != "" {
+		meta["admin"] = opts.Admin
+	}
+	if opts.Email != "" {
+		meta["email"] = opts.Email
+	}
+
+	site.AppTemplate = tpl
+	site.AppMeta = meta
+	if err := s.st.UpdateSite(domain, func(current *store.Site) {
+		current.AppTemplate = tpl
+		current.AppMeta = meta
+	}); err != nil {
+		return fmt.Errorf("persist site template metadata: %w", err)
+	}
+
+	// Apply updated Nginx configuration (which now routes to /public for frameworks if present)
+	_ = s.ApplyNginx(ctx, func(string, string) {}, site)
+	return nil
+}
+
+// UninstallTemplate removes the application template from the site, restores a default clean index.html,
+// cleans up any supervised background processes, and clears site template metadata.
+func (s *Service) UninstallTemplate(ctx context.Context, domain string, opts TemplateUninstallOptions) error {
+	site, err := s.Get(domain)
+	if err != nil {
+		return err
+	}
+
+	// 1. If supervised apps exist for this site, clean them up from state
+	for _, app := range s.st.ListApps() {
+		if app.Site == domain {
+			_ = s.st.DeleteApp(domain, app.Name)
+		}
+	}
+
+	// 2. Remove webroot contents if requested
+	if opts.RemoveFiles && site.Root != "" {
+		entries, err := os.ReadDir(site.Root)
+		if err == nil {
+			for _, entry := range entries {
+				target := filepath.Join(site.Root, entry.Name())
+				_ = os.RemoveAll(target)
+			}
+		}
+
+		// Restore clean default index.html
+		defaultIndex := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>%s</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0b0f19; color: #f3f4f6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #111827; border: 1px solid #1f2937; padding: 2.5rem; border-radius: 1rem; max-width: 480px; text-align: center; }
+        h1 { margin-top: 0; font-size: 1.5rem; }
+        p { color: #9ca3af; font-size: 0.95rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>%s is Ready</h1>
+        <p>This site is hosted on CloudDeck. Install an application from the control panel or upload your files to get started.</p>
+    </div>
+</body>
+</html>`, domain, domain)
+		_ = os.WriteFile(filepath.Join(site.Root, "index.html"), []byte(defaultIndex), 0o644)
+	}
+
+	site.AppTemplate = ""
+	site.AppMeta = nil
+	if err := s.st.UpdateSite(domain, func(current *store.Site) {
+		current.AppTemplate = ""
+		current.AppMeta = nil
+	}); err != nil {
+		return fmt.Errorf("reset site metadata: %w", err)
+	}
+
+	_ = s.ApplyNginx(ctx, func(string, string) {}, site)
+	return nil
+}
+
+// GetInstalledApp returns metadata on the currently installed application on a site.
+func (s *Service) GetInstalledApp(ctx context.Context, domain string) (InstalledAppInfo, error) {
+	site, err := s.Get(domain)
+	if err != nil {
+		return InstalledAppInfo{}, err
+	}
+
+	siteURL := fmt.Sprintf("http://%s", domain)
+	tpl := site.AppTemplate
+
+	// If no explicit app template was saved in state, attempt detection from webroot files
+	if tpl == "" && site.Root != "" {
+		if _, err := os.Stat(filepath.Join(site.Root, "wp-config.php")); err == nil {
+			tpl = "wordpress"
+		} else if _, err := os.Stat(filepath.Join(site.Root, "artisan")); err == nil {
+			tpl = "laravel"
+		} else if _, err := os.Stat(filepath.Join(site.Root, "next.config.mjs")); err == nil {
+			tpl = "nextjs"
+		} else if _, err := os.Stat(filepath.Join(site.Root, "manage.py")); err == nil {
+			tpl = "django"
+		} else if _, err := os.Stat(filepath.Join(site.Root, "app.py")); err == nil {
+			tpl = "flask"
+		} else {
+			// Check if any supervised apps are configured
+			for _, app := range s.st.ListApps() {
+				if app.Site == domain {
+					tpl = app.Kind
+					break
+				}
+			}
+		}
+	}
+
+	if tpl == "" {
+		return InstalledAppInfo{
+			Installed: false,
+			SiteURL:   siteURL,
+			Webroot:   site.Root,
+		}, nil
+	}
+
+	info := InstalledAppInfo{
+		Installed:   true,
+		Template:    tpl,
+		Status:      "running",
+		Webroot:     site.Root,
+		SiteURL:     siteURL,
+		Meta:        site.AppMeta,
+		InstalledAt: site.AppMeta["installedAt"],
+	}
+
+	switch tpl {
+	case "wordpress":
+		info.Name = "WordPress"
+		info.Version = "6.7.1"
+		info.Runtime = "php"
+		info.AdminURL = fmt.Sprintf("http://%s/wp-admin", domain)
+	case "laravel":
+		info.Name = "Laravel 11"
+		info.Version = "11.x"
+		info.Runtime = "php"
+	case "nextjs":
+		info.Name = "Next.js 15"
+		info.Version = "15.1"
+		info.Runtime = "node"
+	case "django":
+		info.Name = "Django 5"
+		info.Version = "5.1"
+		info.Runtime = "python"
+		info.AdminURL = fmt.Sprintf("http://%s/admin", domain)
+	case "flask":
+		info.Name = "Flask 3"
+		info.Version = "3.1"
+		info.Runtime = "python"
+	case "docker":
+		info.Name = "Docker Container"
+		info.Version = "latest"
+		info.Runtime = "docker"
+	case "springboot":
+		info.Name = "Spring Boot 3"
+		info.Version = "3.3"
+		info.Runtime = "java"
+	default:
+		info.Name = strings.ToUpper(tpl[:1]) + tpl[1:]
+		info.Runtime = "custom"
+	}
+
+	return info, nil
 }
 
 func (s *Service) resolveRunAs() (int, int, error) {

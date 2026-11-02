@@ -149,7 +149,7 @@ func (s *Service) Start(cols, rows int, dir ...string) (Session, error) {
 	cmd.Stdout = slave
 	cmd.Stderr = slave
 	homeEnv := owner.HomeDir
-	if homeEnv == "" {
+	if homeEnv == "" || strings.Contains(homeEnv, "panel") {
 		homeEnv = chosenDir
 	}
 	cmd.Env = []string{
@@ -648,8 +648,9 @@ func ensureSudoers(username string) {
 // resolveDir picks the initial working directory for a new terminal session.
 // Priority:
 // a) If explicit dir argument is provided and is a valid directory, use it.
-// b) Else, check cfg.Webroot. If it exists or can be created, use it.
-// c) Else, fallback to /var/www, then home, then /.
+// b) Else, webroot (/www/wwwroot or configured cfg.Webroot) where all sites live.
+// c) Else, fallback to /var/www, /home, /.
+// It strictly avoids landing inside internal panel state directories containing users.json.
 func (s *Service) resolveDir(home string, dir ...string) string {
 	var explicit string
 	if len(dir) > 0 && dir[0] != "" {
@@ -660,36 +661,44 @@ func (s *Service) resolveDir(home string, dir ...string) string {
 			return explicit
 		}
 	}
+
 	if s.cfg.Webroot != "" {
 		if fi, err := os.Stat(s.cfg.Webroot); err == nil && fi.IsDir() {
 			ensureDirAccessible(s.cfg.Webroot)
 			return s.cfg.Webroot
 		}
-		if err := os.MkdirAll(s.cfg.Webroot, 0o755); err == nil {
+		if err := os.MkdirAll(s.cfg.Webroot, 0o775); err == nil {
 			ensureDirAccessible(s.cfg.Webroot)
 			if fi, err := os.Stat(s.cfg.Webroot); err == nil && fi.IsDir() {
 				return s.cfg.Webroot
 			}
 		}
 	}
+
 	if fi, err := os.Stat("/var/www"); err == nil && fi.IsDir() {
 		return "/var/www"
 	}
-	if fi, err := os.Stat(home); err == nil && fi.IsDir() {
-		return home
+
+	// Never use home if it's the internal panel directory with users.json
+	isInternalState := strings.Contains(home, "panel") || strings.Contains(home, "clouddeck")
+	if !isInternalState && home != "" {
+		if fi, err := os.Stat(home); err == nil && fi.IsDir() {
+			return home
+		}
 	}
+
 	return "/"
 }
 
 // ensureDirAccessible ensures that path has at least readable and executable
-// permissions (0755) so the terminal user can traverse and access it.
+// permissions (0755/0775) so the terminal user can traverse and access it.
 func ensureDirAccessible(path string) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return
 	}
 	perm := fi.Mode().Perm()
-	if perm&0o755 != 0o755 {
-		_ = os.Chmod(path, perm|0o755)
+	if perm&0o775 != 0o775 {
+		_ = os.Chmod(path, perm|0o775)
 	}
 }

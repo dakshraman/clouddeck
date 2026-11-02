@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     await requireAuth();
     const domain = await resolveDomain(ctx);
     const body = await parseJsonBody(req);
-    const { template, dbName, dbUser, dbPass, dbHost } = body;
+    const { template, dbName, dbUser, dbPass, dbHost, port, title, admin, email } = body;
 
     if (typeof template !== "string" || !template.trim()) {
       throw new HttpError(400, "template is required", "missing_template");
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
       res = await fetch(`${config.agentUrl}/v1/sites/${encodeURIComponent(domain)}/install-template`, {
         method: "POST",
         headers: agentHeaders("application/json"),
-        body: JSON.stringify({ template, dbName, dbUser, dbPass, dbHost }),
+        body: JSON.stringify({ template, dbName, dbUser, dbPass, dbHost, port, title, admin, email }),
         cache: "no-store",
         signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
       });

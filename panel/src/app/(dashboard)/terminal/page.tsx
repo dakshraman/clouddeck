@@ -9,7 +9,7 @@ import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/components/ui/cn";
 import { Maximize2, Minimize2, Play, Square, Terminal as TerminalIcon } from "lucide-react";
@@ -476,39 +476,43 @@ export default function TerminalPage() {
               </div>
             </CardHeader>
 
-            <CardBody className={cn("p-4 sm:p-5", fullPage && "flex min-h-0 flex-1 flex-col")}>
+            <div className={cn("relative flex-1 bg-[#0a0a0a]", fullPage && "flex min-h-0 flex-col")}>
               {!terminalEnabled ? (
-                <Alert variant="warning">
-                  <p className="font-medium">The web terminal is disabled.</p>
-                  <p className="mt-1">
-                    The agent is running in dry-run mode, so it refuses to spawn shells (
-                    <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
-                      term_disabled
-                    </code>
-                    ). Restart the agent without dry-run to enable it.
-                  </p>
-                </Alert>
+                <div className="p-4 sm:p-6">
+                  <Alert variant="warning">
+                    <p className="font-medium">The web terminal is disabled.</p>
+                    <p className="mt-1">
+                      The agent is running in dry-run mode, so it refuses to spawn shells (
+                      <code className="rounded bg-background/60 px-1 py-0.5 font-mono text-xs text-foreground">
+                        term_disabled
+                      </code>
+                      ). Restart the agent without dry-run to enable it.
+                    </p>
+                  </Alert>
+                </div>
               ) : (
                 <>
                   {startError ? (
-                    <Alert variant="error" className="mb-3">
-                      {startError}
-                    </Alert>
+                    <div className="p-3 pb-0">
+                      <Alert variant="error">{startError}</Alert>
+                    </div>
                   ) : null}
                   {streamNotice ? (
-                    <Alert variant="warning" className="mb-3">
-                      {streamNotice}
-                    </Alert>
+                    <div className="p-3 pb-0">
+                      <Alert variant="warning">{streamNotice}</Alert>
+                    </div>
                   ) : null}
                   {phase === "ended" ? (
-                    <Alert variant="info" className="mb-3">
-                      The shell session ended. Its output is kept above for reference. Click &ldquo;Start session&rdquo; to begin a new session.
-                    </Alert>
+                    <div className="p-3 pb-0">
+                      <Alert variant="info">
+                        The shell session ended. Output is retained above. Click &ldquo;Start session&rdquo; to begin a new session.
+                      </Alert>
+                    </div>
                   ) : null}
 
                   <div
                     className={cn(
-                      "relative overflow-hidden rounded-lg border border-border bg-[#0a0a0a]",
+                      "relative w-full p-2.5 sm:p-4",
                       fullPage && "flex min-h-0 flex-1 flex-col",
                     )}
                   >
@@ -516,7 +520,7 @@ export default function TerminalPage() {
                       ref={containerRef}
                       className={cn(
                         "w-full",
-                        fullPage ? "h-full min-h-0 flex-1" : "h-[72vh] min-h-[420px]",
+                        fullPage ? "h-full min-h-0 flex-1" : "h-[74vh] min-h-[460px]",
                       )}
                     />
                     {overlayVisible ? (
@@ -544,7 +548,7 @@ export default function TerminalPage() {
                   </div>
                 </>
               )}
-            </CardBody>
+            </div>
           </Card>
         </div>
       ) : null}

@@ -20,6 +20,7 @@ import { PhpCard } from "@/components/site/php-card";
 import { SecurityCard } from "@/components/site/security-card";
 import { WafCard } from "@/components/site/waf-card";
 import { SiteAppCard } from "@/components/site/app-card";
+import { InstalledAppCard } from "@/components/site/installed-app-card";
 import { InstallAppCard } from "@/components/site/install-app-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
@@ -473,10 +474,13 @@ export function SiteDetail({ domain }: { domain: string }) {
       </TabPanel>
 
       <TabPanel id="apps" active={tab === "apps"}>
-        <SiteAppCard
+        <InstalledAppCard
           domain={site.domain}
           refreshTrigger={appsRefreshTrigger}
-          onProcessChanged={() => setAppsRefreshTrigger((v) => v + 1)}
+          onAppUninstalled={() => {
+            void load();
+            setAppsRefreshTrigger((v) => v + 1);
+          }}
         />
         <InstallAppCard
           domain={site.domain}
@@ -485,6 +489,11 @@ export function SiteDetail({ domain }: { domain: string }) {
             void load();
             setAppsRefreshTrigger((v) => v + 1);
           }}
+        />
+        <SiteAppCard
+          domain={site.domain}
+          refreshTrigger={appsRefreshTrigger}
+          onProcessChanged={() => setAppsRefreshTrigger((v) => v + 1)}
         />
       </TabPanel>
 

@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.37"
+      VERSION="v0.6.38"
     fi
   fi
 }
@@ -1127,14 +1127,19 @@ run_linux_installer() {
       ok "Web panel bundle installed."
     fi
 
-    # Unprivileged user for the web panel
+    # Web panel & terminal system user
     PANEL_USER=""
     if command -v useradd >/dev/null 2>&1; then
-      id clouddeck >/dev/null 2>&1 || useradd -r -s /bin/bash -d "$DATADIR/panel" clouddeck 2>/dev/null || true
+      id clouddeck >/dev/null 2>&1 || useradd -r -s /bin/bash -d /www/wwwroot clouddeck 2>/dev/null || true
       id clouddeck >/dev/null 2>&1 && PANEL_USER="clouddeck"
     fi
 
     if id clouddeck >/dev/null 2>&1; then
+      # Ensure home directory is webroot where sites are located, not panel internal state
+      usermod -d /www/wwwroot clouddeck 2>/dev/null || true
+      mkdir -p /www/wwwroot
+      chown -R clouddeck:clouddeck /www/wwwroot 2>/dev/null || true
+      chmod -R 775 /www /www/wwwroot 2>/dev/null || true
       usermod -aG sudo clouddeck 2>/dev/null || usermod -aG wheel clouddeck 2>/dev/null || true
       mkdir -p /etc/sudoers.d
       cat > /etc/sudoers.d/clouddeck << 'EOF'
@@ -1170,6 +1175,7 @@ AGENT_WEB_RUNAS=clouddeck
 AGENT_TERM_USER=clouddeck
 AGENT_MODSEC_CONF=/etc/nginx/modsec/clouddeck.conf
 AGENT_BACKUP_DIR=$DATADIR/agent/backups
+AGENT_WEBROOT=/www/wwwroot
 EOF
     chmod 600 "$ETCDIR/agent.env"
     ok "Wrote agent configuration: $ETCDIR/agent.env"

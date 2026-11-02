@@ -40,7 +40,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.37"
+const Version = "0.6.38"
 
 const maxBodyBytes = 1 << 20
 
@@ -87,6 +87,8 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("DELETE /v1/sites/{domain}", s.handleDeleteSite)
 	mux.HandleFunc("POST /v1/sites/{domain}/ssl", s.handleIssueSSL)
 	mux.HandleFunc("POST /v1/sites/{domain}/install-template", s.handleInstallTemplate)
+	mux.HandleFunc("POST /v1/sites/{domain}/uninstall-template", s.handleUninstallTemplate)
+	mux.HandleFunc("GET /v1/sites/{domain}/app-installation", s.handleGetInstalledApp)
 
 	mux.HandleFunc("GET /v1/sites/{domain}/files", s.handleFileList)
 	mux.HandleFunc("GET /v1/sites/{domain}/files/content", s.handleFileRead)
@@ -431,6 +433,30 @@ func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
 		"template": req.Template,
 		"domain":   domain,
 	})
+}
+
+func (s *Server) handleUninstallTemplate(w http.ResponseWriter, r *http.Request) {
+	var req sites.TemplateUninstallOptions
+	_ = decodeBody(w, r, &req) // defaults are fine if empty body
+	domain := r.PathValue("domain")
+	if err := s.sites.UninstallTemplate(r.Context(), domain, req); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "uninstalled",
+		"domain": domain,
+	})
+}
+
+func (s *Server) handleGetInstalledApp(w http.ResponseWriter, r *http.Request) {
+	domain := r.PathValue("domain")
+	info, err := s.sites.GetInstalledApp(r.Context(), domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
