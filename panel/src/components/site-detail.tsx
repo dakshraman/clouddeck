@@ -22,6 +22,7 @@ import { WafCard } from "@/components/site/waf-card";
 import { SiteAppCard } from "@/components/site/app-card";
 import { InstalledAppCard } from "@/components/site/installed-app-card";
 import { InstallAppCard } from "@/components/site/install-app-card";
+import { GitCard } from "@/components/site/git-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
@@ -50,6 +51,7 @@ type SiteTabId =
   | "cron"
   | "php"
   | "apps"
+  | "git"
   | "security"
   | "usage"
   | "logs";
@@ -61,6 +63,7 @@ const SITE_TABS: { id: SiteTabId; label: string }[] = [
   { id: "cron", label: "Cron jobs" },
   { id: "php", label: "PHP" },
   { id: "apps", label: "Applications" },
+  { id: "git", label: "Git & CI/CD" },
   { id: "security", label: "Security" },
   { id: "usage", label: "Usage & stats" },
   { id: "logs", label: "Logs" },
@@ -495,6 +498,10 @@ export function SiteDetail({ domain }: { domain: string }) {
           refreshTrigger={appsRefreshTrigger}
           onProcessChanged={() => setAppsRefreshTrigger((v) => v + 1)}
         />
+      </TabPanel>
+
+      <TabPanel id="git" active={tab === "git"}>
+        <GitCard domain={site.domain} />
       </TabPanel>
 
       <TabPanel id="security" active={tab === "security"}>

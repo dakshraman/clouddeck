@@ -44,6 +44,37 @@ export interface Site {
   wafEnabled?: boolean;
   appTemplate?: string;
   appMeta?: Record<string, string>;
+  git?: GitConfig;
+}
+
+export interface DeployRecord {
+  id: string;
+  commitHash?: string;
+  commitMsg?: string;
+  author?: string;
+  trigger: "manual" | "webhook";
+  status: "succeeded" | "failed" | "running" | "skipped";
+  startedAt: string;
+  finishedAt?: string;
+  durationMs?: number;
+  logs?: string;
+}
+
+export interface GitConfig {
+  repoUrl?: string;
+  branch?: string;
+  buildCommand?: string;
+  autoDeploy?: boolean;
+  webhookSecret?: string;
+  deployKeyPublic?: string;
+  deployKeyPrivate?: string;
+  lastCommitHash?: string;
+  lastCommitMsg?: string;
+  lastCommitAuthor?: string;
+  lastCommitTime?: string;
+  lastDeployAt?: string;
+  lastDeployStatus?: "succeeded" | "failed" | "deploying" | "idle";
+  history?: DeployRecord[];
 }
 
 export interface InstalledAppInfo {

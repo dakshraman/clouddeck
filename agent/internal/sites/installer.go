@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -262,20 +263,20 @@ func (s *Service) GetInstalledApp(ctx context.Context, domain string) (Installed
 	switch tpl {
 	case "wordpress":
 		info.Name = "WordPress"
-		info.Version = "6.7.1"
+		info.Version = "7.1.4"
 		info.Runtime = "php"
 		info.AdminURL = fmt.Sprintf("http://%s/wp-admin", domain)
 	case "laravel":
-		info.Name = "Laravel 11"
-		info.Version = "11.x"
+		info.Name = "Laravel 13"
+		info.Version = "13.x"
 		info.Runtime = "php"
 	case "nextjs":
-		info.Name = "Next.js 15"
-		info.Version = "15.1"
+		info.Name = "Next.js 16"
+		info.Version = "16.4"
 		info.Runtime = "node"
 	case "django":
-		info.Name = "Django 5"
-		info.Version = "5.1"
+		info.Name = "Django 6"
+		info.Version = "6.1"
 		info.Runtime = "python"
 		info.AdminURL = fmt.Sprintf("http://%s/admin", domain)
 	case "flask":
@@ -288,7 +289,7 @@ func (s *Service) GetInstalledApp(ctx context.Context, domain string) (Installed
 		info.Runtime = "docker"
 	case "springboot":
 		info.Name = "Spring Boot 3"
-		info.Version = "3.3"
+		info.Version = "3.4"
 		info.Runtime = "java"
 	default:
 		info.Name = strings.ToUpper(tpl[:1]) + tpl[1:]
@@ -484,7 +485,99 @@ func extractWordPressTarball(tarballPath, targetRoot string) error {
 
 // ---------------- Laravel Installer ----------------
 
+func installLaravelWithComposer(ctx context.Context, targetRoot string, opts TemplateInstallOptions) error {
+	composerBin, err := exec.LookPath("composer")
+	if err != nil {
+		return err
+	}
+
+	tmpDir, err := os.MkdirTemp("", "clouddeck-laravel-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cmd := exec.CommandContext(ctx, composerBin, "create-project", "--prefer-dist", "--no-dev", "laravel/laravel", tmpDir, "--no-interaction")
+	cmd.Env = os.Environ()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("composer create-project: %w (output: %s)", err, string(out))
+	}
+
+	err = filepath.Walk(tmpDir, func(srcPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(tmpDir, srcPath)
+		if err != nil || rel == "." {
+			return nil
+		}
+		destPath := filepath.Join(targetRoot, rel)
+		if info.IsDir() {
+			return os.MkdirAll(destPath, 0o755)
+		}
+		srcFile, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer srcFile.Close()
+		destFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+		_, err = io.Copy(destFile, srcFile)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("copy laravel files: %w", err)
+	}
+
+	envPath := filepath.Join(targetRoot, ".env")
+	envData, _ := os.ReadFile(envPath)
+	envStr := string(envData)
+	if opts.DBName != "" {
+		envStr = replaceEnvKey(envStr, "DB_CONNECTION", "mysql")
+		envStr = replaceEnvKey(envStr, "DB_DATABASE", opts.DBName)
+		envStr = replaceEnvKey(envStr, "DB_USERNAME", opts.DBUser)
+		envStr = replaceEnvKey(envStr, "DB_PASSWORD", opts.DBPass)
+		dbHost := opts.DBHost
+		if dbHost == "" {
+			dbHost = "127.0.0.1"
+		}
+		envStr = replaceEnvKey(envStr, "DB_HOST", dbHost)
+	}
+	_ = os.WriteFile(envPath, []byte(envStr), 0o644)
+
+	_ = os.Chmod(filepath.Join(targetRoot, "storage"), 0o775)
+	_ = os.Chmod(filepath.Join(targetRoot, "bootstrap", "cache"), 0o775)
+	return nil
+}
+
+func replaceEnvKey(content, key, val string) string {
+	lines := strings.Split(content, "\n")
+	found := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, key+"=") {
+			lines[i] = fmt.Sprintf("%s=%s", key, val)
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(lines, fmt.Sprintf("%s=%s", key, val))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (s *Service) installLaravel(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+	// Try official Composer installation first if composer is installed on host
+	if err := installLaravelWithComposer(ctx, site.Root, opts); err == nil {
+		_ = applyPermissions(site.Root, 0o775, 0o644, uid, gid)
+		_ = os.Chmod(filepath.Join(site.Root, "artisan"), 0o755)
+		return nil
+	}
+
 	publicDir := filepath.Join(site.Root, "public")
 	if err := os.MkdirAll(publicDir, 0o755); err != nil {
 		return fmt.Errorf("create public dir: %w", err)
@@ -787,12 +880,12 @@ func (s *Service) installNextJS(ctx context.Context, site store.Site, opts Templ
     "start": "node server.js"
   },
   "dependencies": {
-    "next": "^15.0.0",
+    "next": "^16.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.0.0"
@@ -812,8 +905,8 @@ export default nextConfig;
 	appLayout := `import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "CloudDeck Next.js 15 Dashboard",
-  description: "Next.js 15 and React 19 application managed by CloudDeck",
+  title: "CloudDeck Next.js 16 Dashboard",
+  description: "Next.js 16 and React 19 application managed by CloudDeck",
 };
 
 export default function RootLayout({
@@ -836,7 +929,7 @@ export default function RootLayout({
     <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "3rem 1.5rem" }}>
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "inline-block", background: "#1e3a8a", color: "#60a5fa", padding: "0.25rem 0.75rem", borderRadius: "9999px", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-          Next.js 15 &amp; React 19
+          Next.js 16 &amp; React 19
         </div>
         <h1 style={{ fontSize: "2.25rem", fontWeight: 800, margin: "0 0 0.5rem 0", letterSpacing: "-0.025em" }}>
           Application Dashboard

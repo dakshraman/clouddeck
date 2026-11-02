@@ -103,6 +103,41 @@ type Site struct {
 	// Application template installed on this site (e.g. wordpress, laravel, nextjs, django, flask, docker)
 	AppTemplate string            `json:"appTemplate,omitempty"`
 	AppMeta     map[string]string `json:"appMeta,omitempty"`
+
+	// Git & CI/CD deployment configuration
+	Git *GitConfig `json:"git,omitempty"`
+}
+
+// GitConfig stores repository and CI/CD deployment configuration for a site.
+type GitConfig struct {
+	RepoURL          string         `json:"repoUrl"`
+	Branch           string         `json:"branch"`
+	BuildCommand     string         `json:"buildCommand,omitempty"`
+	AutoDeploy       bool           `json:"autoDeploy"`
+	WebhookSecret    string         `json:"webhookSecret"`
+	DeployKeyPublic  string         `json:"deployKeyPublic,omitempty"`
+	DeployKeyPrivate string         `json:"deployKeyPrivate,omitempty"`
+	LastCommitHash   string         `json:"lastCommitHash,omitempty"`
+	LastCommitMsg    string         `json:"lastCommitMsg,omitempty"`
+	LastCommitAuthor string         `json:"lastCommitAuthor,omitempty"`
+	LastCommitTime   string         `json:"lastCommitTime,omitempty"`
+	LastDeployAt     string         `json:"lastDeployAt,omitempty"`
+	LastDeployStatus string         `json:"lastDeployStatus,omitempty"`
+	History          []DeployRecord `json:"history,omitempty"`
+}
+
+// DeployRecord represents one build/deployment execution.
+type DeployRecord struct {
+	ID         string    `json:"id"`
+	CommitHash string    `json:"commitHash,omitempty"`
+	CommitMsg  string    `json:"commitMsg,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	Trigger    string    `json:"trigger"` // "manual" or "webhook"
+	Status     string    `json:"status"`  // "succeeded", "failed", "running"
+	StartedAt  time.Time `json:"startedAt"`
+	FinishedAt time.Time `json:"finishedAt,omitempty"`
+	DurationMs int64     `json:"durationMs,omitempty"`
+	Logs       string    `json:"logs,omitempty"`
 }
 
 // LogEntry is one task log line.

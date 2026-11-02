@@ -19,7 +19,7 @@ export const INDUSTRIAL_APPS: IndustrialAppTemplate[] = [
     name: "WordPress",
     category: "php",
     runtime: "php",
-    tagline: "World's most popular CMS & WooCommerce eCommerce platform",
+    tagline: "World's most popular CMS (WordPress 7.1.4 stable)",
     description: "Configures PHP-FPM, automated MySQL database & user creation, secure wp-config.php with random salts, and Nginx permalink rewrite rules.",
     icon: "wordpress",
     requiresDatabase: true,
@@ -47,7 +47,7 @@ if (file_exists(__DIR__ . '/wp-blog-header.php')) {
     name: "Laravel",
     category: "php",
     runtime: "php",
-    tagline: "The PHP Framework for Web Artisans",
+    tagline: "The PHP Framework for Web Artisans (Laravel 13.x)",
     description: "Provisions public/ document root, FastCGI Nginx routing, .env configuration with unique APP_KEY, and storage/cache permission isolation.",
     icon: "laravel",
     requiresDatabase: true,
@@ -64,7 +64,7 @@ echo "<style>body{font-family:system-ui,-apple-system,sans-serif;background:#0d1
 echo ".card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:32px;max-width:520px;text-align:center;}";
 echo "h1{color:#faaa93;font-size:26px;margin-bottom:10px;}p{color:#8b949e;font-size:14px;line-height:1.6;}";
 echo ".badge{display:inline-block;background:#235361;color:#74b8cc;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:16px;}</style></head>";
-echo "<body><div class='card'><span class='badge'>Laravel v11 / Modern Stack</span><h1>Laravel Ready</h1><p>Webroot mapped to <code>public/</code>. Upload your Laravel project or run <code>composer create-project laravel/laravel .</code> via the CloudDeck Terminal.</p></div></body></html>";
+echo "<body><div class='card'><span class='badge'>Laravel v13 / Modern Stack</span><h1>Laravel Ready</h1><p>Webroot mapped to <code>public/</code>. Upload your Laravel project or run <code>composer create-project laravel/laravel .</code> via the CloudDeck Terminal.</p></div></body></html>";
 `,
       ".env": `APP_NAME="CloudDeck Laravel"
 APP_ENV=production
@@ -96,7 +96,7 @@ SESSION_LIFETIME=120
     name: "Next.js",
     category: "node",
     runtime: "node",
-    tagline: "The React Framework for the Web with App Router & SSR",
+    tagline: "The React Framework for the Web with App Router & React 19 (Next.js 16.x)",
     description: "Deploys a supervised Node.js process running Next.js App Router, mapped through Nginx reverse proxy with live WebSocket support.",
     icon: "nextjs",
     defaultPort: 3000,
@@ -115,7 +115,7 @@ SESSION_LIFETIME=120
           dependencies: {
             react: "^19.0.0",
             "react-dom": "^19.0.0",
-            next: "^15.4.0",
+            next: "^16.4.0",
           },
         },
         null,

@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"clouddeck/agent/internal/apierr"
@@ -22,6 +23,7 @@ import (
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/firewall"
 	"clouddeck/agent/internal/ftp"
+	"clouddeck/agent/internal/git"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
@@ -40,7 +42,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.38"
+const Version = "0.6.39"
 
 const maxBodyBytes = 1 << 20
 
@@ -67,11 +69,12 @@ type Server struct {
 	security *security.Service
 	panelSSL *ssl.PanelSSL
 	audit    *audit.Log
+	git      *git.Service
 }
 
 // New builds the HTTP handler.
-func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, audit: auditLog}
+func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, gitSvc *git.Service, auditLog *audit.Log) http.Handler {
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -89,6 +92,13 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/sites/{domain}/install-template", s.handleInstallTemplate)
 	mux.HandleFunc("POST /v1/sites/{domain}/uninstall-template", s.handleUninstallTemplate)
 	mux.HandleFunc("GET /v1/sites/{domain}/app-installation", s.handleGetInstalledApp)
+
+	mux.HandleFunc("GET /v1/sites/{domain}/git", s.handleGetSiteGit)
+	mux.HandleFunc("PUT /v1/sites/{domain}/git", s.handleSaveSiteGit)
+	mux.HandleFunc("DELETE /v1/sites/{domain}/git", s.handleRemoveSiteGit)
+	mux.HandleFunc("POST /v1/sites/{domain}/git/deploy", s.handleDeploySiteGit)
+	mux.HandleFunc("GET /v1/sites/{domain}/git/history", s.handleGetSiteGitHistory)
+	mux.HandleFunc("POST /v1/sites/{domain}/git/webhook", s.handleWebhookSiteGit)
 
 	mux.HandleFunc("GET /v1/sites/{domain}/files", s.handleFileList)
 	mux.HandleFunc("GET /v1/sites/{domain}/files/content", s.handleFileRead)
@@ -253,7 +263,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 
 func (s *Server) authenticated(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/health" {
+		if r.URL.Path == "/v1/health" || strings.HasSuffix(r.URL.Path, "/git/webhook") {
 			next.ServeHTTP(w, r)
 			return
 		}

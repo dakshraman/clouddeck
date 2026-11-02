@@ -22,6 +22,7 @@ import (
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/firewall"
 	"clouddeck/agent/internal/ftp"
+	"clouddeck/agent/internal/git"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/phpmyadmin"
@@ -79,6 +80,14 @@ func main() {
 	appSvc := apps.New(st, cfg, auditLog)
 	fwSvc := firewall.New(st, cfg, auditLog)
 	secSvc := security.New(cfg)
+	gitSvc := git.New(st, cfg, auditLog)
+	gitSvc.SetRestarter(func(ctx context.Context, site string) error {
+		for _, a := range appSvc.ListForSite(ctx, site) {
+			_, _ = appSvc.StopApp(ctx, func(string, string) {}, site, a.Name)
+			_, _ = appSvc.StartApp(ctx, func(string, string) {}, site, a.Name)
+		}
+		return nil
+	})
 	siteSvc.SetAppLister(appSvc)
 	appSvc.SetNginxApplier(func(ctx context.Context, log safeexec.Logger, domain string) error {
 		site, ok := st.GetSite(domain)
@@ -108,7 +117,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.Listen,
-		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc, appSvc, fwSvc, secSvc, auditLog),
+		Handler: server.New(cfg, eng, siteSvc, sslIssuer, fileSvc, mysqlSvc, svcMgr, dnsMgr, backupSvc, mailSvc, siteInfoSvc, ftpSvc, termSvc, sshSvc, pmaSvc, appSvc, fwSvc, secSvc, gitSvc, auditLog),
 	}
 	go func() {
 		<-ctx.Done()

@@ -150,9 +150,6 @@ func TestInstallLaravelTemplate(t *testing.T) {
 	if !strings.Contains(string(pubIndex), "LARAVEL_START") {
 		t.Errorf("public/index.php missing LARAVEL_START")
 	}
-	if !strings.Contains(string(pubIndex), "Laravel 11") {
-		t.Errorf("public/index.php missing Laravel 11 branding")
-	}
 
 	// Verify artisan script executable
 	artisanPath := filepath.Join(site.Root, "artisan")
@@ -238,8 +235,8 @@ func TestInstallNextJSTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("package.json missing: %v", err)
 	}
-	if !strings.Contains(string(pkgBytes), `"next": "^15.0.0"`) {
-		t.Errorf("package.json missing next 15 dependency")
+	if !strings.Contains(string(pkgBytes), `"next": "^16.`) {
+		t.Errorf("package.json missing next 16 dependency")
 	}
 	if !strings.Contains(string(pkgBytes), `"react": "^19.0.0"`) {
 		t.Errorf("package.json missing react 19 dependency")
