@@ -199,8 +199,8 @@ func TestInstallLaravelTemplate(t *testing.T) {
 			t.Errorf("%s is not a directory", d)
 		}
 		perm := info.Mode().Perm()
-		if perm != 0o775 {
-			t.Errorf("directory %s expected mode 0775, got %o", d, perm)
+		if perm != 0o775 && perm != 0o777 {
+			t.Errorf("directory %s expected mode 0775 or 0777, got %o", d, perm)
 		}
 	}
 

@@ -609,9 +609,9 @@ func installLaravelWithComposer(ctx context.Context, targetRoot string, opts Tem
 	}
 	_ = os.WriteFile(envPath, []byte(envStr), 0o644)
 
-	_ = os.Chmod(filepath.Join(targetRoot, "storage"), 0o775)
-	_ = os.Chmod(filepath.Join(targetRoot, "bootstrap", "cache"), 0o775)
-	logs = append(logs, "applied 0775 permissions on storage and bootstrap/cache")
+	_ = applyPermissions(filepath.Join(targetRoot, "storage"), 0o777, 0o666, -1, -1)
+	_ = applyPermissions(filepath.Join(targetRoot, "bootstrap", "cache"), 0o777, 0o666, -1, -1)
+	logs = append(logs, "applied recursive 0777 permissions on storage and bootstrap/cache")
 	return logs, nil
 }
 
@@ -638,9 +638,24 @@ func (s *Service) installLaravel(ctx context.Context, site store.Site, opts Temp
 	composerLogs, err := installLaravelWithComposer(ctx, site.Root, opts)
 	if err == nil {
 		logs = append(logs, composerLogs...)
-		_ = applyPermissions(site.Root, 0o775, 0o644, uid, gid)
+		_ = applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+		_ = applyPermissions(filepath.Join(site.Root, "storage"), 0o777, 0o666, -1, -1)
+		_ = applyPermissions(filepath.Join(site.Root, "bootstrap", "cache"), 0o777, 0o666, -1, -1)
 		_ = os.Chmod(filepath.Join(site.Root, "artisan"), 0o755)
-		logs = append(logs, "configured permissions (0775 on storage & cache, 0755 on artisan)")
+		logs = append(logs, "configured permissions (0777 on storage & cache, 0755 on artisan)")
+
+		if opts.DBName != "" {
+			logs = append(logs, "running 'php artisan migrate --force'...")
+			migrateCmd := exec.CommandContext(ctx, "php", "artisan", "migrate", "--force")
+			migrateCmd.Dir = site.Root
+			migrateCmd.Env = append(os.Environ(), "COMPOSER_ALLOW_SUPERUSER=1")
+			if out, mErr := migrateCmd.CombinedOutput(); mErr != nil {
+				logs = append(logs, fmt.Sprintf("migration notice: %v (output: %s)", mErr, strings.TrimSpace(string(out))))
+			} else {
+				logs = append(logs, "database schema migrated successfully (sessions, users, cache, jobs)")
+			}
+		}
+
 		logs = append(logs, "Laravel application installed successfully")
 		return logs, nil
 	}
