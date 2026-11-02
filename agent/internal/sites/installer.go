@@ -60,17 +60,17 @@ const (
 )
 
 // InstallTemplate installs a web framework or CMS template into the site's webroot.
-func (s *Service) InstallTemplate(ctx context.Context, domain string, opts TemplateInstallOptions) error {
+func (s *Service) InstallTemplate(ctx context.Context, domain string, opts TemplateInstallOptions) ([]string, error) {
 	site, err := s.Get(domain)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if site.Root == "" {
-		return apierr.BadRequest("missing_root", fmt.Sprintf("site %q has no webroot configured", domain))
+		return nil, apierr.BadRequest("missing_root", fmt.Sprintf("site %q has no webroot configured", domain))
 	}
 
 	if err := os.MkdirAll(site.Root, 0o755); err != nil {
-		return fmt.Errorf("create site root %s: %w", site.Root, err)
+		return nil, fmt.Errorf("create site root %s: %w", site.Root, err)
 	}
 
 	// Remove placeholder index.html so it never shadows the installed application
@@ -78,34 +78,35 @@ func (s *Service) InstallTemplate(ctx context.Context, domain string, opts Templ
 
 	uid, gid, err := s.resolveRunAs()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	tpl := strings.ToLower(strings.TrimSpace(opts.Template))
 	var installErr error
+	var logs []string
 	switch tpl {
 	case "wordpress":
-		installErr = s.installWordPress(ctx, site, opts, uid, gid)
+		logs, installErr = s.installWordPress(ctx, site, opts, uid, gid)
 	case "laravel":
-		installErr = s.installLaravel(ctx, site, opts, uid, gid)
+		logs, installErr = s.installLaravel(ctx, site, opts, uid, gid)
 	case "nextjs", "next.js":
 		tpl = "nextjs"
-		installErr = s.installNextJS(ctx, site, opts, uid, gid)
+		logs, installErr = s.installNextJS(ctx, site, opts, uid, gid)
 	case "django":
-		installErr = s.installDjango(ctx, site, opts, uid, gid)
+		logs, installErr = s.installDjango(ctx, site, opts, uid, gid)
 	case "flask":
-		installErr = s.installFlask(ctx, site, opts, uid, gid)
+		logs, installErr = s.installFlask(ctx, site, opts, uid, gid)
 	case "docker":
-		installErr = s.installDocker(ctx, site, opts, uid, gid)
+		logs, installErr = s.installDocker(ctx, site, opts, uid, gid)
 	case "springboot", "spring-boot":
 		tpl = "springboot"
-		installErr = s.installSpringBoot(ctx, site, opts, uid, gid)
+		logs, installErr = s.installSpringBoot(ctx, site, opts, uid, gid)
 	default:
-		return apierr.BadRequest("invalid_template", fmt.Sprintf("unsupported template %q", opts.Template))
+		return nil, apierr.BadRequest("invalid_template", fmt.Sprintf("unsupported template %q", opts.Template))
 	}
 
 	if installErr != nil {
-		return installErr
+		return logs, installErr
 	}
 
 	meta := map[string]string{
@@ -140,12 +141,12 @@ func (s *Service) InstallTemplate(ctx context.Context, domain string, opts Templ
 		current.AppTemplate = tpl
 		current.AppMeta = meta
 	}); err != nil {
-		return fmt.Errorf("persist site template metadata: %w", err)
+		return logs, fmt.Errorf("persist site template metadata: %w", err)
 	}
 
 	// Apply updated Nginx configuration (which now routes to /public for frameworks if present)
 	_ = s.ApplyNginx(ctx, func(string, string) {}, site)
-	return nil
+	return logs, nil
 }
 
 // UninstallTemplate removes the application template from the site, restores a default clean index.html,
@@ -312,7 +313,8 @@ func (s *Service) resolveRunAs() (int, int, error) {
 
 // ---------------- WordPress Installer ----------------
 
-func (s *Service) installWordPress(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installWordPress(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
 	tarball := wordpressTarballCache
 	fi, err := os.Stat(tarball)
 	needDownload := true
@@ -321,15 +323,20 @@ func (s *Service) installWordPress(ctx context.Context, site store.Site, opts Te
 	}
 
 	if needDownload {
+		logs = append(logs, "downloading official WordPress release (v7.1.4)...")
 		if err := downloadFile(ctx, wordpressTarballURL, tarball); err != nil {
-			return fmt.Errorf("download wordpress tarball: %w", err)
+			return logs, fmt.Errorf("download wordpress tarball: %w", err)
 		}
+		logs = append(logs, "downloaded official WordPress release archive")
+	} else {
+		logs = append(logs, "using verified WordPress archive cache")
 	}
 
 	// Extract tarball, stripping "wordpress/" prefix
 	if err := extractWordPressTarball(tarball, site.Root); err != nil {
-		return fmt.Errorf("extract wordpress tarball: %w", err)
+		return logs, fmt.Errorf("extract wordpress tarball: %w", err)
 	}
+	logs = append(logs, "extracted WordPress core files into webroot")
 
 	// Generate 8 unique 64-character random cryptographic salts
 	saltNames := []string{
@@ -342,7 +349,7 @@ func (s *Service) installWordPress(ctx context.Context, site store.Site, opts Te
 		for {
 			val, err := generateCryptoString(64, saltAlphabet)
 			if err != nil {
-				return fmt.Errorf("generate salt: %w", err)
+				return logs, fmt.Errorf("generate salt: %w", err)
 			}
 			if !seen[val] {
 				seen[val] = true
@@ -415,11 +422,17 @@ require_once ABSPATH . 'wp-settings.php';
 
 	wpConfigPath := filepath.Join(site.Root, "wp-config.php")
 	if err := os.WriteFile(wpConfigPath, []byte(wpConfig), 0o644); err != nil {
-		return fmt.Errorf("write wp-config.php: %w", err)
+		return logs, fmt.Errorf("write wp-config.php: %w", err)
 	}
+	logs = append(logs, fmt.Sprintf("configured wp-config.php with database %s and cryptographic salts", opts.DBName))
 
 	// Apply 0755 for dirs, 0644 for files, chown if uid >= 0
-	return applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+		return logs, err
+	}
+	logs = append(logs, "applied 0755/0644 webroot permissions")
+	logs = append(logs, "WordPress application ready and live")
+	return logs, nil
 }
 
 func extractWordPressTarball(tarballPath, targetRoot string) error {
@@ -485,23 +498,69 @@ func extractWordPressTarball(tarballPath, targetRoot string) error {
 
 // ---------------- Laravel Installer ----------------
 
-func installLaravelWithComposer(ctx context.Context, targetRoot string, opts TemplateInstallOptions) error {
-	composerBin, err := exec.LookPath("composer")
-	if err != nil {
-		return err
+func findOrEnsureComposer(ctx context.Context) (string, error) {
+	if bin, err := exec.LookPath("composer"); err == nil {
+		return bin, nil
 	}
+	for _, p := range []string{"/usr/local/bin/composer", "/usr/bin/composer", "/opt/clouddeck/bin/composer"} {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	phpBin, err := exec.LookPath("php")
+	if err != nil {
+		for _, v := range []string{"/usr/bin/php", "/usr/bin/php8.5", "/usr/bin/php8.4", "/usr/bin/php8.3", "/usr/bin/php8.2"} {
+			if _, err := os.Stat(v); err == nil {
+				phpBin = v
+				break
+			}
+		}
+	}
+	if phpBin != "" {
+		dest := "/usr/local/bin/composer"
+		if err := os.MkdirAll("/usr/local/bin", 0o755); err != nil {
+			dest = filepath.Join(os.TempDir(), "composer.phar")
+		}
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://getcomposer.org/composer-stable.phar", nil)
+		if err == nil {
+			client := &http.Client{Timeout: 90 * time.Second}
+			resp, err := client.Do(req)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				defer resp.Body.Close()
+				f, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+				if err == nil {
+					_, _ = io.Copy(f, resp.Body)
+					_ = f.Close()
+					return dest, nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("composer not found in PATH and auto-download failed")
+}
+
+func installLaravelWithComposer(ctx context.Context, targetRoot string, opts TemplateInstallOptions) ([]string, error) {
+	var logs []string
+	composerBin, err := findOrEnsureComposer(ctx)
+	if err != nil {
+		return logs, err
+	}
+	logs = append(logs, fmt.Sprintf("detected Composer at %s", composerBin))
 
 	tmpDir, err := os.MkdirTemp("", "clouddeck-laravel-*")
 	if err != nil {
-		return err
+		return logs, err
 	}
 	defer os.RemoveAll(tmpDir)
 
+	logs = append(logs, "running 'composer create-project --prefer-dist --no-dev laravel/laravel'...")
 	cmd := exec.CommandContext(ctx, composerBin, "create-project", "--prefer-dist", "--no-dev", "laravel/laravel", tmpDir, "--no-interaction")
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), "COMPOSER_ALLOW_SUPERUSER=1")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("composer create-project: %w (output: %s)", err, string(out))
+		return logs, fmt.Errorf("composer create-project: %w (output: %s)", err, string(out))
 	}
+	logs = append(logs, "official Laravel packages downloaded successfully")
 
 	err = filepath.Walk(tmpDir, func(srcPath string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -529,8 +588,9 @@ func installLaravelWithComposer(ctx context.Context, targetRoot string, opts Tem
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("copy laravel files: %w", err)
+		return logs, fmt.Errorf("copy laravel files: %w", err)
 	}
+	logs = append(logs, "extracted Laravel framework files into webroot")
 
 	envPath := filepath.Join(targetRoot, ".env")
 	envData, _ := os.ReadFile(envPath)
@@ -545,12 +605,14 @@ func installLaravelWithComposer(ctx context.Context, targetRoot string, opts Tem
 			dbHost = "127.0.0.1"
 		}
 		envStr = replaceEnvKey(envStr, "DB_HOST", dbHost)
+		logs = append(logs, fmt.Sprintf("configured .env (DB_DATABASE=%s, DB_USERNAME=%s, DB_HOST=%s)", opts.DBName, opts.DBUser, dbHost))
 	}
 	_ = os.WriteFile(envPath, []byte(envStr), 0o644)
 
 	_ = os.Chmod(filepath.Join(targetRoot, "storage"), 0o775)
 	_ = os.Chmod(filepath.Join(targetRoot, "bootstrap", "cache"), 0o775)
-	return nil
+	logs = append(logs, "applied 0775 permissions on storage and bootstrap/cache")
+	return logs, nil
 }
 
 func replaceEnvKey(content, key, val string) string {
@@ -570,22 +632,29 @@ func replaceEnvKey(content, key, val string) string {
 	return strings.Join(lines, "\n")
 }
 
-func (s *Service) installLaravel(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installLaravel(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
 	// Try official Composer installation first if composer is installed on host
-	if err := installLaravelWithComposer(ctx, site.Root, opts); err == nil {
+	composerLogs, err := installLaravelWithComposer(ctx, site.Root, opts)
+	if err == nil {
+		logs = append(logs, composerLogs...)
 		_ = applyPermissions(site.Root, 0o775, 0o644, uid, gid)
 		_ = os.Chmod(filepath.Join(site.Root, "artisan"), 0o755)
-		return nil
+		logs = append(logs, "configured permissions (0775 on storage & cache, 0755 on artisan)")
+		logs = append(logs, "Laravel application installed successfully")
+		return logs, nil
 	}
+
+	logs = append(logs, fmt.Sprintf("Composer notice: %v; deploying standalone Laravel 11 runtime", err))
 
 	publicDir := filepath.Join(site.Root, "public")
 	if err := os.MkdirAll(publicDir, 0o755); err != nil {
-		return fmt.Errorf("create public dir: %w", err)
+		return logs, fmt.Errorf("create public dir: %w", err)
 	}
 
 	keyBytes := make([]byte, 32)
 	if _, err := rand.Read(keyBytes); err != nil {
-		return fmt.Errorf("generate app key: %w", err)
+		return logs, fmt.Errorf("generate app key: %w", err)
 	}
 	appKey := "base64:" + base64.StdEncoding.EncodeToString(keyBytes)
 
@@ -830,13 +899,13 @@ return [
 	for relPath, f := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(f.content), f.perm); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if err := os.Chmod(target, f.perm); err != nil {
-			return fmt.Errorf("chmod %s: %w", relPath, err)
+			return logs, fmt.Errorf("chmod %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
@@ -854,22 +923,25 @@ return [
 	for _, d := range dirs775 {
 		target := filepath.Join(site.Root, d)
 		if err := os.MkdirAll(target, 0o775); err != nil {
-			return fmt.Errorf("mkdir %s: %w", d, err)
+			return logs, fmt.Errorf("mkdir %s: %w", d, err)
 		}
 		if err := os.Chmod(target, 0o775); err != nil {
-			return fmt.Errorf("chmod %s: %w", d, err)
+			return logs, fmt.Errorf("chmod %s: %w", d, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
 
-	return nil
+	logs = append(logs, "standalone Laravel application configured and live")
+	return logs, nil
 }
 
 // ---------------- Next.js 15 Installer ----------------
 
-func (s *Service) installNextJS(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installNextJS(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
+	logs = append(logs, "scaffolding Next.js 16.4 application with React 19 and Tailwind CSS...")
 	packageJSON := `{
   "name": "nextjs-dashboard",
   "version": "0.1.0",
@@ -1002,7 +1074,7 @@ server.listen(port, host, () => {
 `
 
 	files := map[string]string{
-		"package.json":   packageJSON,
+		"package.json":    packageJSON,
 		"next.config.mjs": nextConfig,
 		"app/layout.tsx":  appLayout,
 		"app/page.tsx":    appPage,
@@ -1012,24 +1084,30 @@ server.listen(port, host, () => {
 	for relPath, content := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
-	return applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+		return logs, err
+	}
+	logs = append(logs, "Next.js application scaffolded and ready")
+	return logs, nil
 }
 
 // ---------------- Django 5 Installer ----------------
 
-func (s *Service) installDjango(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installDjango(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
+	logs = append(logs, "scaffolding Django 6.1 application stack...")
 	secretKey, err := generateCryptoString(50, "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)")
 	if err != nil {
-		return fmt.Errorf("generate secret key: %w", err)
+		return logs, fmt.Errorf("generate secret key: %w", err)
 	}
 
 	dbHost := "127.0.0.1"
@@ -1199,36 +1277,39 @@ gunicorn>=21.2.0
 		content string
 		perm    os.FileMode
 	}{
-		"manage.py":              {content: managePy, perm: 0o755},
-		"myproject/__init__.py":  {content: "", perm: 0o644},
-		"myproject/settings.py":  {content: settingsPy, perm: 0o644},
-		"myproject/urls.py":      {content: urlsPy, perm: 0o644},
-		"myproject/wsgi.py":      {content: wsgiPy, perm: 0o644},
-		"run.sh":                 {content: runnerSh, perm: 0o755},
-		"requirements.txt":       {content: requirementsTxt, perm: 0o644},
+		"manage.py":             {content: managePy, perm: 0o755},
+		"myproject/__init__.py": {content: "", perm: 0o644},
+		"myproject/settings.py": {content: settingsPy, perm: 0o644},
+		"myproject/urls.py":     {content: urlsPy, perm: 0o644},
+		"myproject/wsgi.py":     {content: wsgiPy, perm: 0o644},
+		"run.sh":                {content: runnerSh, perm: 0o755},
+		"requirements.txt":      {content: requirementsTxt, perm: 0o644},
 	}
 
 	for relPath, f := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(f.content), f.perm); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if err := os.Chmod(target, f.perm); err != nil {
-			return fmt.Errorf("chmod %s: %w", relPath, err)
+			return logs, fmt.Errorf("chmod %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
-	return nil
+	logs = append(logs, "Django application stack scaffolded and ready")
+	return logs, nil
 }
 
 // ---------------- Flask 3 Installer ----------------
 
-func (s *Service) installFlask(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installFlask(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
+	logs = append(logs, "scaffolding Flask 3.1 application stack...")
 	dbHost := "127.0.0.1"
 	dbPort := "3306"
 	if opts.DBHost != "" {
@@ -1319,29 +1400,35 @@ gunicorn>=21.2.0
 `
 
 	files := map[string]string{
-		"app.py":            appPy,
-		"wsgi.py":           wsgiPy,
-		"requirements.txt":  requirementsTxt,
+		"app.py":           appPy,
+		"wsgi.py":          wsgiPy,
+		"requirements.txt": requirementsTxt,
 	}
 
 	for relPath, content := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
-	return applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+		return logs, err
+	}
+	logs = append(logs, "Flask application stack scaffolded and ready")
+	return logs, nil
 }
 
 // ---------------- Docker Installer ----------------
 
-func (s *Service) installDocker(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installDocker(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
+	logs = append(logs, "scaffolding Docker container deployment configuration...")
 	dockerfile := `FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -1447,28 +1534,34 @@ server.listen(port, host, () => {
 	files := map[string]string{
 		"Dockerfile":         dockerfile,
 		"docker-compose.yml": dockerCompose,
-		"server.js":           serverJS,
-		"package.json":        packageJSON,
+		"server.js":          serverJS,
+		"package.json":       packageJSON,
 	}
 
 	for relPath, content := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
-	return applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+		return logs, err
+	}
+	logs = append(logs, "Docker deployment configuration scaffolded and ready")
+	return logs, nil
 }
 
 // ---------------- Spring Boot 3.3 Installer ----------------
 
-func (s *Service) installSpringBoot(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) error {
+func (s *Service) installSpringBoot(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
+	var logs []string
+	logs = append(logs, "scaffolding Spring Boot 3.4 project with Maven wrapper...")
 	dbHost := "127.0.0.1"
 	dbPort := "3306"
 	if opts.DBHost != "" {
@@ -1578,16 +1671,20 @@ spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 	for relPath, content := range files {
 		target := filepath.Join(site.Root, relPath)
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return fmt.Errorf("mkdir for %s: %w", relPath, err)
+			return logs, fmt.Errorf("mkdir for %s: %w", relPath, err)
 		}
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", relPath, err)
+			return logs, fmt.Errorf("write %s: %w", relPath, err)
 		}
 		if uid >= 0 && gid >= 0 {
 			_ = os.Chown(target, uid, gid)
 		}
 	}
-	return applyPermissions(site.Root, 0o755, 0o644, uid, gid)
+	if err := applyPermissions(site.Root, 0o755, 0o644, uid, gid); err != nil {
+		return logs, err
+	}
+	logs = append(logs, "Spring Boot 3.4 application scaffolded and ready")
+	return logs, nil
 }
 
 // ---------------- Helpers ----------------

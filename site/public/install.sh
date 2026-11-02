@@ -912,7 +912,7 @@ provision_linux_packages() {
   [ "$DO_NGINX" = "1" ] && _pkgs="$_pkgs nginx"
   
   if [ "$DO_PHP" = "1" ]; then
-    _pkgs="$_pkgs php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml php-zip php-intl php-bcmath php-opcache"
+    _pkgs="$_pkgs php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml php-zip php-intl php-bcmath php-opcache composer"
     if [ "$DO_PHP_MULTI" = "1" ] && [ "$FAST" = "0" ]; then
       # If sury repository is present or can be enabled, multi-php packages are available
       _pkgs="$_pkgs php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm"
@@ -966,6 +966,10 @@ provision_linux_packages() {
         -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
         $_missing || warn "Some optional packages could not be installed immediately."
     rm -f /var/cache/apt/archives/*.deb 2>/dev/null || true
+    if [ "$DO_PHP" = "1" ] && ! command -v composer >/dev/null 2>&1; then
+      step "Installing Composer binary to /usr/local/bin/composer..."
+      curl -sS https://getcomposer.org/installer 2>/dev/null | php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null || true
+    fi
     ok "Package installation step completed."
   fi
 

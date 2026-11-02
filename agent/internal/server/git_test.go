@@ -25,7 +25,7 @@ func TestServerGitEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{
-		StateDir:        dir,
+		StateDir:         dir,
 		AllowInsecureDev: true,
 	}
 
@@ -95,4 +95,3 @@ func TestServerGitEndpoints(t *testing.T) {
 		t.Fatalf("DELETE /git code = %d, body: %s", rec.Code, rec.Body.String())
 	}
 }
-

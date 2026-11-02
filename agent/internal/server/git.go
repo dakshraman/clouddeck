@@ -103,4 +103,3 @@ func (s *Server) handleWebhookSiteGit(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, record)
 }
-

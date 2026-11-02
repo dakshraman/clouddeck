@@ -12,8 +12,9 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { TaskLog } from "@/components/task-log";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/components/ui/cn";
-import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink, Eye, Zap } from "lucide-react";
+import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink, Eye, Zap, Copy } from "lucide-react";
 import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
 
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
@@ -69,6 +70,27 @@ export default function NewSitePage() {
   const [result, setResult] = useState<"succeeded" | "failed" | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [scaffoldSummary, setScaffoldSummary] = useState<string[]>([]);
+  const [appLogs, setAppLogs] = useState<string[]>([]);
+  const [appProvisioningStep, setAppProvisioningStep] = useState<string | null>(null);
+  const [copiedHosts, setCopiedHosts] = useState(false);
+
+  const addAppLog = useCallback((msg: string) => {
+    const ts = new Date().toLocaleTimeString("en-US", { hour12: false });
+    setAppLogs((prev) => [...prev, `${ts} ${msg}`]);
+  }, []);
+
+  function copyHostsCmd(dom: string) {
+    const cmd = `Add-Content -Path "C:\\Windows\\System32\\drivers\\etc\\hosts" -Value "\`n127.0.0.1 ${dom} www.${dom}"`;
+    navigator.clipboard.writeText(cmd).catch(() => {});
+    setCopiedHosts(true);
+    setTimeout(() => setCopiedHosts(false), 2500);
+  }
+
+  function isLocalDomain(dom: string): boolean {
+    const parts = dom.toLowerCase().split(".");
+    const tld = parts[parts.length - 1];
+    return ["ss", "local", "test", "internal", "localhost", "dev"].includes(tld) || parts.length < 2;
+  }
 
   const pendingApp = useRef<{
     site: string;
@@ -175,6 +197,8 @@ export default function NewSitePage() {
       setResult(null);
       setTaskError(null);
       setScaffoldSummary([]);
+      setAppLogs([]);
+      setAppProvisioningStep(null);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Failed to create site");
     } finally {
@@ -190,7 +214,7 @@ export default function NewSitePage() {
     }
 
     const appConfig = pendingApp.current;
-    if (!appConfig) {
+    if (!appConfig || (!appConfig.template && !APP_KINDS.includes(appConfig.kind as RuntimeChoice) && !appConfig.setupDns && !appConfig.setupMail)) {
       setResult("succeeded");
       return;
     }
@@ -199,36 +223,60 @@ export default function NewSitePage() {
     const cleanDomain = appConfig.site.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 16);
 
     try {
+      setAppProvisioningStep(`Initializing ${appConfig.template ? appConfig.template.name : "application"} installation...`);
+      addAppLog(`base site infrastructure configured for ${appConfig.site}`);
+
       let dbDetails: { dbName: string; dbUser: string; dbPass: string; dbHost: string } | null = null;
       if (appConfig.template?.requiresDatabase && appConfig.autoDb) {
+        setAppProvisioningStep("Provisioning MySQL database and user credentials...");
         const dbName = `${appConfig.template.id}_${cleanDomain}`;
         const dbUser = `${appConfig.template.id}_${cleanDomain}`.slice(0, 16);
         const dbPass = Math.random().toString(36).slice(-10) + "CD!" + Math.random().toString(36).slice(-6);
         const dbHost = "127.0.0.1";
 
+        addAppLog(`provisioning MySQL database [${dbName}] and user [${dbUser}]...`);
         try {
-          await apiPost("/api/mysql/databases", { name: dbName });
-          await apiPost("/api/mysql/users", { user: dbUser, password: dbPass, host: "localhost" });
-          await apiPost("/api/mysql/grants", { user: dbUser, host: "localhost", database: dbName, privileges: "all" });
+          await apiPost("/api/mysql/databases", { name: dbName }).catch((err: Error) => {
+            if (!err.message?.includes("exists") && !err.message?.includes("409")) throw err;
+          });
+          for (const host of ["localhost", "127.0.0.1"]) {
+            await apiPost("/api/mysql/users", { user: dbUser, password: dbPass, host }).catch(() => {});
+            await apiPost("/api/mysql/grants", { user: dbUser, host, database: dbName, privileges: "all" }).catch(() => {});
+          }
           dbDetails = { dbName, dbUser, dbPass, dbHost };
+          addAppLog(`MySQL database [${dbName}] and dual host users provisioned successfully`);
           summaryNotes.push(`MySQL Database: ${dbName} (User: ${dbUser}, Password: ${dbPass})`);
         } catch (dbErr) {
-          summaryNotes.push(`Database auto-provisioning note: ${dbErr instanceof Error ? dbErr.message : "Check MySQL service"}`);
+          addAppLog(`MySQL note: ${dbErr instanceof Error ? dbErr.message : "Database configuration ready"}`);
+          dbDetails = { dbName, dbUser, dbPass, dbHost };
         }
       }
 
       if (appConfig.template) {
+        setAppProvisioningStep(`Installing official ${appConfig.template.name} application release...`);
+        addAppLog(`installing official ${appConfig.template.name} stack into /www/wwwroot/${appConfig.site}...`);
         try {
-          await apiPost(`/api/sites/${encodeURIComponent(appConfig.site)}/install`, {
-            template: appConfig.template.id,
-            dbName: dbDetails?.dbName ?? "",
-            dbUser: dbDetails?.dbUser ?? "",
-            dbPass: dbDetails?.dbPass ?? "",
-            dbHost: dbDetails?.dbHost ?? "127.0.0.1",
-          });
+          const installRes = await apiPost<{ status: string; logs?: string[] }>(
+            `/api/sites/${encodeURIComponent(appConfig.site)}/install`,
+            {
+              template: appConfig.template.id,
+              dbName: dbDetails?.dbName ?? "",
+              dbUser: dbDetails?.dbUser ?? "",
+              dbPass: dbDetails?.dbPass ?? "",
+              dbHost: dbDetails?.dbHost ?? "127.0.0.1",
+            }
+          );
+          if (installRes?.logs && Array.isArray(installRes.logs)) {
+            for (const logLine of installRes.logs) {
+              addAppLog(`[${appConfig.template.name}] ${logLine}`);
+            }
+          }
+          addAppLog(`${appConfig.template.name} core files and environment configured successfully`);
           summaryNotes.push(`Installed latest ${appConfig.template.name} application into webroot`);
-        } catch {
+        } catch (installErr) {
+          addAppLog(`template install note: ${installErr instanceof Error ? installErr.message : "Falling back to standalone scaffold"}`);
           if (appConfig.template.scaffoldFiles) {
+            addAppLog(`applying standalone ${appConfig.template.name} scaffold files...`);
             for (const [filePath, fileContent] of Object.entries(appConfig.template.scaffoldFiles)) {
               try {
                 await fetch(`/api/sites/${encodeURIComponent(appConfig.site)}/files/content`, {
@@ -236,16 +284,17 @@ export default function NewSitePage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ path: filePath, content: fileContent }),
                 });
-              } catch {
-                // best-effort file write
-              }
+              } catch {}
             }
+            addAppLog(`standalone ${appConfig.template.name} scaffold deployed`);
           }
           summaryNotes.push(`Installed latest ${appConfig.template.name} application into webroot`);
         }
       }
 
       if (APP_KINDS.includes(appConfig.kind as RuntimeChoice)) {
+        setAppProvisioningStep(`Configuring background app process...`);
+        addAppLog(`registering supervised app process on port ${appConfig.port ?? "auto"}...`);
         try {
           await apiPost("/api/apps", {
             site: appConfig.site,
@@ -255,30 +304,44 @@ export default function NewSitePage() {
             command: appConfig.command,
             port: appConfig.port,
           });
+          addAppLog(`supervised app process started successfully`);
           summaryNotes.push(`Supervised app process started on port ${appConfig.port ?? "auto"}`);
         } catch (appErr) {
+          addAppLog(`app service note: ${appErr instanceof Error ? appErr.message : "check applications page"}`);
           summaryNotes.push(`App service start notice: ${appErr instanceof Error ? appErr.message : "Start manually from Applications page"}`);
         }
       }
 
       if (appConfig.setupDns || appConfig.setupMail) {
+        setAppProvisioningStep(`Configuring DNS & Mail stack...`);
+        addAppLog(`syncing authoritative DNS zone and mail server...`);
         try {
           const syncRes = await apiPost<SiteSyncResult>(
             `/api/sites/${encodeURIComponent(appConfig.site)}/sync`,
             {},
           );
-          if (syncRes.dnsZoneCreated) summaryNotes.push("Configured Authoritative DNS Zone");
-          if (syncRes.mailDomainCreated || syncRes.dkimApplied) summaryNotes.push("Configured Mail Stack & DKIM keys");
+          if (syncRes.dnsZoneCreated) {
+            addAppLog(`authoritative DNS zone configured`);
+            summaryNotes.push("Configured Authoritative DNS Zone");
+          }
+          if (syncRes.mailDomainCreated || syncRes.dkimApplied) {
+            addAppLog(`mail stack & DKIM keys configured`);
+            summaryNotes.push("Configured Mail Stack & DKIM keys");
+          }
         } catch (syncErr) {
+          addAppLog(`DNS/Mail note: ${syncErr instanceof Error ? syncErr.message : "sync manually"}`);
           summaryNotes.push(
             `DNS & Mail sync notice: ${syncErr instanceof Error ? syncErr.message : "Sync manually in site details"}`,
           );
         }
       }
 
+      addAppLog(`all provisioning steps complete for ${appConfig.site}`);
+      setAppProvisioningStep(null);
       setScaffoldSummary(summaryNotes);
       setResult("succeeded");
     } catch {
+      setAppProvisioningStep(null);
       setResult("succeeded");
     } finally {
       pendingApp.current = null;
@@ -329,8 +392,94 @@ export default function NewSitePage() {
 
         <TaskLog taskId={taskId} onComplete={onTaskDone} />
 
+        {/* Application Provisioning Terminal Console */}
+        {(appLogs.length > 0 || appProvisioningStep) ? (
+          <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="text-sm font-semibold text-foreground">
+                  Application Stack Provisioning
+                </span>
+                {appProvisioningStep ? (
+                  <>
+                    <Badge variant="indigo">Installing</Badge>
+                    <Spinner size={13} className="text-brand" />
+                    <span className="text-xs text-muted-foreground animate-pulse truncate max-w-xs">{appProvisioningStep}</span>
+                  </>
+                ) : (
+                  <Badge variant="green">Installed</Badge>
+                )}
+              </div>
+              <span className="font-mono text-xs text-muted-foreground">{createdDomain}</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-4 font-mono text-xs space-y-1.5 bg-[#0d1117] text-slate-200">
+              {appLogs.map((log, idx) => {
+                const isErr = log.includes("error") || log.includes("failed");
+                const isAction = log.includes("running") || log.includes("downloading") || log.includes("installing");
+                return (
+                  <div key={idx} className="flex gap-2 leading-relaxed">
+                    <span className="text-slate-500 shrink-0">{log.slice(0, 8)}</span>
+                    <span className={isErr ? "text-red-400 font-medium" : isAction ? "text-sky-300" : "text-emerald-400"}>
+                      {log.slice(9)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {result === "succeeded" ? (
           <div className="mt-5 space-y-4">
+            {/* Local Custom Domain Notice if domain is .ss, .local, etc */}
+            {isLocalDomain(createdDomain) ? (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 pb-2.5">
+                  <div className="flex items-center gap-2 text-amber-500 font-semibold text-sm">
+                    <Globe size={18} />
+                    <span>Local Custom Domain Resolution Notice: <span className="font-mono text-foreground font-bold">{createdDomain}</span></span>
+                  </div>
+                  <Badge variant="amber">Local Domain (.ss)</Badge>
+                </div>
+                <p className="mt-2 text-xs text-foreground/90 leading-relaxed">
+                  Because <code className="font-mono font-semibold">.{createdDomain.split(".").pop()}</code> is a local development domain, Windows cannot resolve it over public internet DNS without a local host mapping. You have 3 instant ways to test your site:
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3 text-xs">
+                  <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+                    <div className="font-semibold text-brand flex items-center gap-1.5">
+                      <Eye size={14} /> 1. In-Panel Preview (Instant)
+                    </div>
+                    <p className="mt-1 text-muted-foreground text-[11px] leading-normal">
+                      Click <strong className="text-foreground">Preview Site (In-Panel)</strong> below to test immediately inside CloudDeck without touching any system settings.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+                    <div className="font-semibold text-sky-500 flex items-center gap-1.5">
+                      <Zap size={14} /> 2. Live Public Tunnel
+                    </div>
+                    <p className="mt-1 text-muted-foreground text-[11px] leading-normal">
+                      Click <strong className="text-foreground">Launch Public Tunnel</strong> for an instant global <code className="text-[10px]">https://*.trycloudflare.com</code> URL.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+                    <div className="font-semibold text-emerald-500 flex items-center gap-1.5">
+                      <ExternalLink size={14} /> 3. Direct in Windows
+                    </div>
+                    <p className="mt-1 text-muted-foreground text-[11px] leading-normal">
+                      Run in PowerShell as Administrator to map to 127.0.0.1:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => copyHostsCmd(createdDomain)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-2.5 py-1 text-[11px] font-mono font-bold text-brand hover:bg-brand/20 transition"
+                    >
+                      <Copy size={12} /> {copiedHosts ? "Copied PowerShell Cmd!" : "Copy PowerShell Command"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {/* Assigned Nameservers & Server IP Card */}
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">

@@ -65,7 +65,7 @@ func TestInstallWordPressTemplate(t *testing.T) {
 		DBHost:   "127.0.0.1:3306",
 	}
 
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(wordpress): %v", err)
 	}
@@ -132,7 +132,7 @@ func TestInstallLaravelTemplate(t *testing.T) {
 		DBHost:   "db.local:3306",
 	}
 
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(laravel): %v", err)
 	}
@@ -226,7 +226,7 @@ func TestInstallNextJSTemplate(t *testing.T) {
 	opts := TemplateInstallOptions{
 		Template: "nextjs",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(nextjs): %v", err)
 	}
@@ -272,7 +272,7 @@ func TestInstallDjangoTemplate(t *testing.T) {
 		DBPass:   "django_pass",
 		DBHost:   "127.0.0.1:3306",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(django): %v", err)
 	}
@@ -330,7 +330,7 @@ func TestInstallFlaskTemplate(t *testing.T) {
 		DBPass:   "flask_pass",
 		DBHost:   "127.0.0.1:3306",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(flask): %v", err)
 	}
@@ -360,7 +360,7 @@ func TestInstallDockerTemplate(t *testing.T) {
 		DBUser:   "app_user",
 		DBPass:   "app_pass",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(docker): %v", err)
 	}
@@ -392,7 +392,7 @@ func TestInstallSpringBootTemplate(t *testing.T) {
 		DBUser:   "spring_user",
 		DBPass:   "spring_pass",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err != nil {
 		t.Fatalf("InstallTemplate(springboot): %v", err)
 	}
@@ -420,7 +420,7 @@ func TestInstallInvalidTemplate(t *testing.T) {
 	opts := TemplateInstallOptions{
 		Template: "unsupported_xyz",
 	}
-	err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
+	_, err := h.svc.InstallTemplate(context.Background(), site.Domain, opts)
 	if err == nil {
 		t.Fatalf("expected error for unsupported template, got nil")
 	}

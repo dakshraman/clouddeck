@@ -446,7 +446,8 @@ func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := s.sites.InstallTemplate(r.Context(), domain, req); err != nil {
+	logs, err := s.sites.InstallTemplate(r.Context(), domain, req)
+	if err != nil {
 		writeError(w, err)
 		return
 	}
@@ -454,6 +455,7 @@ func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
 		"status":   "installed",
 		"template": req.Template,
 		"domain":   domain,
+		"logs":     logs,
 	})
 }
 
