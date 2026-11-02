@@ -354,7 +354,7 @@ func (s *Service) installWordPress(ctx context.Context, site store.Site, opts Te
 
 	dbHost := opts.DBHost
 	if dbHost == "" {
-		dbHost = "127.0.0.1:3306"
+		dbHost = "localhost"
 	}
 
 	wpConfig := fmt.Sprintf(`<?php

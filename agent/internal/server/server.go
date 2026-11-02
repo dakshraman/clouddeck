@@ -434,6 +434,18 @@ func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	domain := r.PathValue("domain")
+
+	// Ensure database and credentials exist in MySQL if database options were provided
+	if req.DBName != "" && s.mysql != nil {
+		_, _ = s.mysql.CreateDatabase(r.Context(), req.DBName)
+		if req.DBUser != "" {
+			for _, host := range []string{"localhost", "127.0.0.1"} {
+				_, _ = s.mysql.CreateUser(r.Context(), req.DBUser, req.DBPass, host)
+				_ = s.mysql.Grant(r.Context(), req.DBUser, host, req.DBName, "all")
+			}
+		}
+	}
+
 	if err := s.sites.InstallTemplate(r.Context(), domain, req); err != nil {
 		writeError(w, err)
 		return

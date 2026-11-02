@@ -106,14 +106,35 @@ export function InstallAppCard({
         const targetDbName = dbName.trim() || `${selectedTemplate.id}_${cleanDomain}`;
         const targetDbUser = dbUser.trim() || `${selectedTemplate.id}_${cleanDomain}`.slice(0, 16);
         const targetDbPass = dbPass.trim() || generatePassword(16);
-        const targetDbHost = "127.0.0.1";
+        const targetDbHost = "localhost";
 
         try {
-          await apiPost("/api/mysql/databases", { name: targetDbName });
-          await apiPost("/api/mysql/users", { user: targetDbUser, password: targetDbPass, host: "localhost" });
-          await apiPost("/api/mysql/grants", { user: targetDbUser, host: "localhost", database: targetDbName, privileges: "all" });
+          // 1. Create database
+          await apiPost("/api/mysql/databases", { name: targetDbName }).catch((err: Error) => {
+            if (!err.message?.includes("exists") && !err.message?.includes("409")) throw err;
+          });
+
+          // 2. Create user and grants for BOTH localhost AND 127.0.0.1
+          // so UNIX socket and TCP loopback connections both succeed without access denied
+          for (const host of ["localhost", "127.0.0.1"]) {
+            await apiPost("/api/mysql/users", {
+              user: targetDbUser,
+              password: targetDbPass,
+              host,
+            }).catch((err: Error) => {
+              if (!err.message?.includes("exists") && !err.message?.includes("409")) throw err;
+            });
+
+            await apiPost("/api/mysql/grants", {
+              user: targetDbUser,
+              host,
+              database: targetDbName,
+              privileges: "all",
+            }).catch(() => {});
+          }
+
           finalDbDetails = { dbName: targetDbName, dbUser: targetDbUser, dbPass: targetDbPass, dbHost: targetDbHost };
-          details.push(`MySQL Database: ${targetDbName} (User: ${targetDbUser})`);
+          details.push(`MySQL Database: ${targetDbName} (User: ${targetDbUser}@localhost, 127.0.0.1)`);
         } catch (dbErr) {
           details.push(`MySQL note: ${dbErr instanceof Error ? dbErr.message : "Database configuration ready"}`);
           finalDbDetails = { dbName: targetDbName, dbUser: targetDbUser, dbPass: targetDbPass, dbHost: targetDbHost };
