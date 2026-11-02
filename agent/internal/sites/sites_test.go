@@ -116,7 +116,7 @@ func TestRenderNginxConfigByteIdenticalWithoutExtras(t *testing.T) {
     listen [::]:80;
     server_name static.example.org www.static.example.org;
     root /www/wwwroot/static.example.org;
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 
@@ -143,7 +143,7 @@ func TestRenderNginxConfigByteIdenticalPHPSite(t *testing.T) {
     listen [::]:80;
     server_name example.com www.example.com;
     root /www/wwwroot/example.com;
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 
@@ -188,7 +188,7 @@ server {
     listen [::]:443 ssl http2;
     server_name example.com www.example.com;
     root /www/wwwroot/example.com;
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 

@@ -93,7 +93,9 @@ export function TunnelCard({ domain }: TunnelCardProps) {
   }
 
   const isTunnelActive =
-    tunnel && tunnel.status === "active" && Boolean(tunnel.publicUrl);
+    tunnel &&
+    (tunnel.status === "running" || tunnel.status === "active") &&
+    Boolean(tunnel.publicUrl);
 
   const linuxHosts = `sudo sh -c 'echo "127.0.0.1 ${domain}" >> /etc/hosts'`;
   const winHosts = `Add-Content C:\\Windows\\System32\\drivers\\etc\\hosts "127.0.0.1 ${domain}"`;

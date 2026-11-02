@@ -40,7 +40,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.36"
+const Version = "0.6.37"
 
 const maxBodyBytes = 1 << 20
 
@@ -86,6 +86,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/sites/{domain}", s.handleGetSite)
 	mux.HandleFunc("DELETE /v1/sites/{domain}", s.handleDeleteSite)
 	mux.HandleFunc("POST /v1/sites/{domain}/ssl", s.handleIssueSSL)
+	mux.HandleFunc("POST /v1/sites/{domain}/install-template", s.handleInstallTemplate)
 
 	mux.HandleFunc("GET /v1/sites/{domain}/files", s.handleFileList)
 	mux.HandleFunc("GET /v1/sites/{domain}/files/content", s.handleFileRead)
@@ -412,6 +413,24 @@ func (s *Server) handleIssueSSL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"taskId": task.ID})
+}
+
+func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
+	var req sites.TemplateInstallOptions
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+	domain := r.PathValue("domain")
+	if err := s.sites.InstallTemplate(r.Context(), domain, req); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "installed",
+		"template": req.Template,
+		"domain":   domain,
+	})
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {

@@ -12,7 +12,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const AGENT_TIMEOUT_MS = 15000;
+const AGENT_TIMEOUT_MS = 60000;
 
 interface RouteContext {
   params: Promise<{ domain: string }>;

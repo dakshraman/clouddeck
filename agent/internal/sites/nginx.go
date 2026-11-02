@@ -124,7 +124,7 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
     listen [::]:80;
     server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
     root {{.Root}};
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 
@@ -149,7 +149,7 @@ server {
     listen [::]:80;
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
     root {{$.SiteRoot}}/{{.}};
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 
@@ -184,7 +184,7 @@ server {
     listen [::]:443 ssl http2;
     server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
     root {{.Root}};
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 
@@ -212,7 +212,7 @@ server {
     listen [::]:80;
     server_name {{.}}.{{$.Domain}};{{template "waf" $}}
     root {{$.SiteRoot}}/{{.}};
-    index index.html index.php;
+    index index.php index.html index.htm;
 
     client_max_body_size 100m;
 

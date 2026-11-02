@@ -20,6 +20,7 @@ import { PhpCard } from "@/components/site/php-card";
 import { SecurityCard } from "@/components/site/security-card";
 import { WafCard } from "@/components/site/waf-card";
 import { SiteAppCard } from "@/components/site/app-card";
+import { InstallAppCard } from "@/components/site/install-app-card";
 import { UsageCard } from "@/components/site/usage-card";
 import { StatsCard } from "@/components/site/stats-card";
 import { LogsCard } from "@/components/site/logs-card";
@@ -104,6 +105,16 @@ export function SiteDetail({ domain }: { domain: string }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [tab, setTab] = useState<SiteTabId>("overview");
+  const [appsRefreshTrigger, setAppsRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchTab = new URLSearchParams(window.location.search).get("tab") as SiteTabId | null;
+      if (searchTab && SITE_TABS.some((t) => t.id === searchTab)) {
+        setTab(searchTab);
+      }
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -462,7 +473,19 @@ export function SiteDetail({ domain }: { domain: string }) {
       </TabPanel>
 
       <TabPanel id="apps" active={tab === "apps"}>
-        <SiteAppCard domain={site.domain} />
+        <SiteAppCard
+          domain={site.domain}
+          refreshTrigger={appsRefreshTrigger}
+          onProcessChanged={() => setAppsRefreshTrigger((v) => v + 1)}
+        />
+        <InstallAppCard
+          domain={site.domain}
+          currentPhpVersion={site.phpVersion}
+          onAppInstalled={() => {
+            void load();
+            setAppsRefreshTrigger((v) => v + 1);
+          }}
+        />
       </TabPanel>
 
       <TabPanel id="security" active={tab === "security"}>

@@ -1,5 +1,5 @@
-import { AppsView } from "@/components/apps/apps-view";
+import { redirect } from "next/navigation";
 
 export default function AppsPage() {
-  return <AppsView />;
+  redirect("/sites");
 }

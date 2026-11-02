@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { PhpVersionsResponse, Site, SiteListResponse } from "@/lib/types";
+import type { AppInfo, AppsResponse, PhpVersionsResponse, Site, SiteListResponse } from "@/lib/types";
 import { apiFetch, isAbortError, waitForTask } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -15,12 +15,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
-import { ExternalLink, Eye, Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/components/ui/cn";
+import { Cpu, ExternalLink, Eye, Globe, Pencil, Plus, Trash2 } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
 
 export function SitesView() {
   const [sites, setSites] = useState<Site[] | null>(null);
+  const [apps, setApps] = useState<AppInfo[] | null>(null);
+  const [filter, setFilter] = useState<"all" | "apps">("all");
   const [state, setState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmDomain, setConfirmDomain] = useState<string | null>(null);
@@ -38,9 +41,21 @@ export function SitesView() {
     setState("loading");
     setErrorMessage(null);
     try {
-      const data = await apiFetch<SiteListResponse>("/api/sites");
-      setSites(data.sites);
-      setState("ready");
+      const [sitesData, appsData] = await Promise.allSettled([
+        apiFetch<SiteListResponse>("/api/sites"),
+        apiFetch<AppsResponse>("/api/apps"),
+      ]);
+      if (sitesData.status === "fulfilled") {
+        setSites(sitesData.value.sites);
+        setState("ready");
+      } else {
+        throw sitesData.reason;
+      }
+      if (appsData.status === "fulfilled") {
+        setApps(appsData.value.apps);
+      } else {
+        setApps([]);
+      }
     } catch (error) {
       setState("error");
       setErrorMessage(error instanceof Error ? error.message : "Failed to load sites");
@@ -139,6 +154,29 @@ export function SitesView() {
     }
   }
 
+  const appsBySite = useMemo(() => {
+    return (apps ?? []).reduce<Record<string, AppInfo[]>>((acc, app) => {
+      if (!acc[app.site]) acc[app.site] = [];
+      acc[app.site].push(app);
+      return acc;
+    }, {});
+  }, [apps]);
+
+  const appSitesCount = useMemo(() => {
+    return (sites ?? []).filter(
+      (s) => (appsBySite[s.domain]?.length ?? 0) > 0 || s.phpVersion !== "none",
+    ).length;
+  }, [sites, appsBySite]);
+
+  const displayedSites = useMemo(() => {
+    return (sites ?? []).filter((site) => {
+      if (filter === "apps") {
+        return (appsBySite[site.domain]?.length ?? 0) > 0 || site.phpVersion !== "none";
+      }
+      return true;
+    });
+  }, [sites, filter, appsBySite]);
+
   return (
     <>
       <PageHeader
@@ -189,13 +227,69 @@ export function SitesView() {
       ) : null}
 
       {state === "ready" && sites && sites.length > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 p-1">
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                filter === "all"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Globe size={13} aria-hidden="true" />
+              All Sites
+              <span className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                {sites.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("apps")}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                filter === "apps"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Cpu size={13} aria-hidden="true" />
+              Applications
+              <span className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                {appSitesCount}
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {state === "ready" && sites && sites.length > 0 && displayedSites.length === 0 ? (
+        <Card className="p-8 text-center">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+            <Cpu size={20} />
+          </div>
+          <h3 className="mt-3 text-sm font-medium text-foreground">No applications match filter</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            No sites currently host supervised applications or dynamic runtimes.
+          </p>
+          <div className="mt-4">
+            <Button variant="secondary" size="sm" onClick={() => setFilter("all")}>
+              Show all sites
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {state === "ready" && displayedSites.length > 0 ? (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Domain</th>
-                  <th className="px-5 py-3 text-left font-medium">PHP</th>
+                  <th className="px-5 py-3 text-left font-medium">Application / Runtime</th>
                   <th className="px-5 py-3 text-left font-medium">SSL</th>
                   <th className="px-5 py-3 text-left font-medium">Status</th>
                   <th className="px-5 py-3 text-left font-medium">Created</th>
@@ -203,11 +297,12 @@ export function SitesView() {
                 </tr>
               </thead>
               <tbody>
-                {sites.map((site) => {
+                {displayedSites.map((site) => {
                   const isDeleting = Boolean(deleting[site.domain]);
                   const isConfirming = confirmDomain === site.domain;
                   const deleteError = rowError[site.domain];
                   const siteUrl = `${site.ssl.enabled ? "https" : "http"}://${site.domain}`;
+                  const siteApps = appsBySite[site.domain] ?? [];
                   return (
                     <Fragment key={site.domain}>
                       <tr className="border-t border-border hover:bg-muted/40">
@@ -231,7 +326,37 @@ export function SitesView() {
                           </a>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground">{phpVersionLabel(site.phpVersion)}</td>
+                      <td className="px-5 py-3">
+                        {siteApps.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {siteApps.map((app) => (
+                              <Link
+                                key={app.name}
+                                href={`/sites/${encodeURIComponent(site.domain)}?tab=apps`}
+                                className="inline-flex items-center gap-1.5 group"
+                                title={`Application: ${app.name} (${app.kind}) - Click to manage`}
+                              >
+                                <Badge variant="indigo" className="group-hover:border-indigo-400">
+                                  {app.name || app.kind}
+                                </Badge>
+                                {app.status.state === "running" ? (
+                                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Running" />
+                                ) : app.status.state === "error" ? (
+                                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" title="Error" />
+                                ) : (
+                                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500" title="Stopped" />
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        ) : site.phpVersion !== "none" ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="indigo">PHP {site.phpVersion}</Badge>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Static</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3">
                         {site.ssl.enabled ? (
                           <Badge variant="green">SSL</Badge>
@@ -292,6 +417,14 @@ export function SitesView() {
                                 <ExternalLink size={14} aria-hidden="true" />
                                 Open site
                               </a>
+                              <Link
+                                href={`/sites/${encodeURIComponent(site.domain)}?tab=apps`}
+                                className={buttonClass("secondary", "sm")}
+                                title={`Manage applications for ${site.domain}`}
+                              >
+                                <Cpu size={14} aria-hidden="true" />
+                                Apps
+                              </Link>
                               <Link
                                 href={`/sites/${encodeURIComponent(site.domain)}`}
                                 className={buttonClass("ghost", "sm")}

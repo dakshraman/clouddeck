@@ -89,24 +89,39 @@ func (s *Service) StartTunnel(ctx context.Context, domain string) (*Tunnel, erro
 		return nil, err
 	}
 
-	cmd := exec.Command(binPath, "tunnel", "--url", "http://127.0.0.1:80", "--http-host-header", domain)
-	stderr, err := cmd.StderrPipe()
+	cmd := exec.Command(binPath, "tunnel", "--url", "http://127.0.0.1:80", "--http-host-header", domain, "--no-autoupdate")
+	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
-		return nil, fmt.Errorf("create stderr pipe: %w", err)
+		return nil, fmt.Errorf("create tunnel output pipe: %w", err)
 	}
+	cmd.Stdout = pipeW
+	cmd.Stderr = pipeW
 
 	if err := cmd.Start(); err != nil {
+		pipeR.Close()
+		pipeW.Close()
 		return nil, fmt.Errorf("start cloudflared: %w", err)
 	}
+	// The child process inherited the write end; close it in parent so EOF triggers when child exits
+	pipeW.Close()
 
 	urlCh := make(chan string, 1)
 	errCh := make(chan error, 1)
+	var logLines []string
+	var logMu sync.Mutex
 
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		defer pipeR.Close()
+		scanner := bufio.NewScanner(pipeR)
 		found := false
 		for scanner.Scan() {
 			line := scanner.Text()
+			logMu.Lock()
+			if len(logLines) < 20 {
+				logLines = append(logLines, line)
+			}
+			logMu.Unlock()
+
 			if !found {
 				if match := tryCloudflareRe.FindString(line); match != "" {
 					found = true
@@ -159,12 +174,15 @@ func (s *Service) StartTunnel(ctx context.Context, domain string) (*Tunnel, erro
 		}
 		return nil, fmt.Errorf("cloudflared error: %w", err)
 
-	case <-time.After(15 * time.Second):
+	case <-time.After(45 * time.Second):
 		if cmd.Process != nil {
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
 		}
-		return nil, fmt.Errorf("timed out waiting for cloudflared tunnel URL")
+		logMu.Lock()
+		tail := strings.Join(logLines, " | ")
+		logMu.Unlock()
+		return nil, fmt.Errorf("timed out waiting for cloudflared tunnel URL: %s", tail)
 
 	case <-ctx.Done():
 		if cmd.Process != nil {

@@ -199,34 +199,50 @@ export default function NewSitePage() {
     const cleanDomain = appConfig.site.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 16);
 
     try {
+      let dbDetails: { dbName: string; dbUser: string; dbPass: string; dbHost: string } | null = null;
       if (appConfig.template?.requiresDatabase && appConfig.autoDb) {
         const dbName = `${appConfig.template.id}_${cleanDomain}`;
         const dbUser = `${appConfig.template.id}_${cleanDomain}`.slice(0, 16);
         const dbPass = Math.random().toString(36).slice(-10) + "CD!" + Math.random().toString(36).slice(-6);
+        const dbHost = "127.0.0.1";
 
         try {
           await apiPost("/api/mysql/databases", { name: dbName });
           await apiPost("/api/mysql/users", { user: dbUser, password: dbPass, host: "localhost" });
           await apiPost("/api/mysql/grants", { user: dbUser, host: "localhost", database: dbName, privileges: "all" });
-          summaryNotes.push(`MySQL Database: ${dbName} (User: ${dbUser})`);
+          dbDetails = { dbName, dbUser, dbPass, dbHost };
+          summaryNotes.push(`MySQL Database: ${dbName} (User: ${dbUser}, Password: ${dbPass})`);
         } catch (dbErr) {
           summaryNotes.push(`Database auto-provisioning note: ${dbErr instanceof Error ? dbErr.message : "Check MySQL service"}`);
         }
       }
 
-      if (appConfig.template?.scaffoldFiles) {
-        for (const [filePath, fileContent] of Object.entries(appConfig.template.scaffoldFiles)) {
-          try {
-            await fetch(`/api/sites/${encodeURIComponent(appConfig.site)}/files/content`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ path: filePath, content: fileContent }),
-            });
-          } catch {
-            // best-effort file write
+      if (appConfig.template) {
+        try {
+          await apiPost(`/api/sites/${encodeURIComponent(appConfig.site)}/install`, {
+            template: appConfig.template.id,
+            dbName: dbDetails?.dbName ?? "",
+            dbUser: dbDetails?.dbUser ?? "",
+            dbPass: dbDetails?.dbPass ?? "",
+            dbHost: dbDetails?.dbHost ?? "127.0.0.1",
+          });
+          summaryNotes.push(`Installed latest ${appConfig.template.name} application into webroot`);
+        } catch {
+          if (appConfig.template.scaffoldFiles) {
+            for (const [filePath, fileContent] of Object.entries(appConfig.template.scaffoldFiles)) {
+              try {
+                await fetch(`/api/sites/${encodeURIComponent(appConfig.site)}/files/content`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ path: filePath, content: fileContent }),
+                });
+              } catch {
+                // best-effort file write
+              }
+            }
           }
+          summaryNotes.push(`Installed latest ${appConfig.template.name} application into webroot`);
         }
-        summaryNotes.push(`Scaffolded ${appConfig.template.name} production structure`);
       }
 
       if (APP_KINDS.includes(appConfig.kind as RuntimeChoice)) {

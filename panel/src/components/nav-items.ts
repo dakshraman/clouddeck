@@ -4,7 +4,6 @@ import {
   Boxes,
   Clock,
   CloudUpload,
-  Cpu,
   Database,
   FolderOpen,
   Globe,
@@ -63,13 +62,6 @@ export const navGroups: NavGroup[] = [
         icon: FolderOpen,
         description: "Browse and edit site document roots.",
         keywords: "file manager editor",
-      },
-      {
-        href: "/apps",
-        label: "Applications",
-        icon: Cpu,
-        description: "Node.js, Python, Go and Ruby processes under supervision.",
-        keywords: "node python go ruby runtime process pm2 supervisor systemd app",
       },
       {
         href: "/runtimes",
