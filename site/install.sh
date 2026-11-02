@@ -1185,9 +1185,20 @@ EOF
 
   if [ "$DO_PANEL" = "1" ] && [ ! -f "$ETCDIR/panel.env" ]; then
     SECRET="$(random_hex 32)"
+    _PANEL_LISTEN_PORT="$PANEL_PORT"
+    _PANEL_HOSTNAME="0.0.0.0"
+    _PANEL_COOKIE_SECURE="false"
+    if [ -f "/etc/nginx/conf.d/clouddeck-panel.conf" ]; then
+      _int_port="$(grep -oE 'proxy_pass http://127.0.0.1:[0-9]+' /etc/nginx/conf.d/clouddeck-panel.conf 2>/dev/null | grep -oE '[0-9]+' || true)"
+      if [ -n "$_int_port" ]; then
+        _PANEL_LISTEN_PORT="$_int_port"
+        _PANEL_HOSTNAME="127.0.0.1"
+        _PANEL_COOKIE_SECURE="true"
+      fi
+    fi
     cat > "$ETCDIR/panel.env" <<EOF
-PORT=$PANEL_PORT
-HOSTNAME=0.0.0.0
+PORT=$_PANEL_LISTEN_PORT
+HOSTNAME=$_PANEL_HOSTNAME
 NODE_ENV=production
 AGENT_URL=http://127.0.0.1:$AGENT_PORT
 AGENT_TOKEN=$AGENT_TOKEN
@@ -1195,12 +1206,22 @@ PANEL_DATA_DIR=$DATADIR/panel
 PANEL_SESSION_SECRET=$SECRET
 PANEL_SEED_ADMIN=$PANEL_SEED_ADMIN
 PANEL_SEED_PASSWORD=$PANEL_SEED_PASSWORD
-PANEL_COOKIE_SECURE=false
+PANEL_COOKIE_SECURE=$_PANEL_COOKIE_SECURE
 EOF
     chmod 600 "$ETCDIR/panel.env"
     ok "Wrote panel configuration: $ETCDIR/panel.env"
   elif [ "$DO_PANEL" = "1" ] && [ -f "$ETCDIR/panel.env" ]; then
-    sed -i -E "s|^PORT=.*|PORT=$PANEL_PORT|" "$ETCDIR/panel.env" 2>/dev/null || true
+    # If Nginx SSL reverse-proxy is configured for the panel, preserve the internal proxy port
+    if [ -f "/etc/nginx/conf.d/clouddeck-panel.conf" ]; then
+      _int_port="$(grep -oE 'proxy_pass http://127.0.0.1:[0-9]+' /etc/nginx/conf.d/clouddeck-panel.conf 2>/dev/null | grep -oE '[0-9]+' || true)"
+      if [ -n "$_int_port" ]; then
+        sed -i -E "s|^PORT=.*|PORT=$_int_port|" "$ETCDIR/panel.env" 2>/dev/null || true
+        sed -i -E "s|^HOSTNAME=.*|HOSTNAME=127.0.0.1|" "$ETCDIR/panel.env" 2>/dev/null || true
+        sed -i -E "s|^PANEL_COOKIE_SECURE=.*|PANEL_COOKIE_SECURE=true|" "$ETCDIR/panel.env" 2>/dev/null || true
+      fi
+    else
+      sed -i -E "s|^PORT=.*|PORT=$PANEL_PORT|" "$ETCDIR/panel.env" 2>/dev/null || true
+    fi
     sed -i -E "s|^AGENT_URL=.*|AGENT_URL=http://127.0.0.1:$AGENT_PORT|" "$ETCDIR/panel.env" 2>/dev/null || true
   fi
 
@@ -1334,10 +1355,10 @@ EOF
     step "Verifying CloudDeck Web Panel health on port $PANEL_PORT..."
     i=0
     while [ $i -lt 25 ]; do
-      if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then break; fi
+      if curl -k -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null || curl -k -fsSL --max-time 2 -o /dev/null "https://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then break; fi
       i=$((i + 1)); sleep 1
     done
-    if curl -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/"; then
+    if curl -k -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null || curl -k -fsSL --max-time 2 -o /dev/null "https://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then
       ok "Web panel verified active on port $PANEL_PORT"
     else
       warn "Web panel is still initializing on port $PANEL_PORT (check journalctl -u clouddeck-panel)"
