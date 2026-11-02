@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+concurrency:
+  group: release-workflow
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -101,4 +105,13 @@ jobs:
           else
             gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
           fi
-          gh release upload "$TAG" dist/* scripts/install.sh scripts/install-windows.ps1 scripts/install-macos.sh scripts/clouddeck.ps1 --clobber
+          for f in dist/* scripts/install.sh scripts/install-windows.ps1 scripts/install-macos.sh scripts/clouddeck.ps1; do
+            [ -f "$f" ] || continue
+            for attempt in 1 2 3; do
+              if gh release upload "$TAG" "$f" --clobber; then
+                break
+              fi
+              echo "Upload of $f attempt $attempt failed, retrying in 3s..."
+              sleep 3
+            done
+          done
