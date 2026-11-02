@@ -95,3 +95,4 @@ func TestServerGitEndpoints(t *testing.T) {
 		t.Fatalf("DELETE /git code = %d, body: %s", rec.Code, rec.Body.String())
 	}
 }
+

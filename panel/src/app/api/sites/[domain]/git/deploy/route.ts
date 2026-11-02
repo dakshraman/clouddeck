@@ -47,3 +47,4 @@ export async function POST(_req: NextRequest, ctx: RouteContext): Promise<NextRe
     return json(await res.json());
   });
 }
+

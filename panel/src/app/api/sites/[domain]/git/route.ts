@@ -88,3 +88,4 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext): Promise<Next
     return json(await res.json());
   });
 }
+
