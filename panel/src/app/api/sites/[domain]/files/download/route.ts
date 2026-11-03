@@ -35,6 +35,55 @@ function isValidPath(path: unknown): path is string {
   return path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
 }
 
+function getMimeType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const mimeTypes: Record<string, string> = {
+    // Images
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    svg: "image/svg+xml",
+    webp: "image/webp",
+    ico: "image/x-icon",
+    bmp: "image/bmp",
+    avif: "image/avif",
+    // Documents
+    pdf: "application/pdf",
+    // Media
+    mp4: "video/mp4",
+    webm: "video/webm",
+    ogv: "video/ogg",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    // Text / Code
+    txt: "text/plain; charset=utf-8",
+    log: "text/plain; charset=utf-8",
+    md: "text/markdown; charset=utf-8",
+    html: "text/html; charset=utf-8",
+    htm: "text/html; charset=utf-8",
+    css: "text/css; charset=utf-8",
+    js: "application/javascript; charset=utf-8",
+    mjs: "application/javascript; charset=utf-8",
+    ts: "text/plain; charset=utf-8",
+    tsx: "text/plain; charset=utf-8",
+    jsx: "text/plain; charset=utf-8",
+    json: "application/json; charset=utf-8",
+    xml: "application/xml; charset=utf-8",
+    php: "text/plain; charset=utf-8",
+    py: "text/plain; charset=utf-8",
+    sh: "text/plain; charset=utf-8",
+    sql: "text/plain; charset=utf-8",
+    env: "text/plain; charset=utf-8",
+    yaml: "text/yaml; charset=utf-8",
+    yml: "text/yaml; charset=utf-8",
+    ini: "text/plain; charset=utf-8",
+    conf: "text/plain; charset=utf-8",
+  };
+  return mimeTypes[ext] || "application/octet-stream";
+}
+
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
@@ -45,6 +94,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResp
       throw new HttpError(400, "invalid path", "invalid_path");
     }
 
+    const inline = req.nextUrl.searchParams.get("inline") === "true";
     const query = new URLSearchParams({ path });
 
     let res: Response;
@@ -65,10 +115,19 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResp
     }
 
     const headers = new Headers();
-    const contentType = res.headers.get("content-type");
-    if (contentType) headers.set("Content-Type", contentType);
-    const disposition = res.headers.get("content-disposition");
-    if (disposition) headers.set("Content-Disposition", disposition);
+    const filename = path.split("/").pop() || "download";
+
+    if (inline) {
+      headers.set("Content-Disposition", `inline; filename="${filename}"`);
+      headers.set("Content-Type", getMimeType(filename));
+      headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate");
+    } else {
+      const contentType = res.headers.get("content-type");
+      if (contentType) headers.set("Content-Type", contentType);
+      const disposition = res.headers.get("content-disposition");
+      if (disposition) headers.set("Content-Disposition", disposition);
+    }
+
     return new NextResponse(res.body ?? null, { status: res.status, headers });
   });
 }

@@ -16,6 +16,7 @@ import * as DropdownMenu from "@animate-ui/react/primitives/radix-ui/dropdown-me
 import type { FileEntry, FileListResponse, FileUploadResponse } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { FileEditor } from "@/components/files/file-editor";
+import { FileViewer } from "@/components/files/file-viewer";
 import { FileGlyph } from "@/components/files/file-icons";
 import { FolderTree } from "@/components/files/folder-tree";
 import { ChmodDialog } from "@/components/files/chmod-dialog";
@@ -36,6 +37,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  Eye,
   FileArchive,
   FilePlus,
   Folder,
@@ -111,6 +113,8 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [viewerEntry, setViewerEntry] = useState<FileEntry | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   // Modern modal dialog states
   const [chmodEntry, setChmodEntry] = useState<FileEntry | null>(null);
@@ -212,6 +216,11 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
     setMoveError(null);
     setError(null);
     setNotice(null);
+  }
+
+  function openView(entry: FileEntry) {
+    setViewerEntry(entry);
+    setViewerOpen(true);
   }
 
   async function onCreateFolder() {
@@ -689,6 +698,38 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                 {selected.size} selected
               </span>
 
+              {/* View action button - visible for single selected file */}
+              {singleSelected && singleSelected.type === "file" ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => openView(singleSelected)}
+                  disabled={rowBusy}
+                >
+                  <Eye size={14} aria-hidden="true" />
+                  View
+                </Button>
+              ) : null}
+
+              {/* Edit action button - visible for single selected file */}
+              {singleSelected && singleSelected.type === "file" ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setEditor({
+                      path: joinPath(path, singleSelected.name),
+                      name: singleSelected.name,
+                      isNew: false,
+                    })
+                  }
+                  disabled={rowBusy}
+                >
+                  <Pencil size={14} aria-hidden="true" />
+                  Edit
+                </Button>
+              ) : null}
+
               {/* Compress action button - visible when 1 or more items are selected */}
               <Button
                 variant="secondary"
@@ -838,7 +879,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                         if (entry.type === "dir") {
                           setPath(childPath);
                         } else if (entry.type === "file") {
-                          setEditor({ path: childPath, name: entry.name, isNew: false });
+                          openView(entry);
                         }
                       }}
                     >
@@ -877,6 +918,16 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                               align="end"
                               className="z-50 min-w-[10rem] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95"
                             >
+                              {entry.type === "file" ? (
+                                <DropdownMenu.Item
+                                  className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                  onClick={() => openView(entry)}
+                                >
+                                  <Eye size={13} className="text-muted-foreground" />
+                                  View
+                                </DropdownMenu.Item>
+                              ) : null}
+
                               {entry.type === "file" ? (
                                 <DropdownMenu.Item
                                   className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
@@ -1065,10 +1116,17 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                 <Badge variant="neutral">symlink</Badge>
                               </span>
                             ) : (
-                              <span className="flex items-center gap-2 text-foreground">
+                              <button
+                                type="button"
+                                onClick={() => openView(entry)}
+                                className="flex items-center gap-2 text-left text-foreground transition-colors hover:text-brand cursor-pointer"
+                                title={`View ${entry.name}`}
+                              >
                                 <FileGlyph name={entry.name} />
-                                <span className="break-all font-mono text-sm">{entry.name}</span>
-                              </span>
+                                <span className="break-all font-mono text-sm underline-offset-4 hover:underline">
+                                  {entry.name}
+                                </span>
+                              </button>
                             )}
                           </td>
                           <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
@@ -1093,6 +1151,16 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                         variant="ghost"
                                         size="sm"
                                         disabled={rowBusy}
+                                        onClick={() => openView(entry)}
+                                        title="View File"
+                                      >
+                                        <Eye size={13} aria-hidden="true" />
+                                        View
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={rowBusy}
                                         onClick={() =>
                                           setEditor({
                                             path: childPath,
@@ -1100,6 +1168,7 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                             isNew: false,
                                           })
                                         }
+                                        title="Edit File"
                                       >
                                         <Pencil size={13} aria-hidden="true" />
                                         Edit
@@ -1165,6 +1234,16 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                                         align="end"
                                         className="z-50 min-w-[10rem] rounded-lg border border-border bg-popover p-1 shadow-xl animate-in fade-in-0 zoom-in-95"
                                       >
+                                        {entry.type === "file" ? (
+                                          <DropdownMenu.Item
+                                            className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
+                                            onClick={() => openView(entry)}
+                                          >
+                                            <Eye size={13} className="text-muted-foreground" />
+                                            View
+                                          </DropdownMenu.Item>
+                                        ) : null}
+
                                         {entry.type === "file" ? (
                                           <DropdownMenu.Item
                                             className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground outline-none hover:bg-muted focus:bg-muted"
@@ -1402,6 +1481,22 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
           </Dialog.Portal>
         </Dialog.Root>
       ) : null}
+
+      {/* File Viewer Modal */}
+      <FileViewer
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+        domain={domain}
+        entry={viewerEntry}
+        currentPath={path}
+        onEditRequested={(entry) => {
+          setEditor({
+            path: joinPath(path, entry.name),
+            name: entry.name,
+            isNew: false,
+          });
+        }}
+      />
     </>
   );
 }
