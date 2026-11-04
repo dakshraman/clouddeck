@@ -89,3 +89,4 @@ CREATE TABLE IF NOT EXISTS tsigkeys (
 
 CREATE UNIQUE INDEX IF NOT EXISTS namealgoindex ON tsigkeys(name, algorithm);
 `
+
