@@ -18,6 +18,7 @@ import (
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/runas"
 	"clouddeck/agent/internal/safeexec"
@@ -34,6 +35,12 @@ const (
 // domainRe is the frozen domain validation regex from docs/api.md.
 var domainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
 
+// MySQLManager provides database and account cleanup for application lifecycle.
+type MySQLManager interface {
+	DeleteDatabase(ctx context.Context, rawName string) (string, error)
+	DeleteUser(ctx context.Context, rawUser, rawHost string) (mysql.User, error)
+}
+
 // Service coordinates site mutations.
 type Service struct {
 	st    *store.Store
@@ -41,6 +48,7 @@ type Service struct {
 	audit *audit.Log
 	cfg   config.Config
 	apps  AppLister
+	mysql MySQLManager
 }
 
 // New creates the site service.
@@ -51,6 +59,11 @@ func New(st *store.Store, eng *tasks.Engine, auditLog *audit.Log, cfg config.Con
 // SetAppLister wires app-aware nginx rendering after both services exist.
 func (s *Service) SetAppLister(lister AppLister) {
 	s.apps = lister
+}
+
+// SetMySQL wires the MySQL manager for database provisioning and lifecycle management.
+func (s *Service) SetMySQL(m MySQLManager) {
+	s.mysql = m
 }
 
 // ValidateDomain lowercases the input and checks it against the domain regex,

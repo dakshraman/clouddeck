@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DNSStatus, DNSZone, DNSZoneListResponse } from "@/lib/types";
-import { apiFetch } from "@/components/api";
+import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,23 @@ export function DnsPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
+
+  async function handleInstallPowerDns() {
+    setInstalling(true);
+    setInstallError(null);
+    try {
+      await apiPost("/api/dns/install", {});
+      setTimeout(() => {
+        void load();
+        setInstalling(false);
+      }, 4000);
+    } catch (err) {
+      setInstallError(err instanceof Error ? err.message : "Failed to install PowerDNS");
+      setInstalling(false);
+    }
+  }
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setState("loading");
@@ -119,15 +136,30 @@ export function DnsPage() {
         </>
       ) : null}
 
+      {installError ? (
+        <Alert variant="error" className="mb-6">
+          {installError}
+        </Alert>
+      ) : null}
+
       {state === "ready" && status && !status.available ? (
         <EmptyState
           icon={ServerCrash}
           title="PowerDNS is not available"
-          description="The agent could not run pdnsutil, so zone and record management is disabled. Install PowerDNS on this server and make sure pdnsutil is on the PATH, or point the agent's AGENT_PDNSUTIL_BIN setting at the binary."
+          description="PowerDNS (pdns-server) is not installed or enabled on this server. Install it to enable authoritative DNS zone and record management."
           action={
-            <Button variant="secondary" onClick={() => void load()}>
-              Check again
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button
+                variant="primary"
+                loading={installing}
+                onClick={() => void handleInstallPowerDns()}
+              >
+                {installing ? "Installing PowerDNS…" : "Install PowerDNS"}
+              </Button>
+              <Button variant="secondary" disabled={installing} onClick={() => void load()}>
+                Check again
+              </Button>
+            </div>
           }
         />
       ) : null}

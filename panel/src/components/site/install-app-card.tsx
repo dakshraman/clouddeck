@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
-import { apiFetch, apiPost } from "@/components/api";
+import { apiDelete, apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,9 +114,11 @@ export function InstallAppCard({
             if (!err.message?.includes("exists") && !err.message?.includes("409")) throw err;
           });
 
-          // 2. Create user and grants for BOTH localhost AND 127.0.0.1
+          // 2. Drop existing user if present from prior install so new password takes effect,
+          // then create user and grants for BOTH localhost AND 127.0.0.1
           // so UNIX socket and TCP loopback connections both succeed without access denied
           for (const host of ["localhost", "127.0.0.1"]) {
+            await apiDelete(`/api/mysql/users/${encodeURIComponent(targetDbUser)}?host=${encodeURIComponent(host)}`).catch(() => {});
             await apiPost("/api/mysql/users", {
               user: targetDbUser,
               password: targetDbPass,

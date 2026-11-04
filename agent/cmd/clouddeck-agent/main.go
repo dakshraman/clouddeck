@@ -89,6 +89,7 @@ func main() {
 		return nil
 	})
 	siteSvc.SetAppLister(appSvc)
+	siteSvc.SetMySQL(mysqlSvc)
 	appSvc.SetNginxApplier(func(ctx context.Context, log safeexec.Logger, domain string) error {
 		site, ok := st.GetSite(domain)
 		if !ok {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import type { DNSNameserversInfo, PhpVersionsResponse, RuntimesResponse, SiteSyncResult, Task } from "@/lib/types";
-import { apiFetch, apiPost } from "@/components/api";
+import { apiDelete, apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
@@ -240,6 +240,7 @@ export default function NewSitePage() {
             if (!err.message?.includes("exists") && !err.message?.includes("409")) throw err;
           });
           for (const host of ["localhost", "127.0.0.1"]) {
+            await apiDelete(`/api/mysql/users/${encodeURIComponent(dbUser)}?host=${encodeURIComponent(host)}`).catch(() => {});
             await apiPost("/api/mysql/users", { user: dbUser, password: dbPass, host }).catch(() => {});
             await apiPost("/api/mysql/grants", { user: dbUser, host, database: dbName, privileges: "all" }).catch(() => {});
           }

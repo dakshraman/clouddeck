@@ -44,6 +44,10 @@ export async function apiPost<T>(input: string, body: unknown): Promise<T> {
   });
 }
 
+export async function apiDelete<T>(input: string): Promise<T> {
+  return apiFetch<T>(input, { method: "DELETE" });
+}
+
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     function onAbort() {

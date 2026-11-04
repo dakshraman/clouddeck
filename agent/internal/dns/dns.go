@@ -11,7 +11,10 @@ import (
 	"fmt"
 	stdlog "log"
 	"net/http"
+	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,6 +26,7 @@ import (
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/tasks"
 )
 
 // Limits from docs/api.md section 1.4.
@@ -90,14 +94,138 @@ type NameserversInfo struct {
 
 // Manager talks to PowerDNS through pdnsutil.
 type Manager struct {
-	cfg   config.Config
-	audit *audit.Log
-	mu    sync.Mutex
+	cfg        config.Config
+	audit      *audit.Log
+	mu         sync.Mutex
+	ensureOnce sync.Once
 }
 
 // New creates the manager.
 func New(cfg config.Config, auditLog *audit.Log) *Manager {
-	return &Manager{cfg: cfg, audit: auditLog}
+	mgr := &Manager{cfg: cfg, audit: auditLog}
+	if !cfg.DryRun {
+		go func() {
+			_ = mgr.EnsureBackendConfigured(context.Background())
+		}()
+	}
+	return mgr
+}
+
+// EnsureBackendConfigured checks if PowerDNS configuration directory exists,
+// configures the gsqlite3 backend if needed, initializes the SQLite database schema
+// if empty, disables the default bind backend if present, and ensures port 53 is free.
+func (m *Manager) EnsureBackendConfigured(ctx context.Context) error {
+	if m.cfg.DryRun {
+		return nil
+	}
+	confDir := m.cfg.PdnsConfDir
+	if confDir == "" {
+		confDir = "/etc/powerdns"
+	}
+	if _, err := os.Stat(confDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	pdnsd := filepath.Join(confDir, "pdns.d")
+	_ = os.MkdirAll(pdnsd, 0o755)
+
+	dbDir := "/var/lib/powerdns"
+	_ = os.MkdirAll(dbDir, 0o775)
+	chownPdns(dbDir)
+
+	// Ensure gsqlite3 backend configuration
+	gsqlite3Conf := filepath.Join(pdnsd, "gsqlite3.conf")
+	gsqliteContent := "launch+=gsqlite3\ngsqlite3-database=/var/lib/powerdns/pdns.sqlite3\ngsqlite3-dnssec=on\n"
+	if _, err := os.Stat(gsqlite3Conf); os.IsNotExist(err) {
+		_ = os.WriteFile(gsqlite3Conf, []byte(gsqliteContent), 0o644)
+	}
+
+	// Remove bind backend config if present so it doesn't conflict
+	bindConf := filepath.Join(pdnsd, "bind.conf")
+	if _, err := os.Stat(bindConf); err == nil {
+		_ = os.Remove(bindConf)
+	}
+
+	// Initialize sqlite3 database schema if missing or empty
+	dbPath := filepath.Join(dbDir, "pdns.sqlite3")
+	fi, statErr := os.Stat(dbPath)
+	if os.IsNotExist(statErr) || (statErr == nil && fi.Size() == 0) {
+		_ = initSQLiteSchema(ctx, dbPath)
+	}
+
+	// Fix systemd-resolved conflict on port 53 if resolved is active
+	fixSystemdResolvedConflict(ctx)
+
+	return nil
+}
+
+func initSQLiteSchema(ctx context.Context, dbPath string) error {
+	schemaFile := "/usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql"
+	var schemaBytes []byte
+	if _, statErr := os.Stat(schemaFile); statErr == nil {
+		schemaBytes, _ = os.ReadFile(schemaFile)
+	}
+	if len(schemaBytes) == 0 {
+		schemaBytes = []byte(sqliteDefaultSchema)
+	}
+	if sqlite3Bin, err := exec.LookPath("sqlite3"); err == nil {
+		cmd := exec.CommandContext(ctx, sqlite3Bin, dbPath)
+		cmd.Stdin = bytes.NewReader(schemaBytes)
+		_ = cmd.Run()
+	}
+	_ = os.Chmod(dbPath, 0o660)
+	chownPdns(dbPath)
+	return nil
+}
+
+func chownPdns(path string) {
+	u, err := user.Lookup("pdns")
+	if err != nil {
+		return
+	}
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(u.Gid)
+	_ = os.Chown(path, uid, gid)
+}
+
+func fixSystemdResolvedConflict(ctx context.Context) {
+	if _, err := os.Stat("/run/systemd/resolve"); err != nil {
+		return
+	}
+	confDir := "/etc/systemd/resolved.conf.d"
+	confFile := filepath.Join(confDir, "clouddeck-pdns.conf")
+	if _, err := os.Stat(confFile); os.IsNotExist(err) {
+		_ = os.MkdirAll(confDir, 0o755)
+		_ = os.WriteFile(confFile, []byte("[Resolve]\nDNSStubListener=no\n"), 0o644)
+		_ = exec.CommandContext(ctx, "systemctl", "restart", "systemd-resolved").Run()
+		_ = exec.CommandContext(ctx, "systemctl", "restart", "pdns").Run()
+	}
+}
+
+// Install installs PowerDNS packages, configures the SQLite backend, and starts the service.
+func (m *Manager) Install(ctx context.Context, log tasks.LogFunc) error {
+	if m.cfg.DryRun {
+		return dryRunErr()
+	}
+	if log == nil {
+		log = func(string, string) {}
+	}
+	log("info", "updating package lists...")
+	_ = exec.CommandContext(ctx, "apt-get", "update", "-qq").Run()
+	log("info", "installing pdns-server, pdns-backend-sqlite3, sqlite3...")
+	cmd := exec.CommandContext(ctx, "apt-get", "install", "-y", "--no-install-recommends",
+		"pdns-server", "pdns-backend-sqlite3", "sqlite3")
+	cmd.Env = append(os.Environ(), "DEBIAN_FRONTEND=noninteractive")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("package installation failed: %s (%w)", strings.TrimSpace(string(out)), err)
+	}
+	log("info", "configuring PowerDNS SQLite3 backend...")
+	if err := m.EnsureBackendConfigured(ctx); err != nil {
+		return fmt.Errorf("configure backend: %w", err)
+	}
+	_ = exec.CommandContext(ctx, "systemctl", "enable", "--now", "pdns").Run()
+	log("info", "PowerDNS installed and service active")
+	return nil
 }
 
 // GetNameservers returns current nameservers and server IP.
@@ -329,6 +457,7 @@ func (m *Manager) DeleteRRSet(ctx context.Context, zone, name, rtype string) err
 // before falling back to the generic errors: a missing binary is a 503
 // dns_unavailable, anything else a 500 dns_error with the stderr tail.
 func (m *Manager) run(ctx context.Context, args ...string) (string, string, error) {
+	_ = m.EnsureBackendConfigured(ctx)
 	path, err := exec.LookPath(m.cfg.PdnsUtilBin)
 	if err != nil {
 		return "", "", apierr.New(http.StatusServiceUnavailable, "dns_unavailable",

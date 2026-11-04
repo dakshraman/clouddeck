@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/mail"
 	"clouddeck/agent/internal/sites"
+	"clouddeck/agent/internal/tasks"
 )
 
 func (s *Server) handleGetDNSNameservers(w http.ResponseWriter, r *http.Request) {
@@ -211,4 +213,19 @@ func (s *Server) handleDeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"name": name, "type": rtype, "deleted": true})
+}
+
+func (s *Server) handleInstallDNS(w http.ResponseWriter, r *http.Request) {
+	if s.dns == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "dns_unavailable", "DNS manager not configured"))
+		return
+	}
+	task, err := s.eng.Create("dns.install", "", func(ctx context.Context, log tasks.LogFunc) error {
+		return s.dns.Install(ctx, log)
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"task": task})
 }

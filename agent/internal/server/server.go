@@ -42,7 +42,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.46"
+const Version = "0.6.47"
 
 const maxBodyBytes = 1 << 20
 
@@ -124,6 +124,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/services/{name}/restart", s.handleRestartService)
 
 	mux.HandleFunc("GET /v1/dns/status", s.handleDNSStatus)
+	mux.HandleFunc("POST /v1/dns/install", s.handleInstallDNS)
 	mux.HandleFunc("GET /v1/dns/nameservers", s.handleGetDNSNameservers)
 	mux.HandleFunc("PUT /v1/dns/nameservers", s.handleSetDNSNameservers)
 	mux.HandleFunc("GET /v1/dns/zones", s.handleListDNSZones)

@@ -200,6 +200,33 @@ func (s *Service) UninstallTemplate(ctx context.Context, domain string, opts Tem
 		_ = os.WriteFile(filepath.Join(site.Root, "index.html"), []byte(defaultIndex), 0o644)
 	}
 
+	// 3. Drop database and MySQL users if requested
+	if opts.RemoveDB && s.mysql != nil {
+		dbName := ""
+		dbUser := ""
+		if site.AppMeta != nil {
+			dbName = site.AppMeta["dbName"]
+			dbUser = site.AppMeta["dbUser"]
+		}
+		if dbName == "" && site.AppTemplate != "" {
+			cleanDom := cleanDomainForDB(domain)
+			dbName = fmt.Sprintf("%s_%s", site.AppTemplate, cleanDom)
+		}
+		if dbUser == "" && dbName != "" {
+			dbUser = dbName
+			if len(dbUser) > 16 {
+				dbUser = dbUser[:16]
+			}
+		}
+		if dbName != "" {
+			_, _ = s.mysql.DeleteDatabase(ctx, dbName)
+		}
+		if dbUser != "" {
+			_, _ = s.mysql.DeleteUser(ctx, dbUser, "localhost")
+			_, _ = s.mysql.DeleteUser(ctx, dbUser, "127.0.0.1")
+		}
+	}
+
 	site.AppTemplate = ""
 	site.AppMeta = nil
 	if err := s.st.UpdateSite(domain, func(current *store.Site) {
@@ -211,6 +238,22 @@ func (s *Service) UninstallTemplate(ctx context.Context, domain string, opts Tem
 
 	_ = s.ApplyNginx(ctx, func(string, string) {}, site)
 	return nil
+}
+
+func cleanDomainForDB(domain string) string {
+	var b strings.Builder
+	for _, r := range domain {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	res := b.String()
+	if len(res) > 16 {
+		res = res[:16]
+	}
+	return res
 }
 
 // GetInstalledApp returns metadata on the currently installed application on a site.

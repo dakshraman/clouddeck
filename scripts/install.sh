@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.46"
+      VERSION="v0.6.47"
     fi
   fi
 }
@@ -935,7 +935,7 @@ provision_linux_packages() {
   fi
 
   if [ "$DO_DNS" = "1" ]; then
-    _pkgs="$_pkgs pdns-server pdns-backend-sqlite3"
+    _pkgs="$_pkgs pdns-server pdns-backend-sqlite3 sqlite3"
   fi
 
   if [ "$DO_SECURITY" = "1" ]; then
@@ -987,12 +987,44 @@ start_linux_services() {
       systemctl enable --now "$_unit" >/dev/null 2>&1 || true
     done
     systemctl enable --now certbot.timer >/dev/null 2>&1 || true
+    if [ "$DO_DNS" = "1" ] || command -v pdnsutil >/dev/null 2>&1; then
+      mkdir -p /etc/powerdns/pdns.d /var/lib/powerdns
+      cat > /etc/powerdns/pdns.d/gsqlite3.conf << 'EOF'
+launch+=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=on
+EOF
+      rm -f /etc/powerdns/pdns.d/bind.conf
+      if [ ! -s /var/lib/powerdns/pdns.sqlite3 ]; then
+        if [ -f /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql ]; then
+          sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql 2>/dev/null || true
+        elif [ -f /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql ]; then
+          sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql 2>/dev/null || true
+        fi
+      fi
+      chown -R pdns:pdns /var/lib/powerdns 2>/dev/null || true
+      chmod 0770 /var/lib/powerdns 2>/dev/null || true
+      chmod 0660 /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
+
+      if [ -d /run/systemd/resolve ]; then
+        mkdir -p /etc/systemd/resolved.conf.d
+        cat > /etc/systemd/resolved.conf.d/clouddeck-pdns.conf << 'EOF'
+[Resolve]
+DNSStubListener=no
+EOF
+        systemctl restart systemd-resolved >/dev/null 2>&1 || true
+      fi
+      systemctl enable --now pdns >/dev/null 2>&1 || systemctl restart pdns >/dev/null 2>&1 || true
+    fi
   else
     [ "$DO_NGINX" = "1" ] && service nginx start >/dev/null 2>&1 || true
     [ "$DO_MARIADB" = "1" ] && service "$DB_UNIT" start >/dev/null 2>&1 || true
     for _init in /etc/init.d/php*-fpm; do
       [ -x "$_init" ] && "$_init" start >/dev/null 2>&1 || true
     done
+    if [ "$DO_DNS" = "1" ] || command -v pdnsutil >/dev/null 2>&1; then
+      service pdns restart >/dev/null 2>&1 || true
+    fi
   fi
   ok "Hosting stack services active."
 }
