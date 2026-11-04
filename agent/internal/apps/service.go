@@ -159,7 +159,7 @@ func (s *Service) Create(ctx context.Context, log safeexec.Logger, in CreateInpu
 			return App{}, err
 		}
 	}
-	if err := s.ensureRuntime(kind, in.Version, in.Bin); err != nil {
+	if err := s.ensureRuntime(kind, in.Version, in.Bin, command); err != nil {
 		return App{}, err
 	}
 
@@ -399,17 +399,22 @@ func (s *Service) portInUse(port int) bool {
 }
 
 // ensureRuntime verifies that the requested runtime is installed.
-func (s *Service) ensureRuntime(kind, version, bin string) error {
+func (s *Service) ensureRuntime(kind, version, bin, command string) error {
 	if kind == runtimes.KindCustom {
+		return nil
+	}
+	if bin != "" {
+		return nil
+	}
+	// If a shell runner script is used (e.g. for Java / Docker templates with multi-runtime fallbacks),
+	// allow creation even if the primary runtime binary is not yet installed on host.
+	if (kind == runtimes.KindJava || kind == runtimes.KindDocker) && (strings.Contains(command, ".sh") || strings.Contains(command, "run.sh")) {
 		return nil
 	}
 	info, ok := runtimes.Lookup(kind)
 	if !ok || !info.Available || len(info.Versions) == 0 {
 		return apierr.BadRequest("runtime_unavailable",
 			fmt.Sprintf("%s is not installed on this server; install it or choose another runtime", info.Label))
-	}
-	if bin != "" {
-		return nil
 	}
 	if version != "" {
 		for _, rt := range info.Versions {

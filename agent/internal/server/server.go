@@ -42,7 +42,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.45"
+const Version = "0.6.46"
 
 const maxBodyBytes = 1 << 20
 
@@ -171,6 +171,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/sites/{domain}/cron", s.handleListCron)
 	mux.HandleFunc("POST /v1/sites/{domain}/cron", s.handleAddCron)
 	mux.HandleFunc("DELETE /v1/sites/{domain}/cron/{id}", s.handleDeleteCron)
+	mux.HandleFunc("POST /v1/sites/{domain}/cron/{id}/run", s.handleRunCron)
 	mux.HandleFunc("PUT /v1/sites/{domain}/php", s.handleSetSitePHP)
 	mux.HandleFunc("GET /v1/sites/{domain}/security", s.handleListBlockedIPs)
 	mux.HandleFunc("POST /v1/sites/{domain}/security/block", s.handleBlockIP)
@@ -813,6 +814,15 @@ func (s *Server) handleDeleteCron(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"cron": cron})
+}
+
+func (s *Server) handleRunCron(w http.ResponseWriter, r *http.Request) {
+	result, err := s.sites.RunCron(r.Context(), r.PathValue("domain"), r.PathValue("id"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleSetSitePHP(w http.ResponseWriter, r *http.Request) {

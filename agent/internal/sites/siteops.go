@@ -4,17 +4,23 @@
 package sites
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	stdlog "log"
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 
@@ -37,6 +43,7 @@ const (
 	ActionRedirectDelete = "site.redirect.delete"
 	ActionCronAdd        = "site.cron.add"
 	ActionCronDelete     = "site.cron.delete"
+	ActionCronRun        = "site.cron.run"
 	ActionPHPSet         = "site.php.set"
 	ActionIPBlock        = "site.ip.block"
 	ActionIPUnblock      = "site.ip.unblock"
@@ -571,6 +578,120 @@ func (s *Service) DeleteCron(domain, id string) ([]store.CronJob, error) {
 		return nil, apierr.Internal(fmt.Sprintf("write cron fragment: %v", err))
 	}
 	return nonNil(updated.Cron), nil
+}
+
+// CronRunResult is the output of manually triggering a cron job.
+type CronRunResult struct {
+	ID         string `json:"id"`
+	Command    string `json:"command"`
+	ExitCode   int    `json:"exitCode"`
+	Output     string `json:"output"`
+	DurationMs int64  `json:"durationMs"`
+	Success    bool   `json:"success"`
+}
+
+// RunCron manually executes one cron job by id and returns the execution result.
+func (s *Service) RunCron(ctx context.Context, domain, id string) (CronRunResult, error) {
+	if s.cfg.DryRun {
+		return CronRunResult{}, s.dryRunErr()
+	}
+	site, err := s.Get(domain)
+	if err != nil {
+		return CronRunResult{}, err
+	}
+	var target *store.CronJob
+	for i := range site.Cron {
+		if site.Cron[i].ID == id {
+			target = &site.Cron[i]
+			break
+		}
+	}
+	if target == nil {
+		return CronRunResult{}, apierr.NotFound("cron_not_found", fmt.Sprintf("cron job %q does not exist", id))
+	}
+
+	execCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	shell := "/bin/bash"
+	if _, err := os.Stat(shell); err != nil {
+		shell = "/bin/sh"
+	}
+
+	var cmd *exec.Cmd
+	if target.RunAs == "www" {
+		webUser := "www"
+		if _, err := user.Lookup(webUser); err != nil {
+			if _, err := user.Lookup("www-data"); err == nil {
+				webUser = "www-data"
+			}
+		}
+		cmd = exec.CommandContext(execCtx, shell, "-c", target.Command)
+		if u, err := user.Lookup(webUser); err == nil {
+			if uid, err := strconv.Atoi(u.Uid); err == nil {
+				if gid, err := strconv.Atoi(u.Gid); err == nil {
+					cmd.SysProcAttr = &syscall.SysProcAttr{
+						Credential: &syscall.Credential{
+							Uid: uint32(uid),
+							Gid: uint32(gid),
+						},
+					}
+				}
+			}
+		}
+	} else {
+		cmd = exec.CommandContext(execCtx, shell, "-c", target.Command)
+	}
+
+	if site.Root != "" {
+		if _, statErr := os.Stat(site.Root); statErr == nil {
+			cmd.Dir = site.Root
+		}
+	}
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	start := time.Now()
+	runErr := cmd.Run()
+	elapsed := time.Since(start).Milliseconds()
+
+	exitCode := 0
+	if runErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(runErr, &exitErr) {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
+			if out.Len() == 0 {
+				out.WriteString(runErr.Error())
+			}
+		}
+	}
+
+	outputStr := strings.TrimRight(out.String(), "\r\n")
+	if len(outputStr) > 65536 {
+		outputStr = outputStr[:65536] + "\n...[truncated]"
+	}
+
+	params := map[string]any{
+		"domain":     site.Domain,
+		"id":         id,
+		"command":    target.Command,
+		"exitCode":   exitCode,
+		"durationMs": elapsed,
+	}
+	_ = s.audit.Append(audit.Record{Action: ActionCronRun, Params: params, Result: audit.ResultAccepted})
+
+	return CronRunResult{
+		ID:         id,
+		Command:    target.Command,
+		ExitCode:   exitCode,
+		Output:     outputStr,
+		DurationMs: elapsed,
+		Success:    exitCode == 0,
+	}, nil
 }
 
 // ---- PHP version switching (synchronous, audited) ----

@@ -531,6 +531,34 @@ func TestCronFragmentWriteFailureRollsBack(t *testing.T) {
 	}
 }
 
+func TestRunCron(t *testing.T) {
+	h := newHarness(t, nil)
+	h.addSite("example.com", "none")
+
+	jobs, err := h.svc.AddCron("example.com", "0 3 * * *", "echo cron_test_output", "comment", "root")
+	if err != nil {
+		t.Fatalf("AddCron: %v", err)
+	}
+	if len(jobs) == 0 {
+		t.Fatalf("expected at least 1 job")
+	}
+
+	res, err := h.svc.RunCron(context.Background(), "example.com", jobs[0].ID)
+	if err != nil {
+		t.Fatalf("RunCron: %v", err)
+	}
+	if !res.Success || res.ExitCode != 0 {
+		t.Errorf("RunCron failed: %+v", res)
+	}
+	if !strings.Contains(res.Output, "cron_test_output") {
+		t.Errorf("RunCron output = %q, want containing cron_test_output", res.Output)
+	}
+
+	// Missing job
+	_, err = h.svc.RunCron(context.Background(), "example.com", "deadbeef")
+	wantAPIError(t, err, 404, "cron_not_found")
+}
+
 func TestSetPHPVersion(t *testing.T) {
 	h := newHarness(t, func(cfg *config.Config) {
 		cfg.PHPSockMap = "8.4=/tmp/php-cgi-84.sock"

@@ -38,29 +38,51 @@ export interface FileViewerProps {
 type ViewerType = "image" | "pdf" | "video" | "audio" | "text" | "binary";
 
 function getViewerType(name: string): ViewerType {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
+  const lowerName = name.toLowerCase();
+  const ext = lowerName.split(".").pop() || "";
   if (["png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp", "avif"].includes(ext)) {
     return "image";
   }
   if (ext === "pdf") {
     return "pdf";
   }
-  if (["mp4", "webm", "ogv"].includes(ext)) {
+  if (["mp4", "webm", "ogv", "mov", "m4v"].includes(ext)) {
     return "video";
   }
-  if (["mp3", "wav", "ogg", "aac", "flac"].includes(ext)) {
+  if (["mp3", "wav", "ogg", "aac", "flac", "m4a", "wma"].includes(ext)) {
     return "audio";
   }
   if (
     [
       "txt", "log", "md", "markdown", "php", "phtml", "js", "mjs", "cjs", "ts", "mts", "cts",
-      "jsx", "tsx", "html", "htm", "css", "scss", "sass", "json", "xml", "svg", "py", "sh",
-      "bash", "zsh", "sql", "env", "yaml", "yml", "ini", "conf", "cfg", "lock", "gitignore",
-      "dockerfile", "htaccess", "properties", "toml", "c", "cpp", "h", "go", "rs", "java",
+      "jsx", "tsx", "html", "htm", "css", "scss", "sass", "json", "json5", "jsonc", "jsonl",
+      "xml", "svg", "py", "sh", "bash", "zsh", "sql", "env", "yaml", "yml", "ini", "conf",
+      "cfg", "lock", "gitignore", "dockerfile", "htaccess", "properties", "toml", "c", "cpp",
+      "h", "hpp", "go", "rs", "java", "editorconfig", "gitattributes", "dockerignore", "npmrc",
+      "nvmrc", "csv", "tsv", "mod", "sum", "graphql", "gql", "prisma", "proto", "lua", "rb",
+      "pl", "pm", "r", "swift", "kt", "kts", "dart", "rst", "adoc", "asciidoc", "vue",
+      "svelte", "nginx", "service", "cson",
     ].includes(ext) ||
-    name.startsWith(".env") ||
-    name.toLowerCase() === "dockerfile" ||
-    name.toLowerCase() === ".htaccess"
+    lowerName.startsWith(".") ||
+    lowerName === "dockerfile" ||
+    lowerName === "containerfile" ||
+    lowerName === ".htaccess" ||
+    lowerName === "makefile" ||
+    lowerName === "gnumakefile" ||
+    lowerName === "artisan" ||
+    lowerName === "license" ||
+    lowerName === "licence" ||
+    lowerName === "copying" ||
+    lowerName === "readme" ||
+    lowerName === "changelog" ||
+    lowerName === "authors" ||
+    lowerName === "contributing" ||
+    lowerName === "gemfile" ||
+    lowerName === "procfile" ||
+    lowerName === "rakefile" ||
+    lowerName === "caddyfile" ||
+    lowerName === "vagrantfile" ||
+    lowerName === "brewfile"
   ) {
     return "text";
   }
@@ -146,10 +168,31 @@ export function FileViewer({
 
   const copyText = useCallback(() => {
     if (!textContent) return;
-    navigator.clipboard.writeText(textContent).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(textContent)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {
+          // Fallback if clipboard write permission is denied
+          try {
+            const textarea = document.createElement("textarea");
+            textarea.value = textContent;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            // gracefully ignore if both methods fail
+          }
+        });
+    }
   }, [textContent]);
 
   if (!entry) return null;
@@ -189,7 +232,7 @@ export function FileViewer({
 
             {/* Actions Bar */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {viewerType === "text" && onEditRequested ? (
+              {((viewerType === "text" && !textError) || entry.name.toLowerCase().endsWith(".svg")) && onEditRequested ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -375,32 +418,58 @@ export function FileViewer({
                   <span className="font-mono text-xs">Loading file preview…</span>
                 </div>
               ) : textError ? (
-                <div className="p-6">
-                  <Alert variant="error">{textError}</Alert>
+                <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center bg-[#0d1117]">
+                  <div className="w-full max-w-lg">
+                    <Alert variant="error">{textError}</Alert>
+                  </div>
+                  <p className="font-mono text-xs text-muted-foreground max-w-md">
+                    This file could not be displayed as text. It may contain binary content, non-UTF-8 characters, or exceed the 2 MB text preview limit.
+                  </p>
+                  <div className="flex gap-2.5 pt-2">
+                    <a
+                      href={downloadUrl}
+                      download={entry.name}
+                      className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-brand-foreground hover:bg-brand/90 transition"
+                    >
+                      <Download size={14} />
+                      Download File
+                    </a>
+                    <a
+                      href={rawUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition"
+                    >
+                      <ExternalLink size={14} />
+                      Open Raw
+                    </a>
+                  </div>
                 </div>
               ) : (
-                <div className="flex min-h-full font-mono text-xs">
-                  {/* Line numbers gutter */}
-                  <div className="select-none border-r border-slate-800 bg-[#090d13] px-3 py-4 text-right font-mono text-slate-600 shrink-0">
-                    {lines.map((_, i) => (
-                      <div key={i} className="leading-6">
-                        {i + 1}
+                <div className="min-h-full font-mono text-xs">
+                  {lines.length === 0 || (lines.length === 1 && lines[0] === "" && entry.sizeBytes === 0) ? (
+                    <div className="flex min-h-[200px] items-center justify-center p-8 text-center text-slate-500 italic">
+                      (Empty file)
+                    </div>
+                  ) : (
+                    lines.map((line, i) => (
+                      <div
+                        key={i}
+                        className="flex min-w-full leading-6 hover:bg-slate-800/40"
+                      >
+                        <span className="min-w-[3.5rem] select-none border-r border-slate-800 bg-[#090d13] px-3 py-0 text-right font-mono text-slate-600 shrink-0">
+                          {i + 1}
+                        </span>
+                        <span
+                          className={`flex-1 px-4 font-mono text-slate-200 ${
+                            wrapText ? "whitespace-pre-wrap break-all" : "whitespace-pre"
+                          }`}
+                        >
+                          {line || " "}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Content viewer */}
-                  <div
-                    className={`flex-1 p-4 overflow-x-auto font-mono text-slate-200 ${
-                      wrapText ? "whitespace-pre-wrap break-all" : "whitespace-pre"
-                    }`}
-                  >
-                    {lines.map((line, i) => (
-                      <div key={i} className="leading-6">
-                        {line || " "}
-                      </div>
-                    ))}
-                  </div>
+                    ))
+                  )}
                 </div>
               )
             ) : (

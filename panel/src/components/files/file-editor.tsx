@@ -92,7 +92,26 @@ function getLanguageInfo(filename: string): LanguageInfo {
     case "ini":
     case "conf":
     case "cfg":
+    case "toml":
       return { label: "Config", variant: "neutral" };
+    case "vue":
+      return { label: "Vue", variant: "green" };
+    case "svelte":
+      return { label: "Svelte", variant: "amber" };
+    case "csv":
+    case "tsv":
+      return { label: "Data", variant: "neutral" };
+    case "go":
+      return { label: "Go", variant: "indigo" };
+    case "rs":
+      return { label: "Rust", variant: "amber" };
+    case "c":
+    case "cpp":
+    case "h":
+    case "hpp":
+      return { label: "C/C++", variant: "indigo" };
+    case "lua":
+      return { label: "Lua", variant: "indigo" };
     case "txt":
     case "log":
       return { label: "Plain Text", variant: "neutral" };

@@ -276,8 +276,8 @@ func probe(name string, args ...string) (string, string) {
 var fallbackPaths = map[string][]string{
 	"node":    {"/usr/local/bin/node", "/usr/bin/node", "/snap/bin/node"},
 	"python3": {"/usr/bin/python3", "/usr/local/bin/python3"},
-	"go":      {"/usr/local/go/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go"},
-	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby"},
+	"go":      {"/usr/local/go/bin/go", "/usr/local/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go", "/opt/go/bin/go"},
+	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby", "/snap/bin/ruby", "/opt/ruby/bin/ruby"},
 	"java":    {"/usr/bin/java", "/usr/local/bin/java", "/usr/lib/jvm/default-java/bin/java"},
 	"docker":  {"/usr/bin/docker", "/usr/local/bin/docker"},
 	"php":     {"/usr/bin/php", "/usr/local/bin/php"},
@@ -362,21 +362,62 @@ func PHPVersions(base string) []Runtime {
 		base = "/etc/php"
 	}
 	entries, err := os.ReadDir(base)
-	if err != nil {
+	if err != nil && base != "/etc/php" {
 		return []Runtime{}
 	}
+	seenVersions := map[string]bool{}
 	var versions []string
-	for _, entry := range entries {
-		if entry.IsDir() && versionRe.MatchString(entry.Name()) {
-			versions = append(versions, entry.Name())
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() && versionRe.MatchString(entry.Name()) {
+				seenVersions[entry.Name()] = true
+				versions = append(versions, entry.Name())
+			}
+		}
+	}
+	if base == "/etc/php" {
+		if altEntries, altErr := os.ReadDir("/www/server/php"); altErr == nil {
+			for _, entry := range altEntries {
+				if entry.IsDir() && versionRe.MatchString(entry.Name()) && !seenVersions[entry.Name()] {
+					seenVersions[entry.Name()] = true
+					versions = append(versions, entry.Name())
+				}
+			}
 		}
 	}
 	sort.Slice(versions, func(i, j int) bool { return lessVersion(versions[i], versions[j]) })
+
+	// Detect default PHP version from /usr/bin/php symlink or probe
+	defaultVersion := ""
+	if target, evalErr := filepath.EvalSymlinks("/usr/bin/php"); evalErr == nil {
+		for _, version := range versions {
+			if strings.HasSuffix(target, "php"+version) || strings.HasSuffix(target, "/"+version) {
+				defaultVersion = version
+				break
+			}
+		}
+	}
+	if defaultVersion == "" {
+		if _, v := probe("php", "-v"); v != "" {
+			for _, version := range versions {
+				if v == version || strings.HasPrefix(v, version+".") {
+					defaultVersion = version
+					break
+				}
+			}
+		}
+	}
+
 	out := make([]Runtime, 0, len(versions))
 	for _, version := range versions {
 		rt := Runtime{Kind: KindPHP, Label: "PHP", Version: version}
 		if bin := "/usr/bin/php" + version; isExecutable(bin) {
 			rt.Bin = bin
+		} else if bin := filepath.Join("/www/server/php", version, "bin", "php"); isExecutable(bin) {
+			rt.Bin = bin
+		}
+		if defaultVersion != "" && version == defaultVersion {
+			rt.Default = true
 		}
 		out = append(out, rt)
 	}

@@ -206,7 +206,7 @@ export function InstallAppCard({
           } else if (selectedTemplate.id === "django" || selectedTemplate.id === "flask") {
             runCmd = "python3 app.py";
           } else if (selectedTemplate.id === "docker") {
-            runCmd = `docker run --rm --name ${selectedTemplate.id}-${cleanDomain} -p 127.0.0.1:${targetPort}:80 ${dockerImage}`;
+            runCmd = selectedTemplate.defaultCommand || `docker run --rm --name ${selectedTemplate.id}-${cleanDomain} -p 127.0.0.1:${targetPort}:80 ${dockerImage}`;
           }
 
           await apiPost("/api/apps", {

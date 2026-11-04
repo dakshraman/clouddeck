@@ -82,3 +82,11 @@ func TestVersionOrdering(t *testing.T) {
 		t.Fatal("3.12 should not sort before 3.9")
 	}
 }
+
+func TestPHPVersionsDirectoryScanning(t *testing.T) {
+	dir := t.TempDir()
+	runtimes := PHPVersions(dir)
+	if len(runtimes) != 0 {
+		t.Fatalf("expected 0 runtimes from empty dir, got %d", len(runtimes))
+	}
+}

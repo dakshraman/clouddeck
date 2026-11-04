@@ -107,7 +107,7 @@ var specs = []probeSpec{
 		// Installed php-fpm binaries are versioned (php-fpm8.3), so besides
 		// the plain name the master process is matched by its command line.
 		matchArgs:    [][]string{{"-x", "php-fpm"}, {"-f", "php-fpm: master"}},
-		versionCmds:  [][]string{{"php-fpm", "-v"}},
+		versionCmds:  [][]string{{"php-fpm", "-v"}, {"php", "-v"}},
 		parseVersion: phpVersion,
 	},
 }
@@ -186,9 +186,14 @@ func defaultRestartCommand(name string) string {
 	case NamePHPFpm:
 		if out, err := exec.Command("systemctl", "list-unit-files", "--type=service",
 			"--no-legend", "php*-fpm*.service").Output(); err == nil {
-			first := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
-			if fields := strings.Fields(first); len(fields) > 0 {
-				return "systemctl restart " + strings.TrimSuffix(fields[0], ".service")
+			var units []string
+			for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				if fields := strings.Fields(line); len(fields) > 0 {
+					units = append(units, strings.TrimSuffix(fields[0], ".service"))
+				}
+			}
+			if len(units) > 0 {
+				return "systemctl restart " + strings.Join(units, " ")
 			}
 		}
 		return "systemctl restart php-fpm"

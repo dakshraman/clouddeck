@@ -36,7 +36,8 @@ function isValidPath(path: unknown): path is string {
 }
 
 function getMimeType(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const lower = filename.toLowerCase();
+  const ext = lower.split(".").pop() || "";
   const mimeTypes: Record<string, string> = {
     // Images
     png: "image/png",
@@ -54,9 +55,19 @@ function getMimeType(filename: string): string {
     mp4: "video/mp4",
     webm: "video/webm",
     ogv: "video/ogg",
+    mov: "video/quicktime",
+    m4v: "video/x-m4v",
     mp3: "audio/mpeg",
     wav: "audio/wav",
     ogg: "audio/ogg",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    m4a: "audio/mp4",
+    // Fonts
+    woff: "font/woff",
+    woff2: "font/woff2",
+    ttf: "font/ttf",
+    otf: "font/otf",
     // Text / Code
     txt: "text/plain; charset=utf-8",
     log: "text/plain; charset=utf-8",
@@ -80,8 +91,43 @@ function getMimeType(filename: string): string {
     yml: "text/yaml; charset=utf-8",
     ini: "text/plain; charset=utf-8",
     conf: "text/plain; charset=utf-8",
+    editorconfig: "text/plain; charset=utf-8",
+    gitattributes: "text/plain; charset=utf-8",
+    gitignore: "text/plain; charset=utf-8",
+    dockerignore: "text/plain; charset=utf-8",
+    dockerfile: "text/plain; charset=utf-8",
+    htaccess: "text/plain; charset=utf-8",
+    npmrc: "text/plain; charset=utf-8",
+    nvmrc: "text/plain; charset=utf-8",
+    lock: "text/plain; charset=utf-8",
+    toml: "text/plain; charset=utf-8",
+    csv: "text/csv; charset=utf-8",
+    tsv: "text/tab-separated-values; charset=utf-8",
+    jsonl: "application/json; charset=utf-8",
+    vue: "text/plain; charset=utf-8",
+    svelte: "text/plain; charset=utf-8",
   };
-  return mimeTypes[ext] || "application/octet-stream";
+  if (mimeTypes[ext]) return mimeTypes[ext];
+  if (
+    lower.startsWith(".env") ||
+    lower.startsWith(".") ||
+    lower === "makefile" ||
+    lower === "gnumakefile" ||
+    lower === "artisan" ||
+    lower === "license" ||
+    lower === "licence" ||
+    lower === "changelog" ||
+    lower === "dockerfile" ||
+    lower === "containerfile" ||
+    lower === "procfile" ||
+    lower === "gemfile" ||
+    lower === "rakefile" ||
+    lower === "caddyfile" ||
+    lower === ".htaccess"
+  ) {
+    return "text/plain; charset=utf-8";
+  }
+  return "application/octet-stream";
 }
 
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
@@ -121,6 +167,11 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<NextResp
       headers.set("Content-Disposition", `inline; filename="${filename}"`);
       headers.set("Content-Type", getMimeType(filename));
       headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate");
+      headers.set(
+        "Content-Security-Policy",
+        "sandbox allow-forms allow-modals; default-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'unsafe-inline'; font-src 'self' data:;",
+      );
+      headers.set("X-Content-Type-Options", "nosniff");
     } else {
       const contentType = res.headers.get("content-type");
       if (contentType) headers.set("Content-Type", contentType);
