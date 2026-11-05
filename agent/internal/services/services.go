@@ -46,6 +46,10 @@ const (
 	pgrepNoMatch = 1
 	// actionRestart is the audit action recorded for service restarts.
 	actionRestart = "service.restart"
+	// actionStop is the audit action recorded for service stops.
+	actionStop = "service.stop"
+	// actionStart is the audit action recorded for service starts.
+	actionStart = "service.start"
 )
 
 // Status is one service's probed state.
@@ -71,11 +75,13 @@ func New(cfg config.Config, auditLog *audit.Log) *Manager {
 }
 
 // probeSpec tells the best-effort probe how to find one service's process,
-// which restart command it uses and how to read its version.
+// which restart/stop/start command it uses and how to read its version.
 type probeSpec struct {
 	name         string
 	label        string
 	command      func(config.Config) string
+	stopCmd      func(config.Config) string
+	startCmd     func(config.Config) string
 	matchArgs    [][]string // pgrep arguments; the first matching variant wins
 	versionCmds  [][]string // version commands tried in order
 	parseVersion func(string) string
@@ -87,25 +93,28 @@ var specs = []probeSpec{
 		name:         NameNginx,
 		label:        "Nginx (web server)",
 		command:      func(cfg config.Config) string { return cfg.NginxRestartCmd },
+		stopCmd:      func(cfg config.Config) string { return cfg.NginxStopCmd },
+		startCmd:     func(cfg config.Config) string { return cfg.NginxStartCmd },
 		matchArgs:    [][]string{{"-x", "nginx"}},
 		versionCmds:  [][]string{{"nginx", "-v"}},
 		parseVersion: nginxVersion,
 	},
 	{
-		name:    NameMySQL,
-		label:   "MySQL/MariaDB (database)",
-		command: func(cfg config.Config) string { return cfg.MySQLRestartCmd },
-		// MariaDB reports itself as mariadbd, MySQL as mysqld.
+		name:         NameMySQL,
+		label:        "MySQL/MariaDB (database)",
+		command:      func(cfg config.Config) string { return cfg.MySQLRestartCmd },
+		stopCmd:      func(cfg config.Config) string { return cfg.MySQLStopCmd },
+		startCmd:     func(cfg config.Config) string { return cfg.MySQLStartCmd },
 		matchArgs:    [][]string{{"-x", "mysqld"}, {"-x", "mariadbd"}},
 		versionCmds:  [][]string{{"mysqld", "--version"}, {"mariadbd", "--version"}},
 		parseVersion: mysqlVersion,
 	},
 	{
-		name:    NamePHPFpm,
-		label:   "PHP-FPM (application server)",
-		command: func(cfg config.Config) string { return cfg.PHPFpmRestartCmd },
-		// Installed php-fpm binaries are versioned (php-fpm8.3), so besides
-		// the plain name the master process is matched by its command line.
+		name:         NamePHPFpm,
+		label:        "PHP-FPM (application server)",
+		command:      func(cfg config.Config) string { return cfg.PHPFpmRestartCmd },
+		stopCmd:      func(cfg config.Config) string { return cfg.PHPFpmStopCmd },
+		startCmd:     func(cfg config.Config) string { return cfg.PHPFpmStartCmd },
 		matchArgs:    [][]string{{"-x", "php-fpm"}, {"-f", "php-fpm: master"}},
 		versionCmds:  [][]string{{"php-fpm", "-v"}, {"php", "-v"}},
 		parseVersion: phpVersion,
@@ -173,6 +182,127 @@ func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
 	return probe(ctx, spec), nil
 }
 
+// Stop runs the stop command for name and returns the freshly probed status.
+// Errors: 404 unknown_service, 409 dry_run, 502 service_stop_failed.
+func (m *Manager) Stop(ctx context.Context, name string) (Status, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	spec, ok := specFor(name)
+	if !ok {
+		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
+	}
+	if m.cfg.DryRun {
+		return Status{}, apierr.Conflict("dry_run", "service stops are disabled in dry-run mode")
+	}
+	command := strings.TrimSpace(spec.stopCmd(m.cfg))
+	usedDefault := command == ""
+	if usedDefault {
+		command = defaultStopCommand(name)
+	}
+
+	if err := m.audit.Append(audit.Record{
+		Action: actionStop,
+		Params: map[string]any{"name": name},
+		Result: audit.ResultAccepted,
+	}); err != nil {
+		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
+	}
+	if err := runServiceOp(ctx, "stop", name, command); err != nil {
+		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+			if err := runServiceOp(ctx, "stop", name, "systemctl stop mariadb"); err == nil {
+				return probe(ctx, spec), nil
+			}
+		}
+		return Status{}, err
+	}
+	return probe(ctx, spec), nil
+}
+
+// Start runs the start command for name and returns the freshly probed status.
+// Errors: 404 unknown_service, 409 dry_run, 502 service_start_failed.
+func (m *Manager) Start(ctx context.Context, name string) (Status, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	spec, ok := specFor(name)
+	if !ok {
+		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
+	}
+	if m.cfg.DryRun {
+		return Status{}, apierr.Conflict("dry_run", "service starts are disabled in dry-run mode")
+	}
+	command := strings.TrimSpace(spec.startCmd(m.cfg))
+	usedDefault := command == ""
+	if usedDefault {
+		command = defaultStartCommand(name)
+	}
+
+	if err := m.audit.Append(audit.Record{
+		Action: actionStart,
+		Params: map[string]any{"name": name},
+		Result: audit.ResultAccepted,
+	}); err != nil {
+		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
+	}
+	if err := runServiceOp(ctx, "start", name, command); err != nil {
+		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+			if err := runServiceOp(ctx, "start", name, "systemctl start mariadb"); err == nil {
+				return probe(ctx, spec), nil
+			}
+		}
+		return Status{}, err
+	}
+	return probe(ctx, spec), nil
+}
+
+func phpFpmUnits() []string {
+	out, err := exec.Command("systemctl", "list-unit-files", "--type=service",
+		"--no-legend", "php*-fpm*.service").Output()
+	if err != nil {
+		return nil
+	}
+	var units []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if fields := strings.Fields(line); len(fields) > 0 {
+			units = append(units, strings.TrimSuffix(fields[0], ".service"))
+		}
+	}
+	return units
+}
+
+// defaultStopCommand is used when the operator did not configure AGENT_*_STOP_CMD.
+func defaultStopCommand(name string) string {
+	switch name {
+	case NameNginx:
+		return "systemctl stop nginx"
+	case NameMySQL:
+		return "systemctl stop mysql"
+	case NamePHPFpm:
+		if units := phpFpmUnits(); len(units) > 0 {
+			return "systemctl stop " + strings.Join(units, " ")
+		}
+		return "systemctl stop php-fpm"
+	}
+	return ""
+}
+
+// defaultStartCommand is used when the operator did not configure AGENT_*_START_CMD.
+func defaultStartCommand(name string) string {
+	switch name {
+	case NameNginx:
+		return "systemctl start nginx"
+	case NameMySQL:
+		return "systemctl start mysql"
+	case NamePHPFpm:
+		if units := phpFpmUnits(); len(units) > 0 {
+			return "systemctl start " + strings.Join(units, " ")
+		}
+		return "systemctl start php-fpm"
+	}
+	return ""
+}
+
 // defaultRestartCommand is used when the operator did not configure
 // AGENT_*_RESTART_CMD: restart through the service's systemd unit. For
 // PHP-FPM the distro unit is versioned (php8.3-fpm), so discover it from
@@ -184,31 +314,29 @@ func defaultRestartCommand(name string) string {
 	case NameMySQL:
 		return "systemctl restart mysql"
 	case NamePHPFpm:
-		if out, err := exec.Command("systemctl", "list-unit-files", "--type=service",
-			"--no-legend", "php*-fpm*.service").Output(); err == nil {
-			var units []string
-			for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-				if fields := strings.Fields(line); len(fields) > 0 {
-					units = append(units, strings.TrimSuffix(fields[0], ".service"))
-				}
-			}
-			if len(units) > 0 {
-				return "systemctl restart " + strings.Join(units, " ")
-			}
+		if units := phpFpmUnits(); len(units) > 0 {
+			return "systemctl restart " + strings.Join(units, " ")
 		}
 		return "systemctl restart php-fpm"
 	}
 	return ""
 }
 
-// runRestart executes command's argv with restartTimeout. A missing binary,
-// a non-zero exit or a timeout maps to 502 service_restart_failed carrying
-// the tail of the command's stderr.
 func runRestart(ctx context.Context, name, command string) error {
+	return runServiceOp(ctx, "restart", name, command)
+}
+
+// runServiceOp executes command's argv with restartTimeout. A missing binary,
+// a non-zero exit or a timeout maps to 502 service_{op}_failed carrying
+// the tail of the command's stderr.
+func runServiceOp(ctx context.Context, op, name, command string) error {
 	argv := strings.Fields(command)
+	if len(argv) == 0 {
+		return serviceOpFailed(op, fmt.Sprintf("%s command is empty", op))
+	}
 	path, err := exec.LookPath(argv[0])
 	if err != nil {
-		return restartFailed(fmt.Sprintf("restart command binary %q is not installed", argv[0]))
+		return serviceOpFailed(op, fmt.Sprintf("%s command binary %q is not installed", op, argv[0]))
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, restartTimeout)
@@ -222,18 +350,18 @@ func runRestart(ctx context.Context, name, command string) error {
 		return nil
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return restartFailed(fmt.Sprintf("restart command timed out after %s", restartTimeout))
+		return serviceOpFailed(op, fmt.Sprintf("%s command timed out after %s", op, restartTimeout))
 	}
 	detail := tailText(stderr.String())
 	if detail == "" {
-		detail = fmt.Sprintf("restart command failed: %v", runErr)
+		detail = fmt.Sprintf("%s command failed: %v", op, runErr)
 	}
-	return restartFailed(fmt.Sprintf("restart of %s failed: %s", name, detail))
+	return serviceOpFailed(op, fmt.Sprintf("%s of %s failed: %s", op, name, detail))
 }
 
-// restartFailed builds the documented 502 error.
-func restartFailed(message string) error {
-	return apierr.New(http.StatusBadGateway, "service_restart_failed", message)
+func serviceOpFailed(op, message string) error {
+	code := "service_" + op + "_failed"
+	return apierr.New(http.StatusBadGateway, code, message)
 }
 
 // probe reports one service's status. It never fails: pgrep's "no match"

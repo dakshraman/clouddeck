@@ -130,6 +130,24 @@ func (s *Server) runtimeUsedBy(ctx context.Context, kind, version string) string
 				return fmt.Sprintf("app %s on %s", app.Name, app.Site)
 			}
 		}
+	case runtimes.KindPython:
+		for _, app := range s.apps.List(ctx) {
+			if app.Kind == runtimes.KindPython && (strings.HasPrefix(app.Version, version) || strings.Contains(app.Bin, "python"+version)) {
+				return fmt.Sprintf("app %s on %s", app.Name, app.Site)
+			}
+		}
+	case runtimes.KindJava:
+		for _, app := range s.apps.List(ctx) {
+			if app.Kind == runtimes.KindJava && (strings.HasPrefix(app.Version, version) || strings.Contains(app.Bin, "java-"+version)) {
+				return fmt.Sprintf("app %s on %s", app.Name, app.Site)
+			}
+		}
+	case runtimes.KindDocker:
+		for _, app := range s.apps.List(ctx) {
+			if app.Kind == runtimes.KindDocker {
+				return fmt.Sprintf("app %s on %s", app.Name, app.Site)
+			}
+		}
 	}
 	return ""
 }

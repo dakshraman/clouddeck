@@ -14,3 +14,21 @@ func (s *Server) handleRestartService(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, status)
 }
+
+func (s *Server) handleStopService(w http.ResponseWriter, r *http.Request) {
+	status, err := s.services.Stop(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) handleStartService(w http.ResponseWriter, r *http.Request) {
+	status, err := s.services.Start(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}

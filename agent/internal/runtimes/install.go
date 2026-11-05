@@ -33,8 +33,11 @@ import (
 // Installable lists the curated versions offered for one-click install.
 func Installable() map[string][]string {
 	return map[string][]string{
-		KindNode: {"18", "20", "22", "24", "26"},
-		KindPHP:  {"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"},
+		KindNode:   {"18", "20", "22", "24", "26"},
+		KindPHP:    {"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"},
+		KindPython: {"3.9", "3.10", "3.11", "3.12", "3.13"},
+		KindJava:   {"11", "17", "21", "25"},
+		KindDocker: {"latest", "27", "28", "29"},
 	}
 }
 
@@ -47,9 +50,14 @@ const (
 )
 
 var (
-	nodeMajorRe   = regexp.MustCompile(`^\d{1,2}$`)
-	nodeVersionRe = regexp.MustCompile(`^\d{1,2}(?:\.\d{1,2}\.\d{1,2})?$`)
-	phpVersionRe  = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
+	nodeMajorRe       = regexp.MustCompile(`^\d{1,2}$`)
+	nodeVersionRe     = regexp.MustCompile(`^\d{1,2}(?:\.\d{1,2}\.\d{1,2})?$`)
+	phpVersionRe      = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
+	pythonVersionRe   = regexp.MustCompile(`^3\.\d{1,2}$`)
+	pythonUninstRe    = regexp.MustCompile(`^3\.\d{1,2}(?:\.\d+)?$`)
+	javaVersionRe     = regexp.MustCompile(`^\d{1,2}$`)
+	javaUninstRe      = regexp.MustCompile(`^\d{1,2}(?:\.\d+)*$`)
+	dockerVersionRe   = regexp.MustCompile(`^(?:latest|\d{1,2}(?:\.\d+)*)$`)
 )
 
 // installPHPScript is agent-owned; the requested version arrives as $1.
@@ -73,6 +81,76 @@ systemctl disable --now "php$1-fpm" >/dev/null 2>&1 || true
 apt-get purge -y "php$1-*"
 apt-get autoremove -y -qq
 rm -rf "/etc/php/$1"
+`
+
+const installPythonScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+ver="$1"
+if ! apt-cache show "python$ver" >/dev/null 2>&1; then
+	apt-get update -qq
+	apt-get install -y -qq software-properties-common gpg-agent
+	add-apt-repository -y ppa:deadsnakes/ppa
+	apt-get update -qq
+fi
+apt-get install -y -qq "python$ver" "python$ver-venv" "python$ver-dev"
+`
+
+const uninstallPythonScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+ver="$1"
+sys_ver=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "")
+if [ -n "$sys_ver" ] && [ "$ver" = "$sys_ver" ]; then
+	echo "Cannot uninstall system default Python ($sys_ver)" >&2
+	exit 1
+fi
+apt-get purge -y "python$ver" "python$ver-venv" "python$ver-dev" || true
+apt-get autoremove -y -qq || true
+`
+
+const installJavaScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+ver="$1"
+apt-get update -qq
+apt-get install -y -qq "openjdk-$ver-jdk"
+`
+
+const uninstallJavaScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+ver="$1"
+apt-get purge -y "openjdk-$ver-jdk*" "openjdk-$ver-jre*" || true
+apt-get autoremove -y -qq || true
+`
+
+const installDockerScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+ver="$1"
+if [ ! -f /etc/apt/keyrings/docker.asc ]; then
+	install -m 0755 -d /etc/apt/keyrings
+	curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc 2>/dev/null || true
+	if [ -f /etc/apt/keyrings/docker.asc ]; then
+		chmod a+r /etc/apt/keyrings/docker.asc
+		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+		apt-get update -qq
+	fi
+fi
+if [ "$ver" = "latest" ] || [ -z "$ver" ]; then
+	apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || apt-get install -y -qq docker.io docker-compose-v2
+else
+	target_pkg=$(apt-cache madison docker-ce 2>/dev/null | awk -v v="$ver" '$3 ~ "^5:"v {print $3; exit}')
+	if [ -n "$target_pkg" ]; then
+		apt-get install -y -qq "docker-ce=$target_pkg" "docker-ce-cli=$target_pkg" containerd.io docker-compose-plugin 2>/dev/null || apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
+	else
+		apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null || apt-get install -y -qq docker.io docker-compose-v2
+	fi
+fi
+systemctl enable --now docker >/dev/null 2>&1 || true
+`
+
+const uninstallDockerScript = `set -e
+export DEBIAN_FRONTEND=noninteractive
+systemctl disable --now docker >/dev/null 2>&1 || true
+apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker.io docker-compose-v2 || true
+apt-get autoremove -y -qq || true
 `
 
 // Installer performs runtime installs. AGENT_NODE_INSTALL_CMD /
@@ -99,6 +177,58 @@ func (i *Installer) Installed(kind, version string) bool {
 		return ok
 	case KindPHP:
 		return i.phpInstalled(version)
+	case KindPython:
+		return i.pythonInstalled(version)
+	case KindJava:
+		return i.javaInstalled(version)
+	case KindDocker:
+		return i.dockerInstalled(version)
+	}
+	return false
+}
+
+func (i *Installer) pythonInstalled(version string) bool {
+	majorMinor := version
+	parts := strings.Split(version, ".")
+	if len(parts) >= 2 {
+		majorMinor = parts[0] + "." + parts[1]
+	}
+	if isExecutable("/usr/bin/python" + majorMinor) {
+		return true
+	}
+	for _, p := range detectPython() {
+		if p.Version == version || strings.HasPrefix(p.Version, majorMinor) {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Installer) javaInstalled(version string) bool {
+	major := version
+	if dot := strings.Index(version, "."); dot > 0 {
+		major = version[:dot]
+	}
+	if matches, _ := filepath.Glob("/usr/lib/jvm/java-*" + major + "-openjdk*"); len(matches) > 0 {
+		return true
+	}
+	if matches, _ := filepath.Glob("/usr/lib/jvm/java-" + major + "-*"); len(matches) > 0 {
+		return true
+	}
+	for _, j := range detectJava() {
+		if j.Version == version || strings.HasPrefix(j.Version, major+".") {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Installer) dockerInstalled(version string) bool {
+	if _, v := probe("docker", "--version"); v != "" {
+		if version == "latest" || version == "" {
+			return true
+		}
+		return strings.HasPrefix(v, version)
 	}
 	return false
 }
@@ -106,14 +236,29 @@ func (i *Installer) Installed(kind, version string) bool {
 // Validate checks kind/version without running anything, so the API handler
 // can reject bad input before a task is created.
 func (i *Installer) Validate(kind, version string) error {
-	if kind != KindNode && kind != KindPHP {
-		return apierr.BadRequest("invalid_kind", "only node and php can be installed")
-	}
-	if kind == KindNode && !nodeMajorRe.MatchString(version) {
-		return apierr.BadRequest("invalid_version", "node version must be a major like 18, 20, 22, 24 or 26")
-	}
-	if kind == KindPHP && !phpVersionRe.MatchString(version) {
-		return apierr.BadRequest("invalid_version", "php version must look like 8.2")
+	switch kind {
+	case KindNode:
+		if !nodeMajorRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "node version must be a major like 18, 20, 22, 24 or 26")
+		}
+	case KindPHP:
+		if !phpVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "php version must look like 8.2")
+		}
+	case KindPython:
+		if !pythonVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "python version must look like 3.11")
+		}
+	case KindJava:
+		if !javaVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "java version must be a major like 11, 17, 21 or 25")
+		}
+	case KindDocker:
+		if !dockerVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "docker version must be 'latest' or a version like 27")
+		}
+	default:
+		return apierr.BadRequest("invalid_kind", "only node, php, python, java, and docker can be installed")
 	}
 	return nil
 }
@@ -121,14 +266,29 @@ func (i *Installer) Validate(kind, version string) error {
 // ValidateUninstall is Validate plus exact Node versions, which is what the
 // runtime list reports ("24.22.1").
 func (i *Installer) ValidateUninstall(kind, version string) error {
-	if kind != KindNode && kind != KindPHP {
-		return apierr.BadRequest("invalid_kind", "only node and php can be uninstalled")
-	}
-	if kind == KindNode && !nodeVersionRe.MatchString(version) {
-		return apierr.BadRequest("invalid_version", "node version must be a major or an exact version like 24.22.1")
-	}
-	if kind == KindPHP && !phpVersionRe.MatchString(version) {
-		return apierr.BadRequest("invalid_version", "php version must look like 8.2")
+	switch kind {
+	case KindNode:
+		if !nodeVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "node version must be a major or an exact version like 24.22.1")
+		}
+	case KindPHP:
+		if !phpVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "php version must look like 8.2")
+		}
+	case KindPython:
+		if !pythonUninstRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "python version must look like 3.11 or 3.11.8")
+		}
+	case KindJava:
+		if !javaUninstRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "java version must be like 17 or 17.0.10")
+		}
+	case KindDocker:
+		if !dockerVersionRe.MatchString(version) {
+			return apierr.BadRequest("invalid_version", "docker version must be 'latest' or a version like 27")
+		}
+	default:
+		return apierr.BadRequest("invalid_kind", "only node, php, python, java, and docker can be uninstalled")
 	}
 	return nil
 }
@@ -152,10 +312,19 @@ func (i *Installer) Uninstall(ctx context.Context, log tasks.LogFunc, kind, vers
 	}); err != nil {
 		return apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
-	if kind == KindNode {
+	switch kind {
+	case KindNode:
 		return i.uninstallNode(ctx, log, version)
+	case KindPHP:
+		return i.uninstallPHP(ctx, log, version)
+	case KindPython:
+		return i.uninstallPython(ctx, log, version)
+	case KindJava:
+		return i.uninstallJava(ctx, log, version)
+	case KindDocker:
+		return i.uninstallDocker(ctx, log, version)
 	}
-	return i.uninstallPHP(ctx, log, version)
+	return apierr.BadRequest("invalid_kind", "unknown runtime kind: "+kind)
 }
 
 func (i *Installer) uninstallNode(ctx context.Context, log tasks.LogFunc, version string) error {
@@ -191,6 +360,45 @@ func (i *Installer) uninstallPHP(ctx context.Context, log tasks.LogFunc, version
 	return nil
 }
 
+func (i *Installer) uninstallPython(ctx context.Context, log tasks.LogFunc, version string) error {
+	majorMinor := version
+	parts := strings.Split(version, ".")
+	if len(parts) >= 2 {
+		majorMinor = parts[0] + "." + parts[1]
+	}
+	log("info", "uninstalling Python "+majorMinor+"...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", uninstallPythonScript, "clouddeck-uninstall-python", majorMinor); err != nil {
+		return uninstallFailed(err)
+	}
+	log("info", "uninstalled Python "+majorMinor)
+	return nil
+}
+
+func (i *Installer) uninstallJava(ctx context.Context, log tasks.LogFunc, version string) error {
+	major := version
+	if dot := strings.Index(version, "."); dot > 0 {
+		major = version[:dot]
+	}
+	log("info", "uninstalling OpenJDK "+major+"...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", uninstallJavaScript, "clouddeck-uninstall-java", major); err != nil {
+		return uninstallFailed(err)
+	}
+	log("info", "uninstalled OpenJDK "+major)
+	return nil
+}
+
+func (i *Installer) uninstallDocker(ctx context.Context, log tasks.LogFunc, version string) error {
+	log("info", "uninstalling Docker...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", uninstallDockerScript, "clouddeck-uninstall-docker", version); err != nil {
+		return uninstallFailed(err)
+	}
+	log("info", "uninstalled Docker")
+	return nil
+}
+
 // Install installs one runtime. Errors: 400 invalid_kind/invalid_version,
 // 409 dry_run/already_installed, 502 install_failed.
 func (i *Installer) Install(ctx context.Context, log tasks.LogFunc, kind, version string) error {
@@ -207,10 +415,67 @@ func (i *Installer) Install(ctx context.Context, log tasks.LogFunc, kind, versio
 	}); err != nil {
 		return apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
-	if kind == KindNode {
+	switch kind {
+	case KindNode:
 		return i.installNode(ctx, log, version)
+	case KindPHP:
+		return i.installPHP(ctx, log, version)
+	case KindPython:
+		return i.installPython(ctx, log, version)
+	case KindJava:
+		return i.installJava(ctx, log, version)
+	case KindDocker:
+		return i.installDocker(ctx, log, version)
 	}
-	return i.installPHP(ctx, log, version)
+	return apierr.BadRequest("invalid_kind", "unknown runtime kind: "+kind)
+}
+
+func (i *Installer) installPython(ctx context.Context, log tasks.LogFunc, version string) error {
+	if i.pythonInstalled(version) {
+		return apierr.Conflict("already_installed", fmt.Sprintf("python %s is already installed", version))
+	}
+	log("info", "installing Python "+version+"...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", installPythonScript, "clouddeck-install-python", version); err != nil {
+		return installFailed(err)
+	}
+	if !i.pythonInstalled(version) {
+		return apierr.New(502, "install_failed", fmt.Sprintf("python %s is not executable after installation", version))
+	}
+	log("info", "Python "+version+" installed successfully")
+	return nil
+}
+
+func (i *Installer) installJava(ctx context.Context, log tasks.LogFunc, version string) error {
+	if i.javaInstalled(version) {
+		return apierr.Conflict("already_installed", fmt.Sprintf("openjdk %s is already installed", version))
+	}
+	log("info", "installing OpenJDK "+version+"...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", installJavaScript, "clouddeck-install-java", version); err != nil {
+		return installFailed(err)
+	}
+	if !i.javaInstalled(version) {
+		return apierr.New(502, "install_failed", fmt.Sprintf("openjdk %s is not present after installation", version))
+	}
+	log("info", "OpenJDK "+version+" installed successfully")
+	return nil
+}
+
+func (i *Installer) installDocker(ctx context.Context, log tasks.LogFunc, version string) error {
+	if i.dockerInstalled(version) {
+		return apierr.Conflict("already_installed", "docker is already installed")
+	}
+	log("info", "installing Docker "+version+"...")
+	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+		"bash", "-c", installDockerScript, "clouddeck-install-docker", version); err != nil {
+		return installFailed(err)
+	}
+	if !i.dockerInstalled(version) {
+		return apierr.New(502, "install_failed", "docker is not executable after installation")
+	}
+	log("info", "Docker installed and service running")
+	return nil
 }
 
 func (i *Installer) installNode(ctx context.Context, log tasks.LogFunc, major string) error {

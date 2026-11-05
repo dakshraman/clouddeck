@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { titleCase } from "@/components/format";
-import { RotateCw } from "lucide-react";
+import { Play, RotateCw, Square } from "lucide-react";
 
 const stateVariant: Record<ServiceState, BadgeVariant> = {
   running: "green",
@@ -15,18 +15,22 @@ const stateVariant: Record<ServiceState, BadgeVariant> = {
 
 interface ServiceCardProps {
   service: AgentService;
-  restarting: boolean;
-  restartDisabled: boolean;
+  actionInFlight: "restart" | "stop" | "start" | null;
+  disabled: boolean;
   error: string | null;
   onRestart: () => void;
+  onStop: () => void;
+  onStart: () => void;
 }
 
 export function ServiceCard({
   service,
-  restarting,
-  restartDisabled,
+  actionInFlight,
+  disabled,
   error,
   onRestart,
+  onStop,
+  onStart,
 }: ServiceCardProps) {
   return (
     <Card className="flex flex-col">
@@ -58,17 +62,39 @@ export function ServiceCard({
 
         {error ? <Alert variant="error">{error}</Alert> : null}
 
-        <div className="mt-auto pt-1">
-          {restarting ? (
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+          {actionInFlight ? (
             <span className="flex h-8 items-center gap-2 text-xs text-muted-foreground">
               <Spinner size={14} className="text-muted-foreground" />
-              restarting…
+              {actionInFlight === "restart"
+                ? "restarting…"
+                : actionInFlight === "stop"
+                  ? "stopping…"
+                  : "starting…"}
             </span>
           ) : (
-            <Button variant="secondary" size="sm" disabled={restartDisabled} onClick={onRestart}>
-              <RotateCw size={14} aria-hidden="true" />
-              Restart
-            </Button>
+            <>
+              {service.state === "stopped" ? (
+                <Button variant="primary" size="sm" disabled={disabled} onClick={onStart}>
+                  <Play size={14} aria-hidden="true" />
+                  Start
+                </Button>
+              ) : null}
+
+              {service.state === "running" || service.state === "unknown" ? (
+                <Button variant="secondary" size="sm" disabled={disabled} onClick={onRestart}>
+                  <RotateCw size={14} aria-hidden="true" />
+                  Restart
+                </Button>
+              ) : null}
+
+              {service.state === "running" || service.state === "unknown" ? (
+                <Button variant="danger" size="sm" disabled={disabled} onClick={onStop}>
+                  <Square size={14} aria-hidden="true" />
+                  Stop
+                </Button>
+              ) : null}
+            </>
           )}
         </div>
       </CardBody>

@@ -49,9 +49,11 @@ func TestInstallValidatesInput(t *testing.T) {
 	inst, _ := newInstaller(t, config.Config{})
 	log := tasks.LogFunc(func(level, message string) {})
 
-	assertInstallErr(t, inst.Install(context.Background(), log, "python", "3.12"), 400, "invalid_kind")
+	assertInstallErr(t, inst.Install(context.Background(), log, "ruby", "3.2"), 400, "invalid_kind")
 	assertInstallErr(t, inst.Install(context.Background(), log, KindNode, "abc"), 400, "invalid_version")
 	assertInstallErr(t, inst.Install(context.Background(), log, KindPHP, "8"), 400, "invalid_version")
+	assertInstallErr(t, inst.Install(context.Background(), log, KindPython, "2.7"), 400, "invalid_version")
+	assertInstallErr(t, inst.Install(context.Background(), log, KindJava, "abc"), 400, "invalid_version")
 }
 
 func TestInstallDryRun(t *testing.T) {
@@ -108,7 +110,11 @@ func TestInstallPHPOverrideCommand(t *testing.T) {
 
 func TestInstallableCatalog(t *testing.T) {
 	catalog := Installable()
-	if !slicesContains(catalog[KindNode], "22") || !slicesContains(catalog[KindPHP], "8.2") {
+	if !slicesContains(catalog[KindNode], "22") ||
+		!slicesContains(catalog[KindPHP], "8.2") ||
+		!slicesContains(catalog[KindPython], "3.11") ||
+		!slicesContains(catalog[KindJava], "21") ||
+		!slicesContains(catalog[KindDocker], "latest") {
 		t.Fatalf("installable catalog incomplete: %+v", catalog)
 	}
 }
@@ -117,9 +123,11 @@ func TestUninstallValidatesInput(t *testing.T) {
 	inst, _ := newInstaller(t, config.Config{})
 	log := tasks.LogFunc(func(level, message string) {})
 
-	assertInstallErr(t, inst.Uninstall(context.Background(), log, "python", "3.12"), 400, "invalid_kind")
+	assertInstallErr(t, inst.Uninstall(context.Background(), log, "ruby", "3.2"), 400, "invalid_kind")
 	assertInstallErr(t, inst.Uninstall(context.Background(), log, KindNode, "abc"), 400, "invalid_version")
 	assertInstallErr(t, inst.Uninstall(context.Background(), log, KindPHP, "8"), 400, "invalid_version")
+	assertInstallErr(t, inst.Uninstall(context.Background(), log, KindPython, "2.7"), 400, "invalid_version")
+	assertInstallErr(t, inst.Uninstall(context.Background(), log, KindJava, "abc"), 400, "invalid_version")
 }
 
 func TestUninstallNotInstalled(t *testing.T) {

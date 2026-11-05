@@ -30,12 +30,18 @@ type Config struct {
 	DryRun           bool
 
 	// v0.3 monitoring / service control
-	NginxRestartCmd string
+	NginxRestartCmd   string
+	NginxStopCmd      string
+	NginxStartCmd     string
 	// NginxReloadSettle makes the agent wait for old nginx workers to retire
 	// after a reload so callers never see stale config. Off in test harnesses.
 	NginxReloadSettle bool
 	MySQLRestartCmd   string
+	MySQLStopCmd      string
+	MySQLStartCmd     string
 	PHPFpmRestartCmd  string
+	PHPFpmStopCmd     string
+	PHPFpmStartCmd    string
 	// RebootCmd reboots the whole host (AGENT_REBOOT_CMD).
 	RebootCmd string
 	// UpdateCmd runs a self-update (AGENT_UPDATE_CMD); the requested version,
@@ -148,8 +154,14 @@ func Load() (Config, error) {
 		MySQLPort:        env("AGENT_MYSQL_PORT", ""),
 
 		NginxRestartCmd:   env("AGENT_NGINX_RESTART_CMD", ""),
+		NginxStopCmd:      env("AGENT_NGINX_STOP_CMD", ""),
+		NginxStartCmd:     env("AGENT_NGINX_START_CMD", ""),
 		MySQLRestartCmd:   env("AGENT_MYSQL_RESTART_CMD", ""),
+		MySQLStopCmd:      env("AGENT_MYSQL_STOP_CMD", ""),
+		MySQLStartCmd:     env("AGENT_MYSQL_START_CMD", ""),
 		PHPFpmRestartCmd:  env("AGENT_PHP_FPM_RESTART_CMD", ""),
+		PHPFpmStopCmd:     env("AGENT_PHP_FPM_STOP_CMD", ""),
+		PHPFpmStartCmd:    env("AGENT_PHP_FPM_START_CMD", ""),
 		RebootCmd:         env("AGENT_REBOOT_CMD", "systemctl reboot"),
 		UpdateCmd:         env("AGENT_UPDATE_CMD", "clouddeck update"),
 		NginxReloadSettle: envBool("AGENT_NGINX_RELOAD_SETTLE", true),

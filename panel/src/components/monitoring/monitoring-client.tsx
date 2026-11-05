@@ -48,8 +48,11 @@ export function MonitoringClient() {
   const [processError, setProcessError] = useState<string | null>(null);
   const [processLoading, setProcessLoading] = useState(true);
   const [processSort, setProcessSort] = useState<ProcessSort>("cpu");
-  const [restarting, setRestarting] = useState<string | null>(null);
-  const [restartErrors, setRestartErrors] = useState<Record<string, string>>({});
+  const [actionService, setActionService] = useState<{
+    name: string;
+    action: "restart" | "stop" | "start";
+  } | null>(null);
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
   const [rebooting, setRebooting] = useState(false);
@@ -138,9 +141,9 @@ export function MonitoringClient() {
   }, [loadProcesses, processSort]);
 
   useEffect(() => {
-    // Pause polling while a restart runs so a stale probe cannot overwrite the
+    // Pause polling while a service action runs so a stale probe cannot overwrite the
     // freshly probed state; skip ticks that would overlap the previous poll.
-    if (restarting !== null) return;
+    if (actionService !== null) return;
     const timer = setInterval(() => {
       if (pollInFlight.current) return;
       pollInFlight.current = true;
@@ -152,19 +155,19 @@ export function MonitoringClient() {
       });
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [load, loadProcesses, processSort, restarting]);
+  }, [load, loadProcesses, processSort, actionService]);
 
   async function onRestart(service: AgentService) {
     if (!window.confirm(`Restart ${service.label}? The service may be briefly unavailable.`)) {
       return;
     }
 
-    setRestartErrors((prev) => {
+    setActionErrors((prev) => {
       const next = { ...prev };
       delete next[service.name];
       return next;
     });
-    setRestarting(service.name);
+    setActionService({ name: service.name, action: "restart" });
 
     try {
       await apiFetch<AgentService>(`/api/services/${encodeURIComponent(service.name)}/restart`, {
@@ -172,12 +175,66 @@ export function MonitoringClient() {
       });
       await load({ silent: true });
     } catch (error) {
-      setRestartErrors((prev) => ({
+      setActionErrors((prev) => ({
         ...prev,
         [service.name]: error instanceof Error ? error.message : "Restart failed",
       }));
     } finally {
-      setRestarting(null);
+      setActionService(null);
+    }
+  }
+
+  async function onStop(service: AgentService) {
+    if (
+      !window.confirm(
+        `Stop ${service.label}? Sites and applications relying on this service will be offline until started again.`,
+      )
+    ) {
+      return;
+    }
+
+    setActionErrors((prev) => {
+      const next = { ...prev };
+      delete next[service.name];
+      return next;
+    });
+    setActionService({ name: service.name, action: "stop" });
+
+    try {
+      await apiFetch<AgentService>(`/api/services/${encodeURIComponent(service.name)}/stop`, {
+        method: "POST",
+      });
+      await load({ silent: true });
+    } catch (error) {
+      setActionErrors((prev) => ({
+        ...prev,
+        [service.name]: error instanceof Error ? error.message : "Stop failed",
+      }));
+    } finally {
+      setActionService(null);
+    }
+  }
+
+  async function onStart(service: AgentService) {
+    setActionErrors((prev) => {
+      const next = { ...prev };
+      delete next[service.name];
+      return next;
+    });
+    setActionService({ name: service.name, action: "start" });
+
+    try {
+      await apiFetch<AgentService>(`/api/services/${encodeURIComponent(service.name)}/start`, {
+        method: "POST",
+      });
+      await load({ silent: true });
+    } catch (error) {
+      setActionErrors((prev) => ({
+        ...prev,
+        [service.name]: error instanceof Error ? error.message : "Start failed",
+      }));
+    } finally {
+      setActionService(null);
     }
   }
 
@@ -413,10 +470,12 @@ export function MonitoringClient() {
             <ServiceCard
               key={service.name}
               service={service}
-              restarting={restarting === service.name}
-              restartDisabled={restarting !== null && restarting !== service.name}
-              error={restartErrors[service.name] ?? null}
+              actionInFlight={actionService?.name === service.name ? actionService.action : null}
+              disabled={actionService !== null}
+              error={actionErrors[service.name] ?? null}
               onRestart={() => void onRestart(service)}
+              onStop={() => void onStop(service)}
+              onStart={() => void onStart(service)}
             />
           ))}
         </div>

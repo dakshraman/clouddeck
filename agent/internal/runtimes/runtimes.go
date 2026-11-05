@@ -194,8 +194,33 @@ func detectNode() []Runtime {
 
 func detectPython() []Runtime {
 	var found []Runtime
-	if bin, version := probe("python3", "--version"); version != "" {
-		found = append(found, Runtime{Kind: KindPython, Label: "Python", Version: version, Bin: bin, Default: true})
+	defaultBin, defaultVer := probe("python3", "--version")
+	if defaultVer != "" {
+		found = append(found, Runtime{Kind: KindPython, Label: "Python", Version: defaultVer, Bin: defaultBin, Default: true})
+	}
+	// Discover individual python3.x binaries in /usr/bin
+	if matches, err := filepath.Glob("/usr/bin/python3.[0-9]*"); err == nil {
+		for _, bin := range matches {
+			if !isExecutable(bin) {
+				continue
+			}
+			out, err := exec.Command(bin, "--version").CombinedOutput()
+			if err != nil {
+				continue
+			}
+			v := versionRe.FindString(string(out))
+			if v == "" {
+				continue
+			}
+			isDef := bin == defaultBin
+			found = append(found, Runtime{
+				Kind:    KindPython,
+				Label:   "Python",
+				Version: v,
+				Bin:     bin,
+				Default: isDef,
+			})
+		}
 	}
 	for _, dir := range []string{"/www/server/pyporject_evn", "/www/server/pyenv/versions", "/opt/python"} {
 		for _, v := range versionedDirs(dir, func(name string) bool { return true }) {
@@ -230,10 +255,42 @@ func detectRuby() []Runtime {
 }
 
 func detectJava() []Runtime {
-	if bin, version := probe("java", "-version"); version != "" {
-		return []Runtime{{Kind: KindJava, Label: "Java", Version: version, Bin: bin, Default: true}}
+	var found []Runtime
+	defaultBin, defaultVer := probe("java", "-version")
+	if defaultVer != "" {
+		found = append(found, Runtime{Kind: KindJava, Label: "Java", Version: defaultVer, Bin: defaultBin, Default: true})
 	}
-	return []Runtime{}
+	// Discover installed JDKs under /usr/lib/jvm
+	if entries, err := os.ReadDir("/usr/lib/jvm"); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			if strings.HasPrefix(name, "java-") {
+				bin := filepath.Join("/usr/lib/jvm", name, "bin", "java")
+				if !isExecutable(bin) {
+					continue
+				}
+				out, err := exec.Command(bin, "-version").CombinedOutput()
+				if err != nil && len(out) == 0 {
+					continue
+				}
+				v := versionRe.FindString(string(out))
+				if v == "" {
+					continue
+				}
+				found = append(found, Runtime{
+					Kind:    KindJava,
+					Label:   "Java",
+					Version: v,
+					Bin:     bin,
+					Default: bin == defaultBin,
+				})
+			}
+		}
+	}
+	return dedupe(found)
 }
 
 func detectDocker() []Runtime {

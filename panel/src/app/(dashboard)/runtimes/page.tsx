@@ -16,12 +16,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { Boxes, RefreshCw, Trash2 } from "lucide-react";
 
-const MANAGED_KINDS = ["node", "php"] as const;
+const MANAGED_KINDS = ["node", "php", "python", "java", "docker"] as const;
 
 const KIND_LABELS: Record<string, string> = {
   node: "Node.js",
   php: "PHP",
   python: "Python",
+  java: "Java (OpenJDK)",
+  docker: "Docker",
   go: "Go",
   ruby: "Ruby",
   custom: "Custom command",
@@ -30,6 +32,9 @@ const KIND_LABELS: Record<string, string> = {
 const KIND_NOTES: Record<string, string> = {
   node: "Official nodejs.org builds under /opt/nodejs. Sites and apps can pick any installed version.",
   php: "PHP-FPM via apt (adds the ondrej PPA when the base repositories are too old).",
+  python: "Python via apt / deadsnakes PPA with venv and development headers.",
+  java: "OpenJDK Development Kit (JDK) for Spring Boot and JVM applications.",
+  docker: "Docker Engine and Compose plugin for containerized applications and services.",
 };
 
 interface InstalledRuntime {
@@ -50,10 +55,11 @@ function installedFor(data: RuntimesResponse): Record<string, InstalledRuntime[]
         version: runtime.version,
         bin: runtime.bin,
         isDefault: runtime.default,
-        // PHP branches and panel-installed Node builds can be removed; OS
-        // Node/Python/Go/Ruby entries stay read-only.
         removable:
           kind.kind === "php" ||
+          kind.kind === "java" ||
+          kind.kind === "docker" ||
+          (kind.kind === "python" && !runtime.default) ||
           (kind.kind === "node" && (runtime.bin ?? "").startsWith("/opt/nodejs/")),
       };
       if (!current || (!current.removable && entry.removable)) {
@@ -176,7 +182,7 @@ export default function RuntimesPage() {
     <>
       <PageHeader
         title="Runtimes"
-        description="Every language runtime detected on this server. Install or remove Node.js and PHP versions without the shell."
+        description="Every language runtime detected on this server. Install or remove Node.js, PHP, Python, Java, and Docker versions without the shell."
         actions={
           <Button variant="secondary" size="md" onClick={() => void load()}>
             <RefreshCw size={16} aria-hidden="true" />
@@ -199,11 +205,21 @@ export default function RuntimesPage() {
       <div className="grid gap-4">
         {MANAGED_KINDS.map((kind) => {
           const rows = installed[kind] ?? [];
-          const choices = (installable[kind] ?? []).filter((version) =>
-            kind === "php"
-              ? !rows.some((row) => row.version === version)
-              : !rows.some((row) => row.version.startsWith(`${version}.`)),
-          );
+          const choices = (installable[kind] ?? []).filter((version) => {
+            if (kind === "php" || kind === "docker") {
+              return !rows.some((row) => row.version === version || (version !== "latest" && row.version.startsWith(`${version}.`)));
+            }
+            if (kind === "node") {
+              return !rows.some((row) => row.version.startsWith(`${version}.`));
+            }
+            if (kind === "python") {
+              return !rows.some((row) => row.version === version || row.version.startsWith(`${version}.`));
+            }
+            if (kind === "java") {
+              return !rows.some((row) => row.version === version || row.version.startsWith(`${version}.`) || row.version.startsWith(`${version}-`));
+            }
+            return true;
+          });
           const installKey = `install:${kind}:${selected[kind] ?? ""}`;
           return (
             <Card key={kind}>

@@ -128,6 +128,26 @@ func TestRestartDryRun(t *testing.T) {
 	}
 }
 
+func TestStopDryRun(t *testing.T) {
+	bin, marker := writeFakeCommand(t, "", 0)
+	mgr, _ := newTestManager(t, config.Config{NginxStopCmd: bin, DryRun: true})
+	_, err := mgr.Stop(context.Background(), NameNginx)
+	assertAPIErr(t, err, 409, "dry_run")
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatalf("stop command ran in dry-run mode")
+	}
+}
+
+func TestStartDryRun(t *testing.T) {
+	bin, marker := writeFakeCommand(t, "", 0)
+	mgr, _ := newTestManager(t, config.Config{NginxStartCmd: bin, DryRun: true})
+	_, err := mgr.Start(context.Background(), NameNginx)
+	assertAPIErr(t, err, 409, "dry_run")
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatalf("start command ran in dry-run mode")
+	}
+}
+
 // Unconfigured restarts default to systemctl; without a systemctl binary on
 // PATH (empty PATH) the restart fails closed with 502 instead of 412.
 func TestRestartNotConfigured(t *testing.T) {
