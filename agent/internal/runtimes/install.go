@@ -344,17 +344,36 @@ func (i *Installer) uninstallNode(ctx context.Context, log tasks.LogFunc, versio
 	return nil
 }
 
+func brewCommand() string {
+	if p, err := exec.LookPath("brew"); err == nil {
+		return p
+	}
+	for _, p := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "brew"
+}
+
 func (i *Installer) uninstallPHP(ctx context.Context, log tasks.LogFunc, version string) error {
 	if fields := strings.Fields(i.cfg.PHPUninstallCmd); len(fields) > 0 {
 		args := append(slices.Clone(fields), version)
 		return uninstallFailed(safeexec.RunTimeout(ctx, false, log, installTimeout, args[0], args[1:]...))
 	}
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", uninstallPHPScript, "clouddeck-uninstall-php", version); err != nil {
-		return uninstallFailed(err)
-	}
-	if i.phpInstalled(version) {
-		return apierr.New(502, "uninstall_failed", fmt.Sprintf("php %s is still present after the package purge", version))
+	if runtime.GOOS == "darwin" {
+		formula := "php@" + version
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "uninstall", formula); err != nil {
+			return uninstallFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", uninstallPHPScript, "clouddeck-uninstall-php", version); err != nil {
+			return uninstallFailed(err)
+		}
+		if i.phpInstalled(version) {
+			return apierr.New(502, "uninstall_failed", fmt.Sprintf("php %s is still present after the package purge", version))
+		}
 	}
 	log("info", "uninstalled php "+version)
 	return nil
@@ -367,9 +386,16 @@ func (i *Installer) uninstallPython(ctx context.Context, log tasks.LogFunc, vers
 		majorMinor = parts[0] + "." + parts[1]
 	}
 	log("info", "uninstalling Python "+majorMinor+"...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", uninstallPythonScript, "clouddeck-uninstall-python", majorMinor); err != nil {
-		return uninstallFailed(err)
+	if runtime.GOOS == "darwin" {
+		formula := "python@" + majorMinor
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "uninstall", formula); err != nil {
+			return uninstallFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", uninstallPythonScript, "clouddeck-uninstall-python", majorMinor); err != nil {
+			return uninstallFailed(err)
+		}
 	}
 	log("info", "uninstalled Python "+majorMinor)
 	return nil
@@ -381,9 +407,16 @@ func (i *Installer) uninstallJava(ctx context.Context, log tasks.LogFunc, versio
 		major = version[:dot]
 	}
 	log("info", "uninstalling OpenJDK "+major+"...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", uninstallJavaScript, "clouddeck-uninstall-java", major); err != nil {
-		return uninstallFailed(err)
+	if runtime.GOOS == "darwin" {
+		formula := "openjdk@" + major
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "uninstall", formula); err != nil {
+			return uninstallFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", uninstallJavaScript, "clouddeck-uninstall-java", major); err != nil {
+			return uninstallFailed(err)
+		}
 	}
 	log("info", "uninstalled OpenJDK "+major)
 	return nil
@@ -391,9 +424,15 @@ func (i *Installer) uninstallJava(ctx context.Context, log tasks.LogFunc, versio
 
 func (i *Installer) uninstallDocker(ctx context.Context, log tasks.LogFunc, version string) error {
 	log("info", "uninstalling Docker...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", uninstallDockerScript, "clouddeck-uninstall-docker", version); err != nil {
-		return uninstallFailed(err)
+	if runtime.GOOS == "darwin" {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "uninstall", "docker"); err != nil {
+			return uninstallFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", uninstallDockerScript, "clouddeck-uninstall-docker", version); err != nil {
+			return uninstallFailed(err)
+		}
 	}
 	log("info", "uninstalled Docker")
 	return nil
@@ -435,9 +474,16 @@ func (i *Installer) installPython(ctx context.Context, log tasks.LogFunc, versio
 		return apierr.Conflict("already_installed", fmt.Sprintf("python %s is already installed", version))
 	}
 	log("info", "installing Python "+version+"...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", installPythonScript, "clouddeck-install-python", version); err != nil {
-		return installFailed(err)
+	if runtime.GOOS == "darwin" {
+		formula := "python@" + version
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "install", formula); err != nil {
+			return installFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", installPythonScript, "clouddeck-install-python", version); err != nil {
+			return installFailed(err)
+		}
 	}
 	if !i.pythonInstalled(version) {
 		return apierr.New(502, "install_failed", fmt.Sprintf("python %s is not executable after installation", version))
@@ -451,9 +497,16 @@ func (i *Installer) installJava(ctx context.Context, log tasks.LogFunc, version 
 		return apierr.Conflict("already_installed", fmt.Sprintf("openjdk %s is already installed", version))
 	}
 	log("info", "installing OpenJDK "+version+"...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", installJavaScript, "clouddeck-install-java", version); err != nil {
-		return installFailed(err)
+	if runtime.GOOS == "darwin" {
+		formula := "openjdk@" + version
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "install", formula); err != nil {
+			return installFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", installJavaScript, "clouddeck-install-java", version); err != nil {
+			return installFailed(err)
+		}
 	}
 	if !i.javaInstalled(version) {
 		return apierr.New(502, "install_failed", fmt.Sprintf("openjdk %s is not present after installation", version))
@@ -467,9 +520,15 @@ func (i *Installer) installDocker(ctx context.Context, log tasks.LogFunc, versio
 		return apierr.Conflict("already_installed", "docker is already installed")
 	}
 	log("info", "installing Docker "+version+"...")
-	if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
-		"bash", "-c", installDockerScript, "clouddeck-install-docker", version); err != nil {
-		return installFailed(err)
+	if runtime.GOOS == "darwin" {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "install", "docker"); err != nil {
+			return installFailed(err)
+		}
+	} else {
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout,
+			"bash", "-c", installDockerScript, "clouddeck-install-docker", version); err != nil {
+			return installFailed(err)
+		}
 	}
 	if !i.dockerInstalled(version) {
 		return apierr.New(502, "install_failed", "docker is not executable after installation")
@@ -503,7 +562,7 @@ func (i *Installer) installNode(ctx context.Context, log tasks.LogFunc, major st
 	}
 	ensureNodePrereqs(ctx, log)
 	if err := safeexec.RunTimeout(ctx, false, log, downloadTimeout,
-		"tar", "-xJf", archive, "-C", dest, "--strip-components=1"); err != nil {
+		"tar", "-xf", archive, "-C", dest, "--strip-components=1"); err != nil {
 		os.RemoveAll(dest)
 		return installFailed(err)
 	}
@@ -528,6 +587,11 @@ func (i *Installer) installPHP(ctx context.Context, log tasks.LogFunc, version s
 	if fields := strings.Fields(i.cfg.PHPInstallCmd); len(fields) > 0 {
 		args := append(slices.Clone(fields), version)
 		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, args[0], args[1:]...); err != nil {
+			return installFailed(err)
+		}
+	} else if runtime.GOOS == "darwin" {
+		formula := "php@" + version
+		if err := safeexec.RunTimeout(ctx, false, log, installTimeout, brewCommand(), "install", formula); err != nil {
 			return installFailed(err)
 		}
 	} else {
@@ -659,7 +723,13 @@ func downloadNodeDist(ctx context.Context, log tasks.LogFunc, version string) (s
 	if arch == "" {
 		return "", fmt.Errorf("no official node build for %s", runtime.GOARCH)
 	}
-	name := fmt.Sprintf("node-v%s-linux-%s.tar.xz", version, arch)
+	osName := "linux"
+	ext := "tar.xz"
+	if runtime.GOOS == "darwin" {
+		osName = "darwin"
+		ext = "tar.gz"
+	}
+	name := fmt.Sprintf("node-v%s-%s-%s.%s", version, osName, arch, ext)
 	url := nodeDistBase + "/v" + version + "/" + name
 
 	sums, err := fetchText(ctx, nodeDistBase+"/v"+version+"/SHASUMS256.txt")
@@ -688,7 +758,7 @@ func downloadNodeDist(ctx context.Context, log tasks.LogFunc, version string) (s
 		return "", fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
 	}
 
-	tmp, err := os.CreateTemp("", "clouddeck-node-*.tar.xz")
+	tmp, err := os.CreateTemp("", "clouddeck-node-*."+ext)
 	if err != nil {
 		return "", fmt.Errorf("temp file: %v", err)
 	}

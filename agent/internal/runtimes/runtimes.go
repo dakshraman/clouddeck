@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -304,7 +305,7 @@ func detectDocker() []Runtime {
 // The agent usually runs as a systemd service with a minimal PATH, so common
 // install locations are tried when LookPath fails.
 func probe(name string, args ...string) (string, string) {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return "", ""
 	}
 	path, err := exec.LookPath(name)
@@ -329,15 +330,15 @@ func probe(name string, args ...string) (string, string) {
 }
 
 // fallbackPaths lists where each runtime usually lives when it is not on the
-// service's PATH (notably /usr/local/go/bin and /opt).
+// service's PATH (notably /usr/local/go/bin, Homebrew paths and /opt).
 var fallbackPaths = map[string][]string{
-	"node":    {"/usr/local/bin/node", "/usr/bin/node", "/snap/bin/node"},
-	"python3": {"/usr/bin/python3", "/usr/local/bin/python3"},
-	"go":      {"/usr/local/go/bin/go", "/usr/local/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go", "/opt/go/bin/go"},
-	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby", "/snap/bin/ruby", "/opt/ruby/bin/ruby"},
-	"java":    {"/usr/bin/java", "/usr/local/bin/java", "/usr/lib/jvm/default-java/bin/java"},
-	"docker":  {"/usr/bin/docker", "/usr/local/bin/docker"},
-	"php":     {"/usr/bin/php", "/usr/local/bin/php"},
+	"node":    {"/usr/local/bin/node", "/usr/bin/node", "/opt/homebrew/bin/node", "/snap/bin/node"},
+	"python3": {"/usr/bin/python3", "/usr/local/bin/python3", "/opt/homebrew/bin/python3"},
+	"go":      {"/usr/local/go/bin/go", "/usr/local/bin/go", "/opt/homebrew/bin/go", "/usr/lib/go/bin/go", "/usr/bin/go", "/snap/bin/go", "/opt/go/bin/go"},
+	"ruby":    {"/usr/bin/ruby", "/usr/local/bin/ruby", "/opt/homebrew/bin/ruby", "/snap/bin/ruby", "/opt/ruby/bin/ruby"},
+	"java":    {"/usr/bin/java", "/usr/local/bin/java", "/opt/homebrew/bin/java", "/usr/lib/jvm/default-java/bin/java"},
+	"docker":  {"/usr/bin/docker", "/usr/local/bin/docker", "/opt/homebrew/bin/docker", "/Applications/Docker.app/Contents/Resources/bin/docker"},
+	"php":     {"/usr/bin/php", "/usr/local/bin/php", "/opt/homebrew/bin/php"},
 }
 
 func versionedDirs(root string, accept func(string) bool) []string {
@@ -391,19 +392,16 @@ func isExecutable(path string) bool {
 // phpVersions lists the PHP-FPM versions present on the host.
 func phpVersions() []string {
 	var out []string
-	entries, err := os.ReadDir("/etc/php")
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() && versionRe.MatchString(entry.Name()) {
-				out = append(out, entry.Name())
-			}
-		}
-	}
-	entries, err = os.ReadDir("/www/server/php")
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() && versionRe.MatchString(entry.Name()) {
-				out = append(out, entry.Name())
+	searchDirs := []string{"/etc/php", "/opt/homebrew/etc/php", "/usr/local/etc/php", "/www/server/php"}
+	for _, dir := range searchDirs {
+		entries, err := os.ReadDir(dir)
+		if err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && versionRe.MatchString(entry.Name()) {
+					if !slices.Contains(out, entry.Name()) {
+						out = append(out, entry.Name())
+					}
+				}
 			}
 		}
 	}

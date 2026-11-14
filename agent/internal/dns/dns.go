@@ -16,6 +16,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -94,10 +95,11 @@ type NameserversInfo struct {
 
 // Manager talks to PowerDNS through pdnsutil.
 type Manager struct {
-	cfg        config.Config
-	audit      *audit.Log
-	mu         sync.Mutex
-	ensureOnce sync.Once
+	cfg            config.Config
+	audit          *audit.Log
+	mu             sync.Mutex
+	ensureOnce     sync.Once
+	managedConfDir string
 }
 
 // New creates the manager.
@@ -111,6 +113,50 @@ func New(cfg config.Config, auditLog *audit.Log) *Manager {
 	return mgr
 }
 
+func (m *Manager) effectiveConfDir() string {
+	dir := m.cfg.PdnsConfDir
+	if dir == "" {
+		return ""
+	}
+	if runtime.GOOS == "darwin" && dir == "/etc/powerdns" {
+		for _, brewDir := range []string{"/opt/homebrew/etc/powerdns", "/usr/local/etc/powerdns"} {
+			if _, err := os.Stat(brewDir); err == nil {
+				return brewDir
+			}
+		}
+		if _, err := os.Stat("/opt/homebrew"); err == nil {
+			return "/opt/homebrew/etc/powerdns"
+		}
+		return "/usr/local/etc/powerdns"
+	}
+	return dir
+}
+
+func (m *Manager) resolvePdnsUtilBin() (string, error) {
+	bin := m.cfg.PdnsUtilBin
+	if bin == "" {
+		bin = "pdnsutil"
+	}
+	if p, err := exec.LookPath(bin); err == nil {
+		return p, nil
+	}
+	if bin == "pdnsutil" {
+		candidates := []string{
+			"/opt/homebrew/bin/pdnsutil",
+			"/usr/local/bin/pdnsutil",
+			"/usr/bin/pdnsutil",
+			"/usr/sbin/pdnsutil",
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				return c, nil
+			}
+		}
+	}
+	return "", apierr.New(http.StatusServiceUnavailable, "dns_unavailable",
+		fmt.Sprintf("pdnsutil %q is not installed on this server", bin))
+}
+
 // EnsureBackendConfigured checks if PowerDNS configuration directory exists,
 // configures the gsqlite3 backend if needed, initializes the SQLite database schema
 // if empty, disables the default bind backend if present, and ensures port 53 is free.
@@ -118,43 +164,74 @@ func (m *Manager) EnsureBackendConfigured(ctx context.Context) error {
 	if m.cfg.DryRun {
 		return nil
 	}
-	confDir := m.cfg.PdnsConfDir
-	if confDir == "" {
-		confDir = "/etc/powerdns"
-	}
-	if _, err := os.Stat(confDir); os.IsNotExist(err) {
+	confDir := m.effectiveConfDir()
+	if confDir == "" || !filepath.IsAbs(confDir) {
 		return nil
+	}
+	dbDir := "/var/lib/powerdns"
+	if runtime.GOOS == "darwin" {
+		for _, dir := range []string{"/opt/homebrew/var/lib/powerdns", "/usr/local/var/lib/powerdns"} {
+			if _, err := os.Stat(filepath.Dir(dir)); err == nil {
+				dbDir = dir
+				break
+			}
+		}
+	}
+
+	// If confDir exists, ensure pdns.conf is world readable
+	if fi, err := os.Stat(confDir); err == nil && fi.IsDir() {
+		confFile := filepath.Join(confDir, "pdns.conf")
+		if _, statErr := os.Stat(confFile); statErr == nil {
+			_ = os.Chmod(confFile, 0o644)
+		}
 	}
 
 	pdnsd := filepath.Join(confDir, "pdns.d")
-	_ = os.MkdirAll(pdnsd, 0o755)
+	mkdirErr := os.MkdirAll(pdnsd, 0o755)
 
-	dbDir := "/var/lib/powerdns"
 	_ = os.MkdirAll(dbDir, 0o775)
 	chownPdns(dbDir)
 
-	// Ensure gsqlite3 backend configuration
-	gsqlite3Conf := filepath.Join(pdnsd, "gsqlite3.conf")
-	gsqliteContent := "launch+=gsqlite3\ngsqlite3-database=/var/lib/powerdns/pdns.sqlite3\ngsqlite3-dnssec=on\n"
-	if _, err := os.Stat(gsqlite3Conf); os.IsNotExist(err) {
-		_ = os.WriteFile(gsqlite3Conf, []byte(gsqliteContent), 0o644)
-	}
+	dbPath := filepath.Join(dbDir, "pdns.sqlite3")
 
-	// Remove bind backend config if present so it doesn't conflict
-	bindConf := filepath.Join(pdnsd, "bind.conf")
-	if _, err := os.Stat(bindConf); err == nil {
-		_ = os.Remove(bindConf)
+	// If system directory is not writable, configure managed fallback directory
+	if mkdirErr != nil {
+		fallbackDir := filepath.Join(os.TempDir(), "clouddeck-powerdns")
+		if m.cfg.BackupDir != "" {
+			fallbackDir = filepath.Join(filepath.Dir(m.cfg.BackupDir), "powerdns")
+		}
+		_ = os.MkdirAll(fallbackDir, 0o755)
+		managedDbPath := filepath.Join(fallbackDir, "pdns.sqlite3")
+		managedConf := filepath.Join(fallbackDir, "pdns.conf")
+		managedContent := fmt.Sprintf("launch=gsqlite3\ngsqlite3-database=%s\ngsqlite3-dnssec=on\n", managedDbPath)
+		_ = os.WriteFile(managedConf, []byte(managedContent), 0o644)
+		m.managedConfDir = fallbackDir
+		dbPath = managedDbPath
+	} else {
+		// Ensure gsqlite3 backend configuration
+		gsqlite3Conf := filepath.Join(pdnsd, "gsqlite3.conf")
+		gsqliteContent := fmt.Sprintf("launch+=gsqlite3\ngsqlite3-database=%s\ngsqlite3-dnssec=on\n", dbPath)
+		if _, err := os.Stat(gsqlite3Conf); os.IsNotExist(err) {
+			_ = os.WriteFile(gsqlite3Conf, []byte(gsqliteContent), 0o644)
+		}
+
+		// Remove bind backend config if present so it doesn't conflict
+		bindConf := filepath.Join(pdnsd, "bind.conf")
+		if _, err := os.Stat(bindConf); err == nil {
+			_ = os.Remove(bindConf)
+		}
 	}
 
 	// Initialize sqlite3 database schema if missing or empty
-	dbPath := filepath.Join(dbDir, "pdns.sqlite3")
 	fi, statErr := os.Stat(dbPath)
 	if os.IsNotExist(statErr) || (statErr == nil && fi.Size() == 0) {
 		_ = initSQLiteSchema(ctx, dbPath)
 	}
 
-	// Fix systemd-resolved conflict on port 53 if resolved is active
-	fixSystemdResolvedConflict(ctx)
+	// Fix systemd-resolved conflict on port 53 if resolved is active (Linux)
+	if runtime.GOOS == "linux" {
+		fixSystemdResolvedConflict(ctx)
+	}
 
 	return nil
 }
@@ -172,6 +249,15 @@ func initSQLiteSchema(ctx context.Context, dbPath string) error {
 		cmd := exec.CommandContext(ctx, sqlite3Bin, dbPath)
 		cmd.Stdin = bytes.NewReader(schemaBytes)
 		_ = cmd.Run()
+	} else {
+		for _, candidate := range []string{"/opt/homebrew/bin/sqlite3", "/usr/local/bin/sqlite3", "/usr/bin/sqlite3"} {
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				cmd := exec.CommandContext(ctx, candidate, dbPath)
+				cmd.Stdin = bytes.NewReader(schemaBytes)
+				_ = cmd.Run()
+				break
+			}
+		}
 	}
 	_ = os.Chmod(dbPath, 0o660)
 	chownPdns(dbPath)
@@ -210,6 +296,36 @@ func (m *Manager) Install(ctx context.Context, log tasks.LogFunc) error {
 	if log == nil {
 		log = func(string, string) {}
 	}
+	if runtime.GOOS == "darwin" {
+		log("info", "checking Homebrew for PowerDNS...")
+		brewBin, err := exec.LookPath("brew")
+		if err != nil {
+			for _, p := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
+				if _, statErr := os.Stat(p); statErr == nil {
+					brewBin = p
+					break
+				}
+			}
+		}
+		if brewBin == "" {
+			return fmt.Errorf("Homebrew (brew) is required to install PowerDNS on macOS")
+		}
+		log("info", "installing pdns and sqlite via Homebrew...")
+		cmd := exec.CommandContext(ctx, brewBin, "install", "pdns", "sqlite")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("brew install failed: %s (%w)", strings.TrimSpace(string(out)), err)
+		}
+		log("info", "configuring PowerDNS SQLite3 backend...")
+		if err := m.EnsureBackendConfigured(ctx); err != nil {
+			return fmt.Errorf("configure backend: %w", err)
+		}
+		log("info", "starting PowerDNS service via brew services...")
+		_ = exec.CommandContext(ctx, brewBin, "services", "restart", "pdns").Run()
+		log("info", "PowerDNS installed and service active")
+		return nil
+	}
+
+	// Linux
 	log("info", "updating package lists...")
 	_ = exec.CommandContext(ctx, "apt-get", "update", "-qq").Run()
 	log("info", "installing pdns-server, pdns-backend-sqlite3, sqlite3...")
@@ -224,6 +340,7 @@ func (m *Manager) Install(ctx context.Context, log tasks.LogFunc) error {
 		return fmt.Errorf("configure backend: %w", err)
 	}
 	_ = exec.CommandContext(ctx, "systemctl", "enable", "--now", "pdns").Run()
+	_ = exec.CommandContext(ctx, "service", "pdns", "restart").Run()
 	log("info", "PowerDNS installed and service active")
 	return nil
 }
@@ -251,7 +368,8 @@ func (m *Manager) SetNameservers(ctx context.Context, ns1, ns2 string) error {
 // Status probes pdnsutil availability. Never fails: a missing or unusable
 // binary reports available=false.
 func (m *Manager) Status(ctx context.Context) Status {
-	status := Status{ConfDir: m.cfg.PdnsConfDir}
+	confDir := m.effectiveConfDir()
+	status := Status{ConfDir: confDir}
 	out, _, err := m.run(ctx, "--version")
 	if err != nil {
 		return status
@@ -458,10 +576,9 @@ func (m *Manager) DeleteRRSet(ctx context.Context, zone, name, rtype string) err
 // dns_unavailable, anything else a 500 dns_error with the stderr tail.
 func (m *Manager) run(ctx context.Context, args ...string) (string, string, error) {
 	_ = m.EnsureBackendConfigured(ctx)
-	path, err := exec.LookPath(m.cfg.PdnsUtilBin)
+	path, err := m.resolvePdnsUtilBin()
 	if err != nil {
-		return "", "", apierr.New(http.StatusServiceUnavailable, "dns_unavailable",
-			fmt.Sprintf("pdnsutil %q is not installed on this server", m.cfg.PdnsUtilBin))
+		return "", "", err
 	}
 
 	m.mu.Lock()
@@ -470,9 +587,10 @@ func (m *Manager) run(ctx context.Context, args ...string) (string, string, erro
 	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 
+	confDir := m.effectiveConfDir()
 	argv := make([]string, 0, len(args)+2)
-	if m.cfg.PdnsConfDir != "" {
-		argv = append(argv, "--config-dir", m.cfg.PdnsConfDir)
+	if confDir != "" {
+		argv = append(argv, "--config-dir", confDir)
 	}
 	argv = append(argv, args...)
 
@@ -486,6 +604,19 @@ func (m *Manager) run(ctx context.Context, args ...string) (string, string, erro
 	if runErr == nil {
 		return out, errOut, nil
 	}
+
+	// If failed and a managed fallback config directory exists, retry with fallback
+	if m.managedConfDir != "" && confDir != m.managedConfDir {
+		fbArgv := append([]string{"--config-dir", m.managedConfDir}, args...)
+		cmdFb := exec.CommandContext(ctx, path, fbArgv...)
+		var fbStdout, fbStderr bytes.Buffer
+		cmdFb.Stdout = &fbStdout
+		cmdFb.Stderr = &fbStderr
+		if fbRunErr := cmdFb.Run(); fbRunErr == nil {
+			return fbStdout.String(), fbStderr.String(), nil
+		}
+	}
+
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		if errors.Is(ctxErr, context.DeadlineExceeded) {
 			return out, errOut, apierr.New(http.StatusInternalServerError, "dns_error",

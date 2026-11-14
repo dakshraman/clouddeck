@@ -12,7 +12,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -273,6 +276,16 @@ func phpFpmUnits() []string {
 
 // defaultStopCommand is used when the operator did not configure AGENT_*_STOP_CMD.
 func defaultStopCommand(name string) string {
+	if runtime.GOOS == "darwin" {
+		switch name {
+		case NameNginx:
+			return "brew services stop nginx"
+		case NameMySQL:
+			return "brew services stop mariadb"
+		case NamePHPFpm:
+			return "brew services stop php"
+		}
+	}
 	switch name {
 	case NameNginx:
 		return "systemctl stop nginx"
@@ -289,6 +302,16 @@ func defaultStopCommand(name string) string {
 
 // defaultStartCommand is used when the operator did not configure AGENT_*_START_CMD.
 func defaultStartCommand(name string) string {
+	if runtime.GOOS == "darwin" {
+		switch name {
+		case NameNginx:
+			return "brew services start nginx"
+		case NameMySQL:
+			return "brew services start mariadb"
+		case NamePHPFpm:
+			return "brew services start php"
+		}
+	}
 	switch name {
 	case NameNginx:
 		return "systemctl start nginx"
@@ -308,6 +331,16 @@ func defaultStartCommand(name string) string {
 // PHP-FPM the distro unit is versioned (php8.3-fpm), so discover it from
 // systemd before falling back to the plain name.
 func defaultRestartCommand(name string) string {
+	if runtime.GOOS == "darwin" {
+		switch name {
+		case NameNginx:
+			return "brew services restart nginx"
+		case NameMySQL:
+			return "brew services restart mariadb"
+		case NamePHPFpm:
+			return "brew services restart php"
+		}
+	}
 	switch name {
 	case NameNginx:
 		return "systemctl restart nginx"
@@ -335,6 +368,15 @@ func runServiceOp(ctx context.Context, op, name, command string) error {
 		return serviceOpFailed(op, fmt.Sprintf("%s command is empty", op))
 	}
 	path, err := exec.LookPath(argv[0])
+	if err != nil && argv[0] == "brew" {
+		for _, p := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
+			if _, statErr := os.Stat(p); statErr == nil {
+				path = p
+				err = nil
+				break
+			}
+		}
+	}
 	if err != nil {
 		return serviceOpFailed(op, fmt.Sprintf("%s command binary %q is not installed", op, argv[0]))
 	}
@@ -416,7 +458,20 @@ func pgrepPID(ctx context.Context, args []string) (int, error) {
 // output streams are combined because nginx prints its version to stderr.
 func (s probeSpec) version(ctx context.Context) string {
 	for _, argv := range s.versionCmds {
-		out, err := exec.CommandContext(ctx, argv[0], argv[1:]...).CombinedOutput()
+		cmdPath := argv[0]
+		if _, err := exec.LookPath(cmdPath); err != nil {
+			for _, candidate := range []string{
+				filepath.Join("/opt/homebrew/bin", cmdPath),
+				filepath.Join("/usr/local/bin", cmdPath),
+				filepath.Join("/usr/bin", cmdPath),
+			} {
+				if _, statErr := os.Stat(candidate); statErr == nil {
+					cmdPath = candidate
+					break
+				}
+			}
+		}
+		out, err := exec.CommandContext(ctx, cmdPath, argv[1:]...).CombinedOutput()
 		if err != nil {
 			continue
 		}

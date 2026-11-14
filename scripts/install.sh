@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.48"
+      VERSION="v0.6.49"
     fi
   fi
 }
@@ -687,6 +687,7 @@ run_macos_installer() {
     [ "$DO_MARIADB" = "1" ] && _brew_pkgs="$_brew_pkgs mariadb"
     [ "$DO_PHP" = "1" ] && _brew_pkgs="$_brew_pkgs php"
     [ "$DO_NODE" = "1" ] && _brew_pkgs="$_brew_pkgs node"
+    [ "$DO_DNS" = "1" ] && _brew_pkgs="$_brew_pkgs pdns sqlite"
 
     _needed=""
     for _p in $_brew_pkgs; do
@@ -708,6 +709,7 @@ run_macos_installer() {
     [ "$DO_MARIADB" = "1" ] && brew services start mariadb >/dev/null 2>&1 || true
     [ "$DO_NGINX" = "1" ] && brew services start nginx >/dev/null 2>&1 || true
     [ "$DO_PHP" = "1" ] && brew services start php >/dev/null 2>&1 || true
+    [ "$DO_DNS" = "1" ] && brew services start pdns >/dev/null 2>&1 || true
   fi
 
   # Create directories
@@ -795,10 +797,14 @@ EOF
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>AGENT_PORT</key>
         <string>$AGENT_PORT</string>
         <key>AGENT_DATA_DIR</key>
         <string>$DATADIR/agent</string>
+        <key>AGENT_AUTH_TOKEN</key>
+        <string>$AGENT_AUTH_TOKEN</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -826,12 +832,16 @@ EOF
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>PORT</key>
         <string>$PANEL_PORT</string>
         <key>PANEL_DATA_DIR</key>
         <string>$DATADIR/panel</string>
         <key>AGENT_URL</key>
         <string>http://127.0.0.1:$AGENT_PORT</string>
+        <key>AGENT_AUTH_TOKEN</key>
+        <string>$AGENT_AUTH_TOKEN</string>
         <key>NODE_ENV</key>
         <string>production</string>
     </dict>
@@ -989,6 +999,7 @@ start_linux_services() {
     systemctl enable --now certbot.timer >/dev/null 2>&1 || true
     if [ "$DO_DNS" = "1" ] || command -v pdnsutil >/dev/null 2>&1; then
       mkdir -p /etc/powerdns/pdns.d /var/lib/powerdns
+      chmod 0644 /etc/powerdns/pdns.conf 2>/dev/null || true
       cat > /etc/powerdns/pdns.d/gsqlite3.conf << 'EOF'
 launch+=gsqlite3
 gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
@@ -1003,8 +1014,8 @@ EOF
         fi
       fi
       chown -R pdns:pdns /var/lib/powerdns 2>/dev/null || true
-      chmod 0770 /var/lib/powerdns 2>/dev/null || true
-      chmod 0660 /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
+      chmod 0775 /var/lib/powerdns 2>/dev/null || true
+      chmod 0664 /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
 
       if [ -d /run/systemd/resolve ]; then
         mkdir -p /etc/systemd/resolved.conf.d

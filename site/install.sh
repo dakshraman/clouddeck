@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.48"
+      VERSION="v0.6.49"
     fi
   fi
 }
@@ -687,6 +687,7 @@ run_macos_installer() {
     [ "$DO_MARIADB" = "1" ] && _brew_pkgs="$_brew_pkgs mariadb"
     [ "$DO_PHP" = "1" ] && _brew_pkgs="$_brew_pkgs php"
     [ "$DO_NODE" = "1" ] && _brew_pkgs="$_brew_pkgs node"
+    [ "$DO_DNS" = "1" ] && _brew_pkgs="$_brew_pkgs pdns sqlite"
 
     _needed=""
     for _p in $_brew_pkgs; do
@@ -708,6 +709,7 @@ run_macos_installer() {
     [ "$DO_MARIADB" = "1" ] && brew services start mariadb >/dev/null 2>&1 || true
     [ "$DO_NGINX" = "1" ] && brew services start nginx >/dev/null 2>&1 || true
     [ "$DO_PHP" = "1" ] && brew services start php >/dev/null 2>&1 || true
+    [ "$DO_DNS" = "1" ] && brew services start pdns >/dev/null 2>&1 || true
   fi
 
   # Create directories
@@ -795,10 +797,14 @@ EOF
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>AGENT_PORT</key>
         <string>$AGENT_PORT</string>
         <key>AGENT_DATA_DIR</key>
         <string>$DATADIR/agent</string>
+        <key>AGENT_AUTH_TOKEN</key>
+        <string>$AGENT_AUTH_TOKEN</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -826,12 +832,16 @@ EOF
     </array>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>PORT</key>
         <string>$PANEL_PORT</string>
         <key>PANEL_DATA_DIR</key>
         <string>$DATADIR/panel</string>
         <key>AGENT_URL</key>
         <string>http://127.0.0.1:$AGENT_PORT</string>
+        <key>AGENT_AUTH_TOKEN</key>
+        <string>$AGENT_AUTH_TOKEN</string>
         <key>NODE_ENV</key>
         <string>production</string>
     </dict>
@@ -935,7 +945,7 @@ provision_linux_packages() {
   fi
 
   if [ "$DO_DNS" = "1" ]; then
-    _pkgs="$_pkgs pdns-server pdns-backend-sqlite3"
+    _pkgs="$_pkgs pdns-server pdns-backend-sqlite3 sqlite3"
   fi
 
   if [ "$DO_SECURITY" = "1" ]; then
@@ -987,12 +997,45 @@ start_linux_services() {
       systemctl enable --now "$_unit" >/dev/null 2>&1 || true
     done
     systemctl enable --now certbot.timer >/dev/null 2>&1 || true
+    if [ "$DO_DNS" = "1" ] || command -v pdnsutil >/dev/null 2>&1; then
+      mkdir -p /etc/powerdns/pdns.d /var/lib/powerdns
+      chmod 0644 /etc/powerdns/pdns.conf 2>/dev/null || true
+      cat > /etc/powerdns/pdns.d/gsqlite3.conf << 'EOF'
+launch+=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=on
+EOF
+      rm -f /etc/powerdns/pdns.d/bind.conf
+      if [ ! -s /var/lib/powerdns/pdns.sqlite3 ]; then
+        if [ -f /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql ]; then
+          sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql 2>/dev/null || true
+        elif [ -f /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql ]; then
+          sqlite3 /var/lib/powerdns/pdns.sqlite3 < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql 2>/dev/null || true
+        fi
+      fi
+      chown -R pdns:pdns /var/lib/powerdns 2>/dev/null || true
+      chmod 0775 /var/lib/powerdns 2>/dev/null || true
+      chmod 0664 /var/lib/powerdns/pdns.sqlite3 2>/dev/null || true
+
+      if [ -d /run/systemd/resolve ]; then
+        mkdir -p /etc/systemd/resolved.conf.d
+        cat > /etc/systemd/resolved.conf.d/clouddeck-pdns.conf << 'EOF'
+[Resolve]
+DNSStubListener=no
+EOF
+        systemctl restart systemd-resolved >/dev/null 2>&1 || true
+      fi
+      systemctl enable --now pdns >/dev/null 2>&1 || systemctl restart pdns >/dev/null 2>&1 || true
+    fi
   else
     [ "$DO_NGINX" = "1" ] && service nginx start >/dev/null 2>&1 || true
     [ "$DO_MARIADB" = "1" ] && service "$DB_UNIT" start >/dev/null 2>&1 || true
     for _init in /etc/init.d/php*-fpm; do
       [ -x "$_init" ] && "$_init" start >/dev/null 2>&1 || true
     done
+    if [ "$DO_DNS" = "1" ] || command -v pdnsutil >/dev/null 2>&1; then
+      service pdns restart >/dev/null 2>&1 || true
+    fi
   fi
   ok "Hosting stack services active."
 }
@@ -1144,6 +1187,10 @@ run_linux_installer() {
       mkdir -p /www/wwwroot
       chown -R clouddeck:clouddeck /www/wwwroot 2>/dev/null || true
       chmod -R 775 /www /www/wwwroot 2>/dev/null || true
+      if id www-data >/dev/null 2>&1; then
+        usermod -a -G www-data clouddeck 2>/dev/null || true
+        usermod -a -G clouddeck www-data 2>/dev/null || true
+      fi
       usermod -aG sudo clouddeck 2>/dev/null || usermod -aG wheel clouddeck 2>/dev/null || true
       mkdir -p /etc/sudoers.d
       cat > /etc/sudoers.d/clouddeck << 'EOF'

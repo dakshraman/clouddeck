@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DNSStatus, DNSZone, DNSZoneListResponse } from "@/lib/types";
-import { apiFetch, apiPost } from "@/components/api";
+import type { DNSStatus, DNSZone, DNSZoneListResponse, Task } from "@/lib/types";
+import { apiFetch, apiPost, waitForTask } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,13 +31,17 @@ export function DnsPage() {
     setInstalling(true);
     setInstallError(null);
     try {
-      await apiPost("/api/dns/install", {});
-      setTimeout(() => {
-        void load();
-        setInstalling(false);
-      }, 4000);
+      const res = await apiPost<{ task: Task }>("/api/dns/install", {});
+      if (res?.task?.id) {
+        const finalTask = await waitForTask(res.task.id);
+        if (finalTask.status === "failed") {
+          throw new Error(finalTask.error || "Failed to install PowerDNS");
+        }
+      }
+      await load();
     } catch (err) {
       setInstallError(err instanceof Error ? err.message : "Failed to install PowerDNS");
+    } finally {
       setInstalling(false);
     }
   }

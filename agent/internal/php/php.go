@@ -16,20 +16,28 @@ var versionRe = regexp.MustCompile(`^\d+\.\d+$`)
 var fallback = []string{"none", "8.1", "8.2", "8.3", "8.4"}
 
 // Available lists offered PHP versions: "none" plus every immediate
-// subdirectory of base that looks like "8.3", sorted ascending. On non-Linux
+// subdirectory of base that looks like "8.3", sorted ascending. On unsupported
 // hosts or when nothing is detected it returns the built-in fallback list.
 func Available(base string) []string {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return fallbackCopy()
 	}
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return fallbackCopy()
+	searchBases := []string{base}
+	if runtime.GOOS == "darwin" {
+		searchBases = append(searchBases, "/opt/homebrew/etc/php", "/usr/local/etc/php")
 	}
 	var found []string
-	for _, e := range entries {
-		if e.IsDir() && versionRe.MatchString(e.Name()) {
-			found = append(found, e.Name())
+	for _, b := range searchBases {
+		entries, err := os.ReadDir(b)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() && versionRe.MatchString(e.Name()) {
+				if !contains(found, e.Name()) {
+					found = append(found, e.Name())
+				}
+			}
 		}
 	}
 	if len(found) == 0 {
@@ -37,6 +45,15 @@ func Available(base string) []string {
 	}
 	sort.Slice(found, func(i, j int) bool { return less(found[i], found[j]) })
 	return append([]string{"none"}, found...)
+}
+
+func contains(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }
 
 // Offered reports whether version is in Available(base).
