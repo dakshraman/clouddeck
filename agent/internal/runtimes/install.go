@@ -50,14 +50,14 @@ const (
 )
 
 var (
-	nodeMajorRe       = regexp.MustCompile(`^\d{1,2}$`)
-	nodeVersionRe     = regexp.MustCompile(`^\d{1,2}(?:\.\d{1,2}\.\d{1,2})?$`)
-	phpVersionRe      = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
-	pythonVersionRe   = regexp.MustCompile(`^3\.\d{1,2}$`)
-	pythonUninstRe    = regexp.MustCompile(`^3\.\d{1,2}(?:\.\d+)?$`)
-	javaVersionRe     = regexp.MustCompile(`^\d{1,2}$`)
-	javaUninstRe      = regexp.MustCompile(`^\d{1,2}(?:\.\d+)*$`)
-	dockerVersionRe   = regexp.MustCompile(`^(?:latest|\d{1,2}(?:\.\d+)*)$`)
+	nodeMajorRe     = regexp.MustCompile(`^\d{1,2}$`)
+	nodeVersionRe   = regexp.MustCompile(`^\d{1,2}(?:\.\d{1,2}\.\d{1,2})?$`)
+	phpVersionRe    = regexp.MustCompile(`^\d{1,2}\.\d{1,2}$`)
+	pythonVersionRe = regexp.MustCompile(`^3\.\d{1,2}$`)
+	pythonUninstRe  = regexp.MustCompile(`^3\.\d{1,2}(?:\.\d+)?$`)
+	javaVersionRe   = regexp.MustCompile(`^\d{1,2}$`)
+	javaUninstRe    = regexp.MustCompile(`^\d{1,2}(?:\.\d+)*$`)
+	dockerVersionRe = regexp.MustCompile(`^(?:latest|\d{1,2}(?:\.\d+)*)$`)
 )
 
 // installPHPScript is agent-owned; the requested version arrives as $1.

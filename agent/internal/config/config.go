@@ -30,9 +30,9 @@ type Config struct {
 	DryRun           bool
 
 	// v0.3 monitoring / service control
-	NginxRestartCmd   string
-	NginxStopCmd      string
-	NginxStartCmd     string
+	NginxRestartCmd string
+	NginxStopCmd    string
+	NginxStartCmd   string
 	// NginxReloadSettle makes the agent wait for old nginx workers to retire
 	// after a reload so callers never see stale config. Off in test harnesses.
 	NginxReloadSettle bool
