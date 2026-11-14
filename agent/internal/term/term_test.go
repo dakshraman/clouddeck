@@ -294,6 +294,7 @@ func TestShellExitEvent(t *testing.T) {
 		_, _, detach, err := svc.Attach(sess.ID)
 		if err != nil {
 			assertAPIError(t, err, 404, "term_session_not_found")
+			time.Sleep(50 * time.Millisecond)
 			break
 		}
 		detach()

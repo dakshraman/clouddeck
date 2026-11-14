@@ -359,18 +359,18 @@ func (s *Service) finishSession(sess *session, code int) {
 	}
 	sess.mu.Unlock()
 
-	s.mu.Lock()
-	if s.sessions[sess.id] == sess {
-		delete(s.sessions, sess.id)
-	}
-	s.mu.Unlock()
-
 	sess.master.Close()
 	s.appendAudit(audit.Record{
 		Action: actionSessionClose,
 		Params: map[string]any{"id": sess.id, "user": sess.user, "shell": sess.shell, "exit": code},
 		Result: audit.ResultAccepted,
 	})
+
+	s.mu.Lock()
+	if s.sessions[sess.id] == sess {
+		delete(s.sessions, sess.id)
+	}
+	s.mu.Unlock()
 	close(sess.doneCh)
 }
 
