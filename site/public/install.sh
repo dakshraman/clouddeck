@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.49"
+      VERSION="v0.6.50"
     fi
   fi
 }
@@ -713,7 +713,61 @@ run_macos_installer() {
   fi
 
   # Create directories
-  mkdir -p "$PREFIX/bin" "$PREFIX/panel" "$DATADIR/agent" "$DATADIR/panel" "$ETCDIR" "$PREFIX/run"
+  BREW_PREFIX="$(brew --prefix 2>/dev/null || echo "/opt/homebrew")"
+  NGINX_SERVERS_DIR="$BREW_PREFIX/etc/nginx/servers"
+  mkdir -p "$PREFIX/bin" "$PREFIX/panel" "$DATADIR/agent" "$DATADIR/panel" "$ETCDIR" "$PREFIX/run" "$NGINX_SERVERS_DIR" "$HOME/Sites"
+
+  # Generate or preserve tokens and secrets
+  AGENT_TOKEN=""
+  [ -f "$ETCDIR/agent.env" ] && AGENT_TOKEN="$(sed -n 's/^AGENT_AUTH_TOKEN=//p' "$ETCDIR/agent.env" | tail -n 1)"
+  [ -z "$AGENT_TOKEN" ] && AGENT_TOKEN="$(random_hex 32)"
+  AGENT_AUTH_TOKEN="$AGENT_TOKEN"
+
+  PANEL_SECRET=""
+  [ -f "$ETCDIR/panel.env" ] && PANEL_SECRET="$(sed -n 's/^PANEL_SESSION_SECRET=//p' "$ETCDIR/panel.env" | tail -n 1)"
+  [ -z "$PANEL_SECRET" ] && PANEL_SECRET="$(random_hex 32)"
+
+  # Configuration files
+  cat > "$ETCDIR/agent.env" <<EOF
+AGENT_LISTEN=127.0.0.1:$AGENT_PORT
+AGENT_AUTH_TOKEN=$AGENT_AUTH_TOKEN
+AGENT_STATE_DIR=$DATADIR/agent
+AGENT_NGINX_SITES_DIR=$NGINX_SERVERS_DIR
+AGENT_WEBROOT=$HOME/Sites
+AGENT_LOG_DIR=$BREW_PREFIX/var/log/nginx
+AGENT_BACKUP_DIR=$DATADIR/agent/backups
+EOF
+  chmod 600 "$ETCDIR/agent.env"
+  ok "Wrote agent configuration: $ETCDIR/agent.env"
+
+  cat > "$ETCDIR/panel.env" <<EOF
+PORT=$PANEL_PORT
+HOSTNAME=127.0.0.1
+NODE_ENV=production
+AGENT_URL=http://127.0.0.1:$AGENT_PORT
+AGENT_TOKEN=$AGENT_AUTH_TOKEN
+PANEL_DATA_DIR=$DATADIR/panel
+PANEL_SESSION_SECRET=$PANEL_SECRET
+PANEL_COOKIE_SECURE=false
+EOF
+  chmod 600 "$ETCDIR/panel.env"
+  ok "Wrote panel configuration: $ETCDIR/panel.env"
+
+  cat > "$PREFIX/.clouddeck-install" <<EOF
+PREFIX=$PREFIX
+DATADIR=$DATADIR
+ETCDIR=$ETCDIR
+AGENT_PORT=$AGENT_PORT
+PANEL_PORT=$PANEL_PORT
+REPO=$REPO
+NO_SYSTEMD=1
+DO_AGENT=$DO_AGENT
+DO_PANEL=$DO_PANEL
+FAST=$FAST
+SYSTEM_NODE=1
+PROFILE=$INSTALL_PROFILE
+EOF
+  chmod 0644 "$PREFIX/.clouddeck-install"
 
   # Download assets
   step "Downloading CloudDeck release assets for macOS ($ARCH_GO)..."
@@ -741,13 +795,23 @@ run_macos_installer() {
   # Wrapper script in PATH
   cat > "$PREFIX/bin/clouddeck" << 'EOF'
 #!/bin/bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET="${BASH_SOURCE[0]}"
+while [ -L "$TARGET" ]; do
+  DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
+  TARGET="$(readlink "$TARGET")"
+  [[ $TARGET != /* ]] && TARGET="$DIR/$TARGET"
+done
+DIR="$(cd -P "$(dirname "$TARGET")" >/dev/null 2>&1 && pwd)"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 exec node "$DIR/clouddeck-cli" "$@"
 EOF
   chmod +x "$PREFIX/bin/clouddeck"
-  if [ -w "/usr/local/bin" ]; then
+  if [ -w "$BREW_PREFIX/bin" ]; then
+    ln -sf "$PREFIX/bin/clouddeck" "$BREW_PREFIX/bin/clouddeck"
+    ok "CloudDeck CLI linked to $BREW_PREFIX/bin/clouddeck"
+  elif [ -w "/usr/local/bin" ]; then
     ln -sf "$PREFIX/bin/clouddeck" /usr/local/bin/clouddeck
+    ok "CloudDeck CLI linked to /usr/local/bin/clouddeck"
   fi
 
   # Local Root CA Trust Setup
@@ -799,12 +863,20 @@ EOF
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-        <key>AGENT_PORT</key>
-        <string>$AGENT_PORT</string>
-        <key>AGENT_DATA_DIR</key>
+        <key>AGENT_LISTEN</key>
+        <string>127.0.0.1:$AGENT_PORT</string>
+        <key>AGENT_STATE_DIR</key>
         <string>$DATADIR/agent</string>
         <key>AGENT_AUTH_TOKEN</key>
         <string>$AGENT_AUTH_TOKEN</string>
+        <key>AGENT_NGINX_SITES_DIR</key>
+        <string>$NGINX_SERVERS_DIR</string>
+        <key>AGENT_WEBROOT</key>
+        <string>$HOME/Sites</string>
+        <key>AGENT_LOG_DIR</key>
+        <string>$BREW_PREFIX/var/log/nginx</string>
+        <key>AGENT_BACKUP_DIR</key>
+        <string>$DATADIR/agent/backups</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -836,12 +908,18 @@ EOF
         <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>PORT</key>
         <string>$PANEL_PORT</string>
+        <key>HOSTNAME</key>
+        <string>127.0.0.1</string>
         <key>PANEL_DATA_DIR</key>
         <string>$DATADIR/panel</string>
         <key>AGENT_URL</key>
         <string>http://127.0.0.1:$AGENT_PORT</string>
-        <key>AGENT_AUTH_TOKEN</key>
+        <key>AGENT_TOKEN</key>
         <string>$AGENT_AUTH_TOKEN</string>
+        <key>PANEL_SESSION_SECRET</key>
+        <string>$PANEL_SECRET</string>
+        <key>PANEL_COOKIE_SECURE</key>
+        <string>false</string>
         <key>NODE_ENV</key>
         <string>production</string>
     </dict>
@@ -861,8 +939,10 @@ EOF
 
   launchctl unload "$LAUNCH_DIR/in.dakshraman.clouddeck-agent.plist" 2>/dev/null || true
   launchctl unload "$LAUNCH_DIR/in.dakshraman.clouddeck-panel.plist" 2>/dev/null || true
-  launchctl load "$LAUNCH_DIR/in.dakshraman.clouddeck-agent.plist" 2>/dev/null || true
-  launchctl load "$LAUNCH_DIR/in.dakshraman.clouddeck-panel.plist" 2>/dev/null || true
+  launchctl load -w "$LAUNCH_DIR/in.dakshraman.clouddeck-agent.plist" 2>/dev/null || true
+  launchctl load -w "$LAUNCH_DIR/in.dakshraman.clouddeck-panel.plist" 2>/dev/null || true
+  launchctl start in.dakshraman.clouddeck-agent 2>/dev/null || true
+  launchctl start in.dakshraman.clouddeck-panel 2>/dev/null || true
 
   # Save version marker
   printf '%s\n' "$VERSION" > "$PREFIX/.clouddeck-version"

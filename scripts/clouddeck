@@ -136,6 +136,7 @@ require sudo. The store is root-owned, so run every command with sudo.`;
 }
 
 function requireRoot() {
+  if (process.platform === "darwin") return;
   if (typeof process.getuid === "function" && process.getuid() === 0) return;
   console.error("run this command with sudo");
   process.exit(1);
@@ -172,6 +173,7 @@ function requirePanel() {
 }
 
 function panelUrl() {
+  if (process.platform === "darwin") return `http://localhost:${PANEL_PORT}`;
   let wsl = false;
   try {
     wsl = /microsoft/i.test(fs.readFileSync("/proc/version", "utf8"));
@@ -374,6 +376,16 @@ function serviceState(unit, pidName) {
     return (result.stdout || "").trim() || (result.stderr || "").trim() || "unknown";
   }
 
+  if (process.platform === "darwin") {
+    const label = `in.dakshraman.${unit}`;
+    const res = spawnSync("launchctl", ["list", label], { encoding: "utf8" });
+    if (res.status === 0 && res.stdout) {
+      const match = res.stdout.match(/"PID"\s*=\s*(\d+);/);
+      if (match) return `running (pid ${match[1]})`;
+      return "stopped";
+    }
+  }
+
   const pidFile = path.join(PREFIX, "run", pidName);
   try {
     const pid = Number.parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
@@ -390,9 +402,31 @@ function serviceState(unit, pidName) {
 }
 
 function unitState(unit) {
-  const result = spawnSync("systemctl", ["is-active", unit], { encoding: "utf8" });
-  if (result.error) return "unknown";
-  return (result.stdout || "").trim() || "unknown";
+  if (useSystemd()) {
+    const result = spawnSync("systemctl", ["is-active", unit], { encoding: "utf8" });
+    if (result.error) return "unknown";
+    return (result.stdout || "").trim() || "unknown";
+  }
+  if (process.platform === "darwin") {
+    let procs = [unit];
+    if (unit === "mariadb" || unit === "mysql") {
+      procs = ["mariadbd", "mysqld"];
+    } else if (unit === "php") {
+      procs = ["php-fpm"];
+    } else if (unit === "nginx") {
+      procs = ["nginx"];
+    } else if (unit === "pdns") {
+      procs = ["pdns_server"];
+    }
+    for (const proc of procs) {
+      const res = spawnSync("pgrep", ["-f", proc], { encoding: "utf8" });
+      if (res.status === 0 && res.stdout && res.stdout.trim()) {
+        return "active (running)";
+      }
+    }
+    return "inactive";
+  }
+  return "unknown";
 }
 
 function phpFpmUnits() {
@@ -425,6 +459,15 @@ function checkHealth(url) {
 }
 
 function restartPanel() {
+  if (process.platform === "darwin") {
+    const label = "in.dakshraman.clouddeck-panel";
+    const plist = path.join(os.homedir(), "Library", "LaunchAgents", `${label}.plist`);
+    spawnSync("launchctl", ["unload", plist]);
+    spawnSync("launchctl", ["load", "-w", plist]);
+    spawnSync("launchctl", ["start", label]);
+    return true;
+  }
+
   if (useSystemd()) {
     const result = spawnSync("systemctl", ["restart", "clouddeck-panel"], { stdio: "inherit" });
     if (result.error) {
@@ -448,6 +491,7 @@ function restartPanel() {
 }
 
 function restartHint() {
+  if (process.platform === "darwin") return "clouddeck restart panel";
   if (useSystemd()) return "sudo systemctl restart clouddeck-panel";
   const script = path.join(PREFIX, "run", "start.sh");
   return fs.existsSync(script) ? `sudo ${script}` : "sudo clouddeck reinstall";
@@ -527,6 +571,10 @@ function cmdStatus(args) {
     for (const unit of phpFpmUnits()) {
       console.log(row(unit, unitState(unit)));
     }
+  } else if (process.platform === "darwin") {
+    for (const unit of ["nginx", "mariadb", "php"]) {
+      console.log(row(unit, unitState(unit)));
+    }
   }
 
   console.log("");
@@ -575,9 +623,33 @@ function serviceAction(action, args) {
     die(`${target} is not installed on this host`);
   }
 
-  const units = target
-    ? [`clouddeck-${target}`]
-    : enabledComponents().map((name) => `clouddeck-${name}`);
+  const components = target ? [target] : enabledComponents();
+  if (components.length === 0) die("no CloudDeck services are installed");
+
+  if (process.platform === "darwin") {
+    const launchDir = path.join(os.homedir(), "Library", "LaunchAgents");
+    for (const comp of components) {
+      const label = `in.dakshraman.clouddeck-${comp}`;
+      const plist = path.join(launchDir, `${label}.plist`);
+      if (!fs.existsSync(plist)) {
+        console.error(`missing LaunchAgent definition: ${plist}`);
+        continue;
+      }
+      if (action === "stop") {
+        spawnSync("launchctl", ["unload", plist], { stdio: "inherit" });
+      } else if (action === "start") {
+        spawnSync("launchctl", ["load", "-w", plist], { stdio: "inherit" });
+        spawnSync("launchctl", ["start", label], { stdio: "inherit" });
+      } else if (action === "restart") {
+        spawnSync("launchctl", ["unload", plist], { stdio: "inherit" });
+        spawnSync("launchctl", ["load", "-w", plist], { stdio: "inherit" });
+        spawnSync("launchctl", ["start", label], { stdio: "inherit" });
+      }
+    }
+    return;
+  }
+
+  const units = components.map((name) => `clouddeck-${name}`);
   if (units.length === 0) die("no CloudDeck services are installed");
 
   if (useSystemd()) {
