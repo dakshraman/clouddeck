@@ -1,4 +1,4 @@
-﻿# CloudDeck Windows Local Development Suite Installer
+# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
