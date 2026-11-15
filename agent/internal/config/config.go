@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -137,13 +138,21 @@ type Config struct {
 
 // Load reads the environment and applies documented defaults.
 func Load() (Config, error) {
+	homeDir, _ := os.UserHomeDir()
+	defaultWebroot := "/www/wwwroot"
+	defaultBackupDir := "/var/lib/clouddeck/backups"
+	if runtime.GOOS == "darwin" && homeDir != "" {
+		defaultWebroot = filepath.Join(homeDir, "Sites")
+		defaultBackupDir = filepath.Join(homeDir, ".clouddeck", "data", "agent", "backups")
+	}
+
 	cfg := Config{
 		Listen:           env("AGENT_LISTEN", "127.0.0.1:9090"),
 		AuthToken:        strings.TrimSpace(os.Getenv("AGENT_AUTH_TOKEN")),
 		AllowInsecureDev: envBool("AGENT_ALLOW_INSECURE_DEV", false),
 		StateDir:         env("AGENT_STATE_DIR", "./data"),
 		NginxSitesDir:    env("AGENT_NGINX_SITES_DIR", "/etc/nginx/conf.d"),
-		Webroot:          env("AGENT_WEBROOT", "/www/wwwroot"),
+		Webroot:          env("AGENT_WEBROOT", defaultWebroot),
 		PHPBase:          env("AGENT_PHP_BASE", "/etc/php"),
 		LogDir:           env("AGENT_LOG_DIR", "/var/log/nginx"),
 		PHPFpmSock:       env("AGENT_PHP_FPM_SOCK", "/run/php/php{{version}}-fpm.sock"),
@@ -170,7 +179,7 @@ func Load() (Config, error) {
 		PdnsConfDir:    env("AGENT_PDNS_CONF_DIR", "/etc/powerdns"),
 		PdnsControlBin: env("AGENT_PDNS_CONTROL_BIN", "pdns_control"),
 
-		BackupDir:        env("AGENT_BACKUP_DIR", "/var/lib/clouddeck/backups"),
+		BackupDir:        env("AGENT_BACKUP_DIR", defaultBackupDir),
 		RcloneBin:        env("AGENT_RCLONE_BIN", "rclone"),
 		MySQLDumpBin:     env("AGENT_MYSQLDUMP_BIN", "mysqldump"),
 		TelegramBotToken: env("AGENT_TELEGRAM_BOT_TOKEN", ""),
@@ -233,13 +242,32 @@ func Load() (Config, error) {
 	cfg.PHPUninstallCmd = env("AGENT_PHP_UNINSTALL_CMD", "")
 
 	// v0.5 phpMyAdmin + WAF
-	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", "/www/server/phpmyadmin")
+	defaultPMADir := "/www/server/phpmyadmin"
+	defaultPMARunAs := "www-data"
+	defaultPMAStateDir := "/var/lib/clouddeck-phpmyadmin"
+	defaultPMAUnitDir := "/etc/systemd/system"
+	if runtime.GOOS == "darwin" {
+		defaultPMADir = filepath.Join(cfg.StateDir, "phpmyadmin")
+		defaultPMAStateDir = filepath.Join(cfg.StateDir, "phpmyadmin-state")
+		if u := os.Getenv("USER"); validRunAs(u) {
+			defaultPMARunAs = u
+		} else {
+			defaultPMARunAs = "_www"
+		}
+		if homeDir != "" {
+			defaultPMAUnitDir = filepath.Join(homeDir, "Library", "LaunchAgents")
+		} else {
+			defaultPMAUnitDir = "/Library/LaunchAgents"
+		}
+	}
+
+	cfg.PHPMYADMINDir = env("AGENT_PHPMYADMIN_DIR", defaultPMADir)
 	cfg.PHPMYADMINVersionURL = env("AGENT_PHPMYADMIN_VERSION_URL", "https://www.phpmyadmin.net/home_page/version.json")
 	cfg.PHPMYADMINDistBase = env("AGENT_PHPMYADMIN_DIST_BASE", "https://files.phpmyadmin.net/phpMyAdmin")
 	cfg.PHPMYADMINPHPBin = env("AGENT_PHPMYADMIN_PHP_BIN", "php")
-	cfg.PHPMYADMINRunAs = env("AGENT_PHPMYADMIN_RUNAS", "www-data")
-	cfg.PHPMYADMINStateDir = env("AGENT_PHPMYADMIN_STATE_DIR", "/var/lib/clouddeck-phpmyadmin")
-	cfg.PHPMYADMINUnitDir = env("AGENT_PHPMYADMIN_UNIT_DIR", "/etc/systemd/system")
+	cfg.PHPMYADMINRunAs = env("AGENT_PHPMYADMIN_RUNAS", defaultPMARunAs)
+	cfg.PHPMYADMINStateDir = env("AGENT_PHPMYADMIN_STATE_DIR", defaultPMAStateDir)
+	cfg.PHPMYADMINUnitDir = env("AGENT_PHPMYADMIN_UNIT_DIR", defaultPMAUnitDir)
 	if raw := strings.TrimSpace(os.Getenv("AGENT_PHPMYADMIN_PORT")); raw != "" {
 		port, err := strconv.Atoi(raw)
 		if err != nil || port < 0 || port > 65535 {

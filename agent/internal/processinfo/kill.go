@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -49,8 +50,17 @@ const (
 )
 
 func checkKillable(pid int) error {
+	if pid == os.Getpid() || pid == 1 {
+		return apierr.New(403, "process_protected", fmt.Sprintf("process %d is protected or owned by another user", pid))
+	}
 	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
+		if runtime.GOOS == "darwin" {
+			if syscall.Kill(pid, 0) != nil {
+				return apierr.NotFound("process_not_found", fmt.Sprintf("process %d is not running", pid))
+			}
+			return nil
+		}
 		return apierr.NotFound("process_not_found", fmt.Sprintf("process %d is not running", pid))
 	}
 	uid, _ := parseStatus(status)

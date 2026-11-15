@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -62,16 +63,18 @@ func TestKillTerminatesProcess(t *testing.T) {
 
 	// A freshly execed process can transiently have an empty /proc cmdline
 	// (pre-exec child); wait so the killability check sees a normal process.
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", cmd.Process.Pid))
-		if err == nil && len(data) > 0 {
-			break
+	if runtime.GOOS != "darwin" {
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", cmd.Process.Pid))
+			if err == nil && len(data) > 0 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("child executable never appeared in /proc")
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("child executable never appeared in /proc")
-		}
-		time.Sleep(10 * time.Millisecond)
 	}
 
 	if err := Kill(cmd.Process.Pid); err != nil {

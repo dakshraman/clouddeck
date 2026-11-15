@@ -1,6 +1,7 @@
 package config
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -196,4 +197,30 @@ func TestLoadNameserversAndServerIP(t *testing.T) {
 			t.Errorf("ServerIP = %q, want 198.51.100.1", cfg.ServerIP)
 		}
 	})
+}
+
+func TestLoadDarwinDefaults(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping Darwin defaults test on non-Darwin OS")
+	}
+	t.Setenv("AGENT_AUTH_TOKEN", "test-token")
+	t.Setenv("AGENT_PHPMYADMIN_DIR", "")
+	t.Setenv("AGENT_PHPMYADMIN_RUNAS", "")
+	t.Setenv("AGENT_PHPMYADMIN_STATE_DIR", "")
+	t.Setenv("AGENT_PHPMYADMIN_UNIT_DIR", "")
+	t.Setenv("AGENT_STATE_DIR", "/tmp/clouddeck-test")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.PHPMYADMINDir != "/tmp/clouddeck-test/phpmyadmin" {
+		t.Errorf("PHPMYADMINDir = %q, want /tmp/clouddeck-test/phpmyadmin", cfg.PHPMYADMINDir)
+	}
+	if cfg.PHPMYADMINStateDir != "/tmp/clouddeck-test/phpmyadmin-state" {
+		t.Errorf("PHPMYADMINStateDir = %q, want /tmp/clouddeck-test/phpmyadmin-state", cfg.PHPMYADMINStateDir)
+	}
+	if !strings.Contains(cfg.PHPMYADMINUnitDir, "LaunchAgents") {
+		t.Errorf("PHPMYADMINUnitDir = %q, want to contain LaunchAgents", cfg.PHPMYADMINUnitDir)
+	}
 }

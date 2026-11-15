@@ -170,6 +170,29 @@ func TestRenderUnitUsesNonRootAndPort(t *testing.T) {
 	}
 }
 
+func TestRenderLaunchAgent(t *testing.T) {
+	svc := &Service{cfg: config.Config{
+		PHPMYADMINPHPBin:   "/opt/homebrew/bin/php",
+		PHPMYADMINDir:      "/Users/tester/.clouddeck/phpmyadmin",
+		PHPMYADMINStateDir: "/Users/tester/.clouddeck/phpmyadmin-state",
+	}}
+	plist := svc.renderLaunchAgent("/Users/tester/.clouddeck/phpmyadmin/phpmyadmin_abc123", 18888)
+	for _, want := range []string{
+		"<string>in.dakshraman.clouddeck-phpmyadmin</string>",
+		"<string>/opt/homebrew/bin/php</string>",
+		"<string>0.0.0.0:18888</string>",
+		"<string>/Users/tester/.clouddeck/phpmyadmin</string>",
+		"<string>/Users/tester/.clouddeck/phpmyadmin/phpmyadmin_abc123</string>",
+		"session.save_path=/Users/tester/.clouddeck/phpmyadmin-state/sessions",
+		"<key>RunAtLoad</key>",
+		"<true/>",
+	} {
+		if !strings.Contains(plist, want) {
+			t.Errorf("plist is missing %q\n%s", want, plist)
+		}
+	}
+}
+
 func TestSingleTopDir(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, "phpMyAdmin-9.9.9-all-languages"), 0o755); err != nil {

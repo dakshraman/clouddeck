@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.50"
+      VERSION="v0.6.51"
     fi
   fi
 }
@@ -626,6 +626,7 @@ if [ "$UNINSTALL" = "1" ]; then
     step "Stopping macOS background services..."
     launchctl unload "$HOME/Library/LaunchAgents/in.dakshraman.clouddeck-panel.plist" 2>/dev/null || true
     launchctl unload "$HOME/Library/LaunchAgents/in.dakshraman.clouddeck-agent.plist" 2>/dev/null || true
+    launchctl unload "$HOME/Library/LaunchAgents/in.dakshraman.clouddeck-phpmyadmin.plist" 2>/dev/null || true
     rm -f "$HOME/Library/LaunchAgents/in.dakshraman.clouddeck-*.plist"
   elif systemd_present; then
     step "Stopping and disabling systemd services..."
@@ -644,6 +645,11 @@ if [ "$UNINSTALL" = "1" ]; then
     if [ -L "/usr/local/bin/$_bin" ]; then
       case "$(readlink "/usr/local/bin/$_bin" 2>/dev/null || true)" in
         "$PREFIX"/*) rm -f "/usr/local/bin/$_bin" ;;
+      esac
+    fi
+    if [ -L "/opt/homebrew/bin/$_bin" ]; then
+      case "$(readlink "/opt/homebrew/bin/$_bin" 2>/dev/null || true)" in
+        "$PREFIX"/*) rm -f "/opt/homebrew/bin/$_bin" ;;
       esac
     fi
   done
@@ -736,6 +742,13 @@ AGENT_NGINX_SITES_DIR=$NGINX_SERVERS_DIR
 AGENT_WEBROOT=$HOME/Sites
 AGENT_LOG_DIR=$BREW_PREFIX/var/log/nginx
 AGENT_BACKUP_DIR=$DATADIR/agent/backups
+AGENT_PHPMYADMIN_DIR=$DATADIR/agent/phpmyadmin
+AGENT_PHPMYADMIN_STATE_DIR=$DATADIR/agent/phpmyadmin-state
+AGENT_PHPMYADMIN_RUNAS=$(whoami 2>/dev/null || echo "$USER")
+AGENT_PHPMYADMIN_UNIT_DIR=$HOME/Library/LaunchAgents
+AGENT_PANEL_ENV_FILE=$ETCDIR/panel.env
+AGENT_PANEL_SSL_DIR=$ETCDIR/ssl
+AGENT_PANEL_RESTART_CMD=clouddeck restart panel
 EOF
   chmod 600 "$ETCDIR/agent.env"
   ok "Wrote agent configuration: $ETCDIR/agent.env"
@@ -877,6 +890,20 @@ EOF
         <string>$BREW_PREFIX/var/log/nginx</string>
         <key>AGENT_BACKUP_DIR</key>
         <string>$DATADIR/agent/backups</string>
+        <key>AGENT_PHPMYADMIN_DIR</key>
+        <string>$DATADIR/agent/phpmyadmin</string>
+        <key>AGENT_PHPMYADMIN_STATE_DIR</key>
+        <string>$DATADIR/agent/phpmyadmin-state</string>
+        <key>AGENT_PHPMYADMIN_RUNAS</key>
+        <string>$(whoami 2>/dev/null || echo "$USER")</string>
+        <key>AGENT_PHPMYADMIN_UNIT_DIR</key>
+        <string>$HOME/Library/LaunchAgents</string>
+        <key>AGENT_PANEL_ENV_FILE</key>
+        <string>$ETCDIR/panel.env</string>
+        <key>AGENT_PANEL_SSL_DIR</key>
+        <string>$ETCDIR/ssl</string>
+        <key>AGENT_PANEL_RESTART_CMD</key>
+        <string>clouddeck restart panel</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>

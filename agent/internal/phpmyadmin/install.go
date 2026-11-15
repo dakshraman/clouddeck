@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,8 @@ import (
 // unit.
 const (
 	pmaUnitName    = "clouddeck-phpmyadmin.service"
+	pmaPlistLabel  = "in.dakshraman.clouddeck-phpmyadmin"
+	pmaPlistName   = "in.dakshraman.clouddeck-phpmyadmin.plist"
 	pmaUser        = "clouddeck_pma"
 	versionTimeout = 30 * time.Second
 	archiveTimeout = 10 * time.Minute
@@ -146,37 +149,58 @@ func (s *Service) Install(ctx context.Context, log tasks.LogFunc, auditLog *audi
 	if err != nil {
 		return installFailed(err.Error())
 	}
-	unit := s.renderUnit(webDir, port)
 	if err := os.MkdirAll(s.cfg.PHPMYADMINUnitDir, 0o755); err != nil {
 		return installFailed(fmt.Sprintf("create unit directory: %v", err))
 	}
-	if err := os.WriteFile(filepath.Join(s.cfg.PHPMYADMINUnitDir, pmaUnitName), []byte(unit), 0o644); err != nil {
-		return installFailed(fmt.Sprintf("write %s: %v", pmaUnitName, err))
-	}
-	if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "daemon-reload"); err != nil {
-		return installFailed(err.Error())
-	}
-	if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "enable", pmaUnitName); err != nil {
-		return installFailed(err.Error())
-	}
-	if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "restart", pmaUnitName); err != nil {
-		return installFailed(err.Error())
+
+	if runtime.GOOS == "darwin" {
+		plist := s.renderLaunchAgent(webDir, port)
+		plistPath := filepath.Join(s.cfg.PHPMYADMINUnitDir, pmaPlistName)
+		if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil {
+			return installFailed(fmt.Sprintf("write %s: %v", pmaPlistName, err))
+		}
+		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "launchctl", "unload", plistPath)
+		if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "launchctl", "load", "-w", plistPath); err != nil {
+			return installFailed(fmt.Sprintf("launchctl load %s: %v", plistPath, err))
+		}
+		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "launchctl", "start", pmaPlistLabel)
+	} else {
+		unit := s.renderUnit(webDir, port)
+		if err := os.WriteFile(filepath.Join(s.cfg.PHPMYADMINUnitDir, pmaUnitName), []byte(unit), 0o644); err != nil {
+			return installFailed(fmt.Sprintf("write %s: %v", pmaUnitName, err))
+		}
+		if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "daemon-reload"); err != nil {
+			return installFailed(err.Error())
+		}
+		if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "enable", pmaUnitName); err != nil {
+			return installFailed(err.Error())
+		}
+		if err := safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "restart", pmaUnitName); err != nil {
+			return installFailed(err.Error())
+		}
 	}
 
 	// Best-effort firewall rule: if UFW or firewalld is active, open the port so
 	// operators can reach phpMyAdmin from the browser.
-	if _, err := exec.LookPath("ufw"); err == nil {
-		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "ufw", "allow", fmt.Sprintf("%d/tcp", port), "comment", "CloudDeck phpMyAdmin")
-	} else if _, err := exec.LookPath("firewall-cmd"); err == nil {
-		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "firewall-cmd", "--add-port="+fmt.Sprintf("%d/tcp", port), "--permanent")
-		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "firewall-cmd", "--reload")
+	if runtime.GOOS != "darwin" {
+		if _, err := exec.LookPath("ufw"); err == nil {
+			_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "ufw", "allow", fmt.Sprintf("%d/tcp", port), "comment", "CloudDeck phpMyAdmin")
+		} else if _, err := exec.LookPath("firewall-cmd"); err == nil {
+			_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "firewall-cmd", "--add-port="+fmt.Sprintf("%d/tcp", port), "--permanent")
+			_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "firewall-cmd", "--reload")
+		}
 	}
 
 	urlPath := "/" + webName + "/"
 	if err := waitReady(ctx, port, urlPath); err != nil {
-		// Do not leave a broken unit restart-looping; without port.pl the panel
-		// keeps showing the Install button.
-		_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "disable", "--now", pmaUnitName)
+		if runtime.GOOS == "darwin" {
+			plistPath := filepath.Join(s.cfg.PHPMYADMINUnitDir, pmaPlistName)
+			_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "launchctl", "unload", plistPath)
+		} else {
+			// Do not leave a broken unit restart-looping; without port.pl the panel
+			// keeps showing the Install button.
+			_ = safeexec.RunTimeout(ctx, false, log, startTimeout, "systemctl", "disable", "--now", pmaUnitName)
+		}
 		return installFailed(fmt.Sprintf("phpMyAdmin did not answer on port %d: %v", port, err))
 	}
 
@@ -433,6 +457,67 @@ WantedBy=multi-user.target
 		filepath.Join(stateDir, "tmp"), port, s.cfg.PHPMYADMINDir)
 }
 
+// renderLaunchAgent runs the CLI server as a macOS LaunchAgent.
+func (s *Service) renderLaunchAgent(webDir string, port int) string {
+	stateDir := s.cfg.PHPMYADMINStateDir
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>%s</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>%s</string>
+        <string>-d</string>
+        <string>session.save_path=%s</string>
+        <string>-d</string>
+        <string>upload_tmp_dir=%s</string>
+        <string>-d</string>
+        <string>sys_temp_dir=%s</string>
+        <string>-d</string>
+        <string>log_errors=1</string>
+        <string>-d</string>
+        <string>display_errors=0</string>
+        <string>-S</string>
+        <string>0.0.0.0:%d</string>
+        <string>-t</string>
+        <string>%s</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>%s</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>%s</string>
+    <key>StandardErrorPath</key>
+    <string>%s</string>
+</dict>
+</plist>
+`, pmaPlistLabel,
+		xmlEscape(s.phpBinaryPath()),
+		xmlEscape(filepath.Join(stateDir, "sessions")),
+		xmlEscape(filepath.Join(stateDir, "tmp")),
+		xmlEscape(filepath.Join(stateDir, "tmp")),
+		port,
+		xmlEscape(s.cfg.PHPMYADMINDir),
+		xmlEscape(webDir),
+		xmlEscape(filepath.Join(stateDir, "pma.log")),
+		xmlEscape(filepath.Join(stateDir, "pma.err.log")),
+	)
+}
+
+func xmlEscape(val string) string {
+	val = strings.ReplaceAll(val, "&", "&amp;")
+	val = strings.ReplaceAll(val, "<", "&lt;")
+	val = strings.ReplaceAll(val, ">", "&gt;")
+	val = strings.ReplaceAll(val, `"`, "&quot;")
+	val = strings.ReplaceAll(val, `'`, "&apos;")
+	return val
+}
+
 // ensureDBUser creates a local password account so the panel's auto-login
 // works when MySQL root only accepts unix_socket. Failure is non-fatal: the
 // phpMyAdmin login page still works with any database user.
@@ -516,6 +601,12 @@ func (s *Service) loginCredentials() (string, string) {
 
 // chownTree gives the service user write access to the phpMyAdmin state.
 func chownTree(path, runAs string) error {
+	if os.Geteuid() != 0 || runtime.GOOS == "darwin" {
+		return nil
+	}
+	if runAs == "" {
+		return nil
+	}
 	uid, gid, err := runas.Lookup(runAs)
 	if err != nil {
 		return fmt.Errorf("service user %q does not exist (set AGENT_PHPMYADMIN_RUNAS): %v", runAs, err)

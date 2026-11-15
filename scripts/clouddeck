@@ -614,12 +614,12 @@ function cmdOpen() {
 
 function serviceAction(action, args) {
   requireRoot();
-  if (args.length > 1) usageError(`usage: clouddeck ${action} [panel|agent]`);
+  if (args.length > 1) usageError(`usage: clouddeck ${action} [panel|agent|phpmyadmin]`);
   const target = args[0];
-  if (target && target !== "panel" && target !== "agent") {
+  if (target && target !== "panel" && target !== "agent" && target !== "phpmyadmin") {
     usageError(`unknown service: ${target}`);
   }
-  if (target && !componentEnabled(target)) {
+  if (target && target !== "phpmyadmin" && !componentEnabled(target)) {
     die(`${target} is not installed on this host`);
   }
 
@@ -1003,29 +1003,44 @@ function cmdUninstall(args) {
     else usageError(`unknown argument: ${arg}`);
   }
 
-  if (systemdAvailable()) {
-    for (const unit of ["clouddeck-panel", "clouddeck-agent"]) {
+  if (process.platform === "darwin") {
+    const launchAgentsDir = path.join(os.homedir(), "Library", "LaunchAgents");
+    for (const unit of ["panel", "agent", "phpmyadmin"]) {
+      const plist = path.join(launchAgentsDir, `in.dakshraman.clouddeck-${unit}.plist`);
+      spawnSync("launchctl", ["unload", plist], { stdio: "ignore" });
+      try {
+        fs.unlinkSync(plist);
+      } catch (err) {
+        if (err.code !== "ENOENT") console.error(`could not remove ${plist}: ${err.message}`);
+      }
+    }
+    spawnSync("pkill", ["-f", path.join(PREFIX, "bin", "clouddeck-agent")], { stdio: "ignore" });
+    spawnSync("pkill", ["-f", path.join(PREFIX, "clouddeck-agent")], { stdio: "ignore" });
+  } else if (systemdAvailable()) {
+    for (const unit of ["clouddeck-panel", "clouddeck-agent", "clouddeck-phpmyadmin"]) {
       spawnSync("systemctl", ["disable", "--now", unit], { stdio: "ignore" });
     }
-  }
-  for (const unit of ["clouddeck-panel", "clouddeck-agent"]) {
-    try {
-      fs.unlinkSync(`/etc/systemd/system/${unit}.service`);
-    } catch (err) {
-      if (err.code !== "ENOENT") console.error(`could not remove ${unit}.service: ${err.message}`);
+    for (const unit of ["clouddeck-panel", "clouddeck-agent", "clouddeck-phpmyadmin"]) {
+      try {
+        fs.unlinkSync(`/etc/systemd/system/${unit}.service`);
+      } catch (err) {
+        if (err.code !== "ENOENT") console.error(`could not remove ${unit}.service: ${err.message}`);
+      }
     }
-  }
-  if (hasCommand("systemctl")) {
-    spawnSync("systemctl", ["daemon-reload"], { stdio: "ignore" });
+    if (hasCommand("systemctl")) {
+      spawnSync("systemctl", ["daemon-reload"], { stdio: "ignore" });
+    }
   }
 
   const stopScript = path.join(PREFIX, "run", "stop.sh");
   if (fs.existsSync(stopScript)) spawnSync(stopScript, [], { stdio: "ignore" });
 
-  try {
-    removeSymlinkInside("/usr/local/bin/clouddeck", PREFIX);
-  } catch (err) {
-    console.error(`could not remove /usr/local/bin/clouddeck: ${err.message}`);
+  for (const binPath of ["/opt/homebrew/bin/clouddeck", "/usr/local/bin/clouddeck"]) {
+    try {
+      removeSymlinkInside(binPath, PREFIX);
+    } catch (err) {
+      // ignore
+    }
   }
   for (const name of ["node", "npm", "npx"]) {
     try {
