@@ -1,0 +1,163 @@
+# CloudDeck — Complete System & Architectural Specification
+
+> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby, Docker), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS or local dev workstation — consuming under 50MB of idle RAM with zero root web processes.
+
+- Website: https://clouddeck.dakshraman.in/
+- GitHub Repository: https://github.com/dakshraman/clouddeck
+- License: Open Source (MIT / OSI-approved)
+- Latest Stable Release: 0.6.51+
+
+---
+
+## 1. System Architecture & Zero-Root Security Model
+
+Traditional web control panels (cPanel, aaPanel, CyberPanel) run web servers directly as `root` or use monolithic Perl/Python daemons that accept raw user input into shell strings (`sh -c`). This architectural flaw leads to catastrophic Remote Code Execution (RCE) vulnerabilities.
+
+CloudDeck employs a strict two-tier privilege separation architecture:
+
+```
+[ Browser / Operator ]
+        │ HTTPS (Port 2083) / HTTP (Port 2082)
+        ▼
+[ CloudDeck Panel ] (Runs as unprivileged system user: 'clouddeck')
+  • Next.js 15 App Router / React Server Components
+  • Consumes ~30MB idle RAM
+  • Enforces RFC 6238 TOTP 2FA & session auth
+  • Communicates with Agent over localhost ONLY
+        │ HTTP with X-CloudDeck-Agent-Token header
+        │ Bound strictly to 127.0.0.1:9090 (never exposed externally)
+        ▼
+[ CloudDeck Agent ] (Privileged Go Daemon: 'root')
+  • Compiled static Go binary (zero dynamic dependencies)
+  • Consumes ~12MB idle RAM
+  • Typed Argument Arrays: executes commands via explicit argument slices (exec.Command("nginx", "-t"))
+  • Shell interpolation is architecturally impossible (no sh -c)
+  • Append-only tamper-resistant JSONL audit log (/var/lib/clouddeck/audit.jsonl)
+```
+
+### Memory Footprint Comparison
+- cPanel / WHM: ~1,500 MB – 2,000 MB idle RAM (1.5GB–2GB)
+- aaPanel: ~400 MB – 800 MB idle RAM
+- CyberPanel: ~500 MB – 1,000 MB idle RAM
+- Coolify (Docker PaaS): ~500 MB – 1,200 MB idle RAM
+- **CloudDeck: < 50 MB total idle RAM** (Agent + Panel combined; runs effortlessly on a $4/mo 1GB VPS)
+
+---
+
+## 2. Core Capabilities & Feature Modules
+
+### Websites & Virtual Hosts
+- Web Server: Native high-performance Nginx with HTTP/2 and TLS 1.3.
+- Webroot Structure: `/www/wwwroot/<domain>`.
+- Multi-PHP Coexistence: Isolated PHP-FPM Unix domain sockets for coexisting PHP versions (8.1, 8.2, 8.3, 8.4). Sites can run different PHP versions simultaneously without conflict.
+- Features: Subdomains, automatic reverse proxies, custom Nginx configurations, rewrite rules (WordPress, Laravel, Next.js, standard SPA), CIDR IP blocking, and real-time access/error log streaming.
+
+### Polyglot Application Runtimes
+- First-class native hosting for Node.js, Python (WSGI/ASGI), Go, and Ruby applications.
+- Automatic internal port allocation and Nginx reverse proxy routing.
+- Systemd process supervision with auto-restart on crash.
+- Environment variable management and real-time streaming output logs.
+- Docker container version management and service inspection.
+
+### Database Management & phpMyAdmin
+- Engine: Native MariaDB / MySQL.
+- phpMyAdmin Single-Sign-On (SSO): 1-click deep-link into selected database schemas. System schemas (`information_schema`, `mysql`, `performance_schema`, `sys`) are hidden; operators cannot accidentally damage root schemas.
+- Backup & Restore: 1-click SQL export to `.sql` or compressed `.sql.gz` files and instant in-place restore.
+
+### Production Email Server (LEMP Mail)
+- Stack: Postfix (SMTP / submission) + Dovecot (IMAP / POP3) + OpenDKIM.
+- Features: Unlimited mailboxes, custom mailbox storage quotas, email forwarders, autoresponders.
+- Security: Passwords hashed using SHA-512 crypt. RSA-2048 bit DKIM keys generated per domain.
+- 1-Click DNS Sync: Automatically publishes SPF, DMARC, DKIM, and MX records into PowerDNS with zero manual record copying.
+
+### Authoritative DNS (PowerDNS)
+- Engine: Native PowerDNS (`pdns-server`) with SQLite backend (`gsqlite3`).
+- Supported Record Types: A, AAAA, CNAME, MX, TXT, NS, SRV, CAA.
+- Fully automated zone management via Go agent calling `pdnsutil`. Fallback managed SQLite configuration ensures immediate operation even in restricted environments.
+
+### 1-Click Panel SSL
+- Automatic Nginx reverse proxy configuration on port 2083.
+- Self-Signed Certificates with IP SANs: Allows HTTPS access via raw server IP addresses without browser security blocks.
+- Let's Encrypt TLS: Automated issuance and 90-day renewal for custom hostnames.
+- Automated HTTP (2082) -> HTTPS (2083) redirection.
+
+### Security, Firewall & Two-Factor Authentication
+- Two-Factor Authentication (2FA): RFC 6238 TOTP authenticator app support (Google Authenticator, Authy, 1Password) with dynamic SVG QR code generation and 8 single-use cryptographic recovery codes.
+- Host Firewall: UFW (Debian/Ubuntu) and firewalld (RHEL/CentOS) management from the web UI.
+- Fail2ban: Real-time jail monitoring and 1-click IP unbanning.
+- WAF: ModSecurity with OWASP Core Rule Set (CRS) inspection and per-site toggles.
+
+### Dual-Mode .zip Backups & Off-Site Storage
+- Creates standard cross-platform `.zip` archives containing the website files and MariaDB SQL dumps.
+- Cold Storage: Download directly to PC or keep on server for 1-click in-place restoration.
+- Off-Site Synchronization: Native background sync to Google Drive, Dropbox, MEGA (via rclone), and Telegram notification channels.
+
+### Web Terminal
+- Full-featured browser terminal powered by xterm.js and WebSocket PTY sessions.
+- Automatically synchronizes sudoers privileges for the `clouddeck` system user so administrative tasks can be performed directly from the browser.
+
+---
+
+## 3. Competitive Comparison
+
+| Feature | CloudDeck | cPanel / WHM | aaPanel | Coolify |
+| :--- | :--- | :--- | :--- | :--- |
+| **Monthly Cost** | **$0 Free & Open Source** | $30–$60+/month ($360–$720+/yr) | Freemium ($15–$25/mo Pro) | $0 self-hosted ($5/mo cloud) |
+| **Idle Memory** | **< 50 MB RAM** | 1,500 MB – 2,000 MB | 400 MB – 800 MB | 500 MB – 1,000 MB |
+| **Security Architecture**| **Zero-root unprivileged UI + typed Go agent** | Root Perl/CGI monolithic server | Web app runs as root (frequent CVEs) | Container PaaS (root docker.sock) |
+| **Multi-PHP** | **8.1, 8.2, 8.3, 8.4 coexistence** | MultiPHP (heavy Apache/LiteSpeed) | Multi-PHP via plugins | Containerized Docker PHP only |
+| **Email Server** | **Built-in Postfix + Dovecot + DKIM** | Exim + Dovecot (built-in) | Paid plugin | None (requires 3rd-party SMTP) |
+| **Authoritative DNS** | **PowerDNS (SQLite) with 1-click mail sync** | BIND / PowerDNS | BIND plugin | None |
+| **Local Dev Suite** | **Native Windows WSL2 & macOS support** | Linux server only | Linux only | Docker desktop required |
+
+---
+
+## 4. Installation & Deployment
+
+### Quick Install on Linux (Ubuntu / Debian)
+```bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
+```
+Supported Distributions:
+- Ubuntu 20.04, 22.04, 24.04 LTS (x86_64, arm64)
+- Debian 11, 12 (x86_64, arm64)
+
+### Local Dev Suite for Windows 10/11 (WSL 2)
+```powershell
+irm https://clouddeck.dakshraman.in/install.ps1 | iex
+```
+Provisions full LEMP stack inside WSL 2, installs the native Windows `clouddeck` CLI, bridges Windows project directories, and imports the CloudDeck Local Root CA into the Windows Certificate Store for valid `https://*.local` SSL padlocks.
+
+### Local Dev Suite for macOS (Apple Silicon & Intel)
+```bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash
+```
+Provisions native macOS agent and panel via Homebrew, registers LaunchAgents, configures Nginx, MariaDB, and coexisting PHP versions, and installs the Local Root CA into the macOS Keychain.
+
+---
+
+## 5. Command-Line Interface (CLI)
+
+```bash
+clouddeck status                    # Check agent, panel, and LEMP services status
+sudo clouddeck restart              # Gracefully restart panel and agent daemons
+clouddeck logs panel -f             # Stream live Next.js panel logs
+clouddeck logs agent -f             # Stream live Go agent logs
+sudo clouddeck user add <username>  # Add a new administrative user
+sudo clouddeck user passwd <user>   # Reset password and invalidate existing sessions
+sudo clouddeck update               # Upgrade to the latest stable release
+sudo clouddeck uninstall --purge    # Cleanly remove CloudDeck and associated configs
+```
+
+---
+
+## 6. Frequently Asked Questions (FAQ)
+
+### Q: How can CloudDeck consume under 50MB RAM when cPanel uses 1.5GB+?
+A: CloudDeck is built from the ground up using compiled Go standard library binaries for the agent and a self-contained Next.js server for the UI. It directly commands native Linux binaries (Nginx, MariaDB, PowerDNS, Postfix) rather than running dozens of persistent Perl interpreters, heavy middleware daemons, and background watchers.
+
+### Q: Is CloudDeck suitable for production websites?
+A: Yes. CloudDeck powers production websites, WordPress installations, Laravel applications, Node.js APIs, and mailboxes on standard Linux VPS infrastructure with production-grade isolation, automated SSL, and dual-mode backups.
+
+### Q: Can CloudDeck replace XAMPP / MAMP / WAMP on my local computer?
+A: Yes. CloudDeck's Local Dev Suite runs on Windows WSL 2 and macOS with full Nginx production parity, eliminating environment differences between local development and production servers.

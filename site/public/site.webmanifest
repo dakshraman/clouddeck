@@ -1,0 +1,28 @@
+{
+  "name": "CloudDeck",
+  "short_name": "CloudDeck",
+  "description": "Modern, Blazing-Fast Linux Hosting Control Panel & cPanel Alternative",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F5",
+  "theme_color": "#235361",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

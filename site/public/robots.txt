@@ -1,5 +1,29 @@
+# CloudDeck robots.txt
+# https://clouddeck.dakshraman.in
+
 User-agent: *
 Allow: /
 
-Host: https://clouddeck.dakshraman.in
+# Explicit AI Search & Retrieval Crawlers (AEO / GEO citation support)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
 Sitemap: https://clouddeck.dakshraman.in/sitemap.xml

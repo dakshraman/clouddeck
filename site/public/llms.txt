@@ -2,6 +2,8 @@
 
 > CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, and backups on your own VPS — consuming under 50MB of idle RAM with zero root web processes.
 
+Full Architectural & Technical Documentation: https://clouddeck.dakshraman.in/llms-full.txt
+
 ## What It Is
 
 CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; any Linux supported). It provides an unprivileged Next.js 15 web UI for operators and a separate privileged Go daemon bound strictly to localhost (`127.0.0.1:9090`). The browser never communicates with root, preventing remote code execution risks common in legacy and alternative panels.
