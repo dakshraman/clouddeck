@@ -39,15 +39,15 @@ const (
 
 // Preset IDs.
 const (
-	PresetEveryMinute  = "every_minute"
-	PresetEvery5Min    = "every_5_minutes"
-	PresetEvery15Min   = "every_15_minutes"
-	PresetEvery30Min   = "every_30_minutes"
-	PresetHourly       = "hourly"
-	PresetDaily        = "daily"
-	PresetWeekly       = "weekly"
-	PresetMonthly      = "monthly"
-	PresetCustom       = "custom"
+	PresetEveryMinute = "every_minute"
+	PresetEvery5Min   = "every_5_minutes"
+	PresetEvery15Min  = "every_15_minutes"
+	PresetEvery30Min  = "every_30_minutes"
+	PresetHourly      = "hourly"
+	PresetDaily       = "daily"
+	PresetWeekly      = "weekly"
+	PresetMonthly     = "monthly"
+	PresetCustom      = "custom"
 )
 
 // Preset represents a named schedule configuration.

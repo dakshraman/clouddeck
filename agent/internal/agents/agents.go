@@ -70,14 +70,14 @@ var Specs = []Spec{
 		NpmPackage:   "@openai/codex",
 	},
 	{
-		ID:           "antigravity",
-		Name:         "Google Antigravity",
-		Command:      "agy",
-		AltCommands:  []string{"antigravity"},
-		Aliases:      []string{"antigravity", "agy", "google-antigravity"},
-		Description:  "Google DeepMind's agentic AI coding and workflow orchestration assistant.",
-		Capabilities: []string{"Swarm coordination", "Multi-agent workflows", "Full-stack auditing", "Tool execution"},
-		InstallScript: "curl -fsSL https://antigravity.google.com/install.sh | bash",
+		ID:              "antigravity",
+		Name:            "Google Antigravity",
+		Command:         "agy",
+		AltCommands:     []string{"antigravity"},
+		Aliases:         []string{"antigravity", "agy", "google-antigravity"},
+		Description:     "Google DeepMind's agentic AI coding and workflow orchestration assistant.",
+		Capabilities:    []string{"Swarm coordination", "Multi-agent workflows", "Full-stack auditing", "Tool execution"},
+		InstallScript:   "curl -fsSL https://antigravity.google.com/install.sh | bash",
 		UninstallScript: "rm -f /usr/local/bin/agy /usr/local/bin/antigravity /usr/bin/agy /usr/bin/antigravity ~/.local/bin/agy ~/.local/bin/antigravity 2>/dev/null || true",
 	},
 	{
@@ -96,8 +96,8 @@ type Manager struct {
 	cfg   config.Config
 	audit *audit.Log
 
-	mu        sync.RWMutex
-	cachedAt  time.Time
+	mu         sync.RWMutex
+	cachedAt   time.Time
 	cachedList []Agent
 }
 

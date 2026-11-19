@@ -9,9 +9,9 @@ import (
 
 func TestFindSpec(t *testing.T) {
 	tests := []struct {
-		input    string
-		wantID   string
-		found    bool
+		input  string
+		wantID string
+		found  bool
 	}{
 		{"claude-code", "claude-code", true},
 		{"claude", "claude-code", true},
