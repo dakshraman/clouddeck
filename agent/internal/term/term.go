@@ -359,9 +359,11 @@ func (s *Service) finishSession(sess *session, code int) {
 		}
 		close(ch)
 	}
+	if sess.master != nil {
+		sess.master.Close()
+	}
 	sess.mu.Unlock()
 
-	sess.master.Close()
 	s.appendAudit(audit.Record{
 		Action: actionSessionClose,
 		Params: map[string]any{"id": sess.id, "user": sess.user, "shell": sess.shell, "exit": code},
@@ -504,13 +506,12 @@ func (sess *session) write(data []byte) error {
 // resize applies a new window size and marks the session active.
 func (sess *session) resize(cols, rows int) error {
 	sess.mu.Lock()
-	if sess.done {
-		sess.mu.Unlock()
+	defer sess.mu.Unlock()
+	if sess.done || sess.master == nil {
 		return os.ErrClosed
 	}
 	sess.lastActivity = time.Now()
 	sess.cols, sess.rows = cols, rows
-	sess.mu.Unlock()
 	return setWinsize(sess.master.Fd(), cols, rows)
 }
 

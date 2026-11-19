@@ -30,6 +30,7 @@ type Tunnel struct {
 	StartedAt time.Time `json:"startedAt"`
 	Status    string    `json:"status"` // "running"
 	cmd       *exec.Cmd
+	done      chan struct{}
 }
 
 // Service manages active cloudflared tunnel processes.
@@ -145,18 +146,27 @@ func (s *Service) StartTunnel(ctx context.Context, domain string) (*Tunnel, erro
 			StartedAt: time.Now().UTC(),
 			Status:    "running",
 			cmd:       cmd,
+			done:      make(chan struct{}),
 		}
 
 		s.mu.Lock()
 		if old, ok := s.tunnels[domain]; ok && old.cmd != nil && old.cmd.Process != nil {
 			_ = old.cmd.Process.Kill()
-			_ = old.cmd.Wait()
+			if old.done != nil {
+				s.mu.Unlock()
+				select {
+				case <-old.done:
+				case <-time.After(2 * time.Second):
+				}
+				s.mu.Lock()
+			}
 		}
 		s.tunnels[domain] = tunnel
 		s.mu.Unlock()
 
 		go func() {
 			_ = cmd.Wait()
+			close(tunnel.done)
 			s.mu.Lock()
 			if curr, ok := s.tunnels[domain]; ok && curr == tunnel {
 				curr.Status = "stopped"
@@ -197,19 +207,25 @@ func (s *Service) StartTunnel(ctx context.Context, domain string) (*Tunnel, erro
 func (s *Service) StopTunnel(ctx context.Context, domain string) error {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	tunnel, ok := s.tunnels[domain]
 	if !ok {
+		s.mu.Unlock()
 		return apierr.NotFound("tunnel_not_found", fmt.Sprintf("no active tunnel for domain %q", domain))
 	}
 
-	if tunnel.cmd != nil && tunnel.cmd.Process != nil {
-		_ = tunnel.cmd.Process.Kill()
-		_ = tunnel.cmd.Wait()
-	}
 	tunnel.Status = "stopped"
 	delete(s.tunnels, domain)
+	s.mu.Unlock()
+
+	if tunnel.cmd != nil && tunnel.cmd.Process != nil {
+		_ = tunnel.cmd.Process.Kill()
+		if tunnel.done != nil {
+			select {
+			case <-tunnel.done:
+			case <-time.After(2 * time.Second):
+			}
+		}
+	}
 	return nil
 }
 
