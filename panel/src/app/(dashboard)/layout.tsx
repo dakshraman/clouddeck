@@ -8,6 +8,7 @@ import { PreferencesProvider } from "@/components/preferences";
 import { Topbar } from "@/components/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AiChatDrawer } from "@/components/agents/ai-chat-drawer";
 
 // Auth + setup state are per-request; never prerender/cache this tree at
 // build time (a build-time redirect to /setup would otherwise be frozen in).
@@ -29,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-5 lg:px-8">
               <PageTransition>{children}</PageTransition>
             </main>
+            <AiChatDrawer />
           </SidebarInset>
         </SidebarProvider>
       </TooltipProvider>

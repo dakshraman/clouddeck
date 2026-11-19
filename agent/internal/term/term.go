@@ -6,6 +6,7 @@ package term
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -161,6 +162,7 @@ func (s *Service) Start(cols, rows int, dir ...string) (Session, error) {
 		"LANG=C.UTF-8",
 		"PWD=" + chosenDir,
 	}
+	cmd.Env = append(cmd.Env, loadAgentVaultEnv()...)
 	cmd.Dir = chosenDir
 	cmd.SysProcAttr = termSysProcAttr(uid, gid, switchUser)
 
@@ -701,4 +703,31 @@ func ensureDirAccessible(path string) {
 	if perm&0o775 != 0o775 {
 		_ = os.Chmod(path, perm|0o775)
 	}
+}
+
+// loadAgentVaultEnv reads the configured AI agent provider keys and formats them as environment variables.
+func loadAgentVaultEnv() []string {
+	paths := []string{
+		"/var/lib/clouddeck/agent_keys.json",
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		paths = append(paths, filepath.Join(home, ".clouddeck", "agent_keys.json"))
+	}
+	var env []string
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		var m map[string]string
+		if err := json.Unmarshal(data, &m); err == nil {
+			for k, v := range m {
+				if strings.TrimSpace(v) != "" {
+					env = append(env, fmt.Sprintf("%s=%s", strings.TrimSpace(k), strings.TrimSpace(v)))
+				}
+			}
+			break
+		}
+	}
+	return env
 }

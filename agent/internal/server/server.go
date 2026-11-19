@@ -23,6 +23,7 @@ import (
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/cron"
 	"clouddeck/agent/internal/dns"
+	"clouddeck/agent/internal/doctor"
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/firewall"
 	"clouddeck/agent/internal/ftp"
@@ -45,7 +46,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.52"
+const Version = "0.6.53"
 
 const maxBodyBytes = 1 << 20
 
@@ -75,11 +76,12 @@ type Server struct {
 	git      *git.Service
 	agents   *agents.Manager
 	cron     *cron.Service
+	doctor   *doctor.Service
 }
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, gitSvc *git.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog, agents: agents.New(cfg, auditLog), cron: cron.New(cfg, auditLog)}
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog, agents: agents.New(cfg, auditLog), cron: cron.New(cfg, auditLog), doctor: doctor.New(cfg, auditLog)}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -297,6 +299,25 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /api/agents/uninstall", s.handleAgentUninstall)
 	mux.HandleFunc("DELETE /v1/agents/{id}", s.handleAgentUninstall)
 	mux.HandleFunc("DELETE /api/agents/{id}", s.handleAgentUninstall)
+	mux.HandleFunc("GET /v1/agents/ollama/models", s.handleListOllamaModels)
+	mux.HandleFunc("GET /api/agents/ollama/models", s.handleListOllamaModels)
+	mux.HandleFunc("POST /v1/agents/ollama/pull", s.handleOllamaPull)
+	mux.HandleFunc("POST /api/agents/ollama/pull", s.handleOllamaPull)
+	mux.HandleFunc("GET /v1/agents/keys", s.handleGetAgentKeys)
+	mux.HandleFunc("GET /api/agents/keys", s.handleGetAgentKeys)
+	mux.HandleFunc("POST /v1/agents/keys", s.handleSetAgentKeys)
+	mux.HandleFunc("POST /api/agents/keys", s.handleSetAgentKeys)
+	mux.HandleFunc("POST /v1/agents/chat", s.handleAgentChat)
+	mux.HandleFunc("POST /api/agents/chat", s.handleAgentChat)
+
+	mux.HandleFunc("POST /v1/sites/{domain}/doctor", s.handleDiagnoseSite)
+	mux.HandleFunc("POST /api/sites/{domain}/doctor", s.handleDiagnoseSite)
+	mux.HandleFunc("POST /v1/sites/{domain}/doctor/fix", s.handleFixSiteIssue)
+	mux.HandleFunc("POST /api/sites/{domain}/doctor/fix", s.handleFixSiteIssue)
+	mux.HandleFunc("POST /v1/system/doctor", s.handleDiagnoseServer)
+	mux.HandleFunc("POST /api/system/doctor", s.handleDiagnoseServer)
+	mux.HandleFunc("POST /v1/system/doctor/fix", s.handleFixServerIssue)
+	mux.HandleFunc("POST /api/system/doctor/fix", s.handleFixServerIssue)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

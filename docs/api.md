@@ -453,16 +453,32 @@ Audit actions: `firewall.rule.add`, `firewall.rule.delete`, `firewall.set`.
 | `POST /v1/security/unban` | `{jail,ip}` | `200 {ok:true}` | `400 invalid_jail`/`invalid_ip`, `409 fail2ban_unavailable` |
 | `PUT /v1/security/jails/{jail}` | `{enabled}` | `200 {ok:true}` | `400 invalid_jail`, `409 fail2ban_unavailable` |
 
-#### AI coding agents
+#### AI coding agents, Key Vault & Chat
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
 | `GET /v1/agents` | — | `200 {agents:[{id,name,command,installed,version?,path?,description,capabilities:[…]}]}` | — |
-| `POST /v1/agents/install` | `{agent}` (e.g. `claude-code`, `codex`, `antigravity`, `opencode`) | `202 {task,agent,success:true}` — background install task (`task.type` `agent.install`) | `400 missing_agent`, `404 agent_not_found` |
+| `POST /v1/agents/install` | `{agent}` (e.g. `claude-code`, `codex`, `antigravity`, `opencode`, `hermes`) | `202 {task,agent,success:true}` — background install task (`task.type` `agent.install`) | `400 missing_agent`, `404 agent_not_found` |
 | `POST /v1/agents/uninstall` | `{agent}` | `202 {task,agent,success:true}` — background uninstall task (`task.type` `agent.uninstall`) | `400 missing_agent`, `404 agent_not_found` |
 | `DELETE /v1/agents/{id}` | — | `202 {task,agent,success:true}` | `404 agent_not_found` |
+| `GET /v1/agents/keys` | — | `200 {keys:[{name,isSet,maskedValue,provider,updatedAt?}]}` | — |
+| `POST /v1/agents/keys` | `{"keys": {"ANTHROPIC_API_KEY":"...", ...}}` | `200 {success:true,keys:[...]}` | `400`, `500` |
+| `POST /v1/agents/chat` | `{"messages":[{"role":"user","content":"..."}], "context"?}` | `200 {reply,usage?,model?}` | `400 missing_messages`, `500` |
+| `GET /v1/agents/ollama/models` | — | `200 {models:[{name,size,modified_at}]}` | — |
+| `POST /v1/agents/ollama/pull` | `{"model": "qwen2.5-coder:7b"}` | `202 {task}` — background task pulling model | `400 missing_model` |
 
-Audit actions: `agent.install`, `agent.uninstall`.
+Audit actions: `agent.install`, `agent.uninstall`, `agent.vault.update`.
+
+#### Autonomous Doctor & Self-Healing
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `POST /v1/sites/{domain}/doctor` | — | `200 {domain,healthScore,issues:[{id,severity,title,description,fixable,fixType?}],checkedAt}` | `400 missing_domain`, `404 site_not_found` |
+| `POST /v1/sites/{domain}/doctor/fix` | `{"fixType": "fix_permissions" \| "restart_php" \| "fix_db_socket" \| "install_extension"}` | `200 {success:true,domain,fixType,message}` | `400 missing_fix_type`, `404 site_not_found`, `500` |
+| `POST /v1/system/doctor` | — | `200 {healthScore,issues:[{id,severity,title,description,fixable,fixType?}],checkedAt,metrics:{diskFreePercent}}` | — |
+| `POST /v1/system/doctor/fix` | `{"fixType": "restart_mysql" \| "clean_apt_cache"}` | `200 {success:true,fixType,message}` | `400 missing_fix_type`, `500` |
+
+Audit actions: `doctor.site.fix_permissions`, `doctor.site.restart_php`.
 
 `modsec` is `{moduleInstalled,modulePath?,crsInstalled,crsPath?,engine,note?}` where `engine` is `modsecurity` when the nginx module is loaded, otherwise `nginx-rules` (the built-in per-site rules). `fail2ban` is `{installed,active,jails:[{name,banned,total,ips,enabled}],note?}`. `ssh` reports the effective `port`, `permitRootLogin`, `passwordAuthentication` and `pubkeyAuthentication` read from `sshd_config` and its drop-ins. `checks` is the hardening checklist: `[{id,label,status,detail,hint?}]` with `status` `pass`, `warn`, `fail` or `info`.
 
@@ -598,6 +614,16 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET | `/api/security` | passthrough `/v1/security` |
 | POST | `/api/security` | `{jail,ip}` → unban |
 | PUT | `/api/security/jails/{jail}` | `{enabled}` |
+| POST | `/api/sites/{domain}/doctor` | autonomous site diagnosis passthrough `/v1/sites/{domain}/doctor` |
+| POST | `/api/sites/{domain}/doctor/fix` | `{fixType}` → automated site remediation passthrough `/v1/sites/{domain}/doctor/fix` |
+| POST | `/api/system/doctor` | host-wide diagnosis passthrough `/v1/system/doctor` |
+| POST | `/api/system/doctor/fix` | `{fixType}` → automated host remediation passthrough `/v1/system/doctor/fix` |
+| GET/POST | `/api/agents` | list installed agents / `{agent}` install passthrough `/v1/agents` |
+| POST | `/api/agents/uninstall` | `{agent}` uninstall passthrough `/v1/agents/uninstall` |
+| GET/POST | `/api/agents/keys` | retrieve masked keys / `{keys}` update secure provider key vault |
+| POST | `/api/agents/chat` | `{messages,context?}` AI assistant devops conversation |
+| GET | `/api/agents/ollama/models` | list local ollama models |
+| POST | `/api/agents/ollama/pull` | `{model}` pull ollama model |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 

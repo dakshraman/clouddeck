@@ -917,4 +917,85 @@ export interface AIAgentsResponse {
   agents: AIAgentInfo[];
 }
 
+export type DoctorSeverity = "critical" | "warning" | "info";
+
+export interface DoctorIssue {
+  id: string;
+  severity: DoctorSeverity | string;
+  title: string;
+  description: string;
+  fixable: boolean;
+  fixType?: string;
+}
+
+export interface SiteDiagnosis {
+  domain: string;
+  healthScore: number;
+  issues: DoctorIssue[];
+  checkedAt: string;
+}
+
+export interface FixSiteIssueResponse {
+  success: boolean;
+  domain: string;
+  fixType: string;
+  message: string;
+}
+
+export interface ServerDiagnosis {
+  healthScore: number;
+  issues: DoctorIssue[];
+  checkedAt: string;
+  metrics?: Record<string, unknown>;
+}
+
+export interface FixServerIssueResponse {
+  success: boolean;
+  fixType: string;
+  message: string;
+}
+
+export interface MaskedVaultKey {
+  name: string;
+  isSet: boolean;
+  maskedVal: string;
+}
+
+export interface VaultKeysResponse {
+  keys: MaskedVaultKey[];
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface ChatRequest {
+  prompt: string;
+  history?: ChatMessage[];
+}
+
+export interface ChatResponse {
+  reply: string;
+  model: string;
+  provider: string;
+  actions?: string[];
+  timestamp: string;
+}
+
+export interface OllamaModel {
+  name: string;
+  model: string;
+  size: number;
+  digest: string;
+  modifiedAt?: string;
+}
+
+export interface OllamaModelsResponse {
+  models: OllamaModel[];
+  error?: string;
+}
+
+
+
 

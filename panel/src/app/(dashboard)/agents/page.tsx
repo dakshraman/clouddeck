@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { AgentCard } from "@/components/agents/agent-card";
+import { ApiKeyVaultCard } from "@/components/agents/api-key-vault-card";
 import { RefreshCw } from "lucide-react";
 
 interface DefaultAgentPreset {
@@ -47,6 +48,34 @@ const DEFAULT_AGENTS: DefaultAgentPreset[] = [
     command: "opencode",
     description: "Open-source autonomous terminal-based AI programmer.",
     capabilities: ["Local & remote LLMs", "Terminal workspace", "Multi-file edits", "Git integration"],
+  },
+  {
+    id: "aider",
+    name: "Aider AI Pair Programmer",
+    command: "aider",
+    description: "Terminal AI coding assistant that pairs with you in your git repository with automated commits.",
+    capabilities: ["Git repo map comprehension", "Auto-commits with messages", "Multi-file edits", "Architect mode"],
+  },
+  {
+    id: "ollama",
+    name: "Ollama Local LLMs",
+    command: "ollama",
+    description: "Run local open-weight AI coding models (DeepSeek-Coder, Qwen 2.5-Coder) directly with zero API costs.",
+    capabilities: ["Local open-weight models", "DeepSeek-Coder & Qwen 2.5", "100% private & offline", "REST API on port 11434"],
+  },
+  {
+    id: "goose",
+    name: "Goose Developer Agent",
+    command: "goose",
+    description: "Block's open-source autonomous developer agent for terminal operations, bash execution, and code generation.",
+    capabilities: ["Autonomous file editing", "Direct shell tool execution", "Custom extensions / plugins", "Extensible LLM backends"],
+  },
+  {
+    id: "hermes",
+    name: "Hermes Agent",
+    command: "hermes",
+    description: "Nous Research's open-source autonomous agent with persistent memory, dynamic skill creation, and multi-modal tool use.",
+    capabilities: ["Autonomous tool use", "Dynamic skill creation", "TUI & interactive chat", "Multi-platform gateways", "Persistent memory"],
   },
 ];
 
@@ -167,8 +196,8 @@ export default function AgentsPage() {
   return (
     <>
       <PageHeader
-        title="AI Agents"
-        description="Install and manage autonomous coding agents on this server: Claude Code, OpenAI Codex, Google Antigravity, and OpenCode."
+        title="AI Agents & LLM Tools"
+        description="Autonomous coding agents, AI pair programmers, and local open-weight LLMs installed directly on this server."
         actions={
           <Button variant="secondary" size="md" onClick={() => void load()} disabled={loading || busyAgent !== null}>
             <RefreshCw size={16} className={loading ? "animate-spin" : undefined} aria-hidden="true" />
@@ -204,6 +233,15 @@ export default function AgentsPage() {
           </div>
         </Alert>
       ) : null}
+
+      {/* Secret API Key Vault */}
+      <ApiKeyVaultCard />
+
+      {/* Agents Grid Header */}
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Installed & Available Coding Agents</h2>
+        <span className="text-xs text-muted-foreground">{displayedAgents.length} curated agents</span>
+      </div>
 
       {loading && !agents ? (
         <div className="grid gap-5 md:grid-cols-2">

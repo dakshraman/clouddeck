@@ -94,3 +94,48 @@ func (s *Server) handleAgentUninstall(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 	})
 }
+
+// handleListOllamaModels lists installed local Ollama models.
+func (s *Server) handleListOllamaModels(w http.ResponseWriter, r *http.Request) {
+	models, err := s.agents.ListOllamaModels(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"models": []agents.OllamaModel{},
+			"error":  err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"models": models,
+	})
+}
+
+// handleOllamaPull pulls a model from the Ollama library in a background task.
+func (s *Server) handleOllamaPull(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Model string `json:"model"`
+	}
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	modelName := strings.TrimSpace(req.Model)
+	if modelName == "" {
+		modelName = "qwen2.5-coder:1.5b"
+	}
+
+	task, err := s.eng.Create("agent.ollama.pull", modelName, func(ctx context.Context, log tasks.LogFunc) error {
+		return s.agents.PullOllamaModel(ctx, log, modelName)
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"task":    task,
+		"model":   modelName,
+		"success": true,
+	})
+}

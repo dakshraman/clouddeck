@@ -62,8 +62,8 @@ func TestHandleListAgents(t *testing.T) {
 			t.Fatalf("%s decode json: %v", path, err)
 		}
 
-		if len(resp.Agents) != 4 {
-			t.Fatalf("%s got %d agents, want 4", path, len(resp.Agents))
+		if len(resp.Agents) != len(agents.Specs) {
+			t.Fatalf("%s got %d agents, want %d", path, len(resp.Agents), len(agents.Specs))
 		}
 	}
 }

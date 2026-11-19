@@ -22,6 +22,13 @@ func TestFindSpec(t *testing.T) {
 		{"agy", "antigravity", true},
 		{"opencode", "opencode", true},
 		{"opencode-ai", "opencode", true},
+		{"aider", "aider", true},
+		{"aider-chat", "aider", true},
+		{"ollama", "ollama", true},
+		{"goose", "goose", true},
+		{"hermes", "hermes", true},
+		{"hermes-agent", "hermes", true},
+		{"nous-hermes", "hermes", true},
 		{"nonexistent-agent", "", false},
 	}
 
@@ -43,8 +50,8 @@ func TestListAndProbe(t *testing.T) {
 	ctx := context.Background()
 
 	list := mgr.List(ctx)
-	if len(list) != 4 {
-		t.Fatalf("List() returned %d agents, want 4", len(list))
+	if len(list) != 8 {
+		t.Fatalf("List() returned %d agents, want 8", len(list))
 	}
 
 	expectedIDs := map[string]bool{
@@ -52,6 +59,10 @@ func TestListAndProbe(t *testing.T) {
 		"codex":       false,
 		"antigravity": false,
 		"opencode":    false,
+		"aider":       false,
+		"ollama":      false,
+		"goose":       false,
+		"hermes":      false,
 	}
 
 	for _, a := range list {

@@ -89,12 +89,53 @@ var Specs = []Spec{
 		Capabilities: []string{"Local & remote LLMs", "Terminal workspace", "Multi-file edits", "Git integration"},
 		NpmPackage:   "opencode-ai",
 	},
+	{
+		ID:              "aider",
+		Name:            "Aider AI Pair Programmer",
+		Command:         "aider",
+		Aliases:         []string{"aider", "aider-chat"},
+		Description:     "Terminal AI coding assistant that pairs with you in your git repository with automated commits and multi-file architect mode.",
+		Capabilities:    []string{"Git repo map comprehension", "Auto-commits with messages", "Multi-file edits", "Architect mode", "Terminal pair programming"},
+		InstallScript:   "python3 -m pip install -U aider-chat 2>/dev/null || pipx install aider-chat",
+		UninstallScript: "python3 -m pip uninstall -y aider-chat 2>/dev/null || pipx uninstall aider-chat 2>/dev/null || true",
+	},
+	{
+		ID:              "ollama",
+		Name:            "Ollama Local LLMs",
+		Command:         "ollama",
+		Aliases:         []string{"ollama", "ollama-service"},
+		Description:     "Run local open-weight AI coding models (DeepSeek-Coder, Qwen 2.5-Coder, Llama 3) directly on this server with zero API costs.",
+		Capabilities:    []string{"Local open-weight models", "DeepSeek-Coder & Qwen 2.5", "100% private & offline", "Zero API token costs", "REST API on port 11434"},
+		InstallScript:   "curl -fsSL https://ollama.com/install.sh | sh",
+		UninstallScript: "systemctl stop ollama 2>/dev/null; rm -f /usr/local/bin/ollama /usr/bin/ollama; systemctl disable ollama 2>/dev/null || true",
+	},
+	{
+		ID:              "goose",
+		Name:            "Goose Developer Agent",
+		Command:         "goose",
+		Aliases:         []string{"goose", "block-goose"},
+		Description:     "Block's open-source autonomous developer agent for terminal operations, bash execution, and code generation.",
+		Capabilities:    []string{"Autonomous file editing", "Direct shell tool execution", "Custom extensions / plugins", "Extensible LLM backends"},
+		InstallScript:   "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash 2>/dev/null || curl -fsSL https://raw.githubusercontent.com/block/goose/main/scripts/install.sh | bash",
+		UninstallScript: "rm -f /usr/local/bin/goose ~/.local/bin/goose ~/.goose/bin/goose 2>/dev/null || true",
+	},
+	{
+		ID:              "hermes",
+		Name:            "Hermes Agent",
+		Command:         "hermes",
+		Aliases:         []string{"hermes", "hermes-agent", "nous-hermes"},
+		Description:     "Nous Research's open-source autonomous agent with persistent memory, dynamic skill creation, and multi-modal tool use.",
+		Capabilities:    []string{"Autonomous tool use", "Dynamic skill creation", "TUI & interactive chat", "Multi-platform gateways", "Persistent memory"},
+		InstallScript:   "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash 2>/dev/null || python3 -m pip install hermes-agent",
+		UninstallScript: "rm -f /usr/local/bin/hermes ~/.local/bin/hermes ~/.hermes/bin/hermes; python3 -m pip uninstall -y hermes-agent 2>/dev/null || true",
+	},
 }
 
 // Manager manages AI coding agents inspection and lifecycle.
 type Manager struct {
 	cfg   config.Config
 	audit *audit.Log
+	Vault *Vault
 
 	mu         sync.RWMutex
 	cachedAt   time.Time
@@ -106,6 +147,7 @@ func New(cfg config.Config, auditLog *audit.Log) *Manager {
 	return &Manager{
 		cfg:   cfg,
 		audit: auditLog,
+		Vault: NewVault(cfg, auditLog),
 	}
 }
 
