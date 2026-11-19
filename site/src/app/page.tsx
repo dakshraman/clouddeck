@@ -12,7 +12,7 @@ import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#FAF7F5] text-[#14242B] antialiased">
+    <div className="min-h-screen bg-[#080C10] text-[#F8FAFC] antialiased bg-grid-pattern selection:bg-[#38BDF8]/25 selection:text-white">
       <Navbar />
       <main>
         <Hero />
@@ -29,4 +29,3 @@ export default function Home() {
     </div>
   );
 }
-

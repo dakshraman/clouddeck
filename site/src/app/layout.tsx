@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#235361",
+  themeColor: "#080C10",
 };
 
 export const metadata: Metadata = {
@@ -131,7 +131,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} scroll-smooth`}
+      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} scroll-smooth dark`}
     >
       <head>
         <JsonLd />
@@ -155,7 +155,7 @@ export default function RootLayout({
           title="CloudDeck AI Agent Guide"
         />
       </head>
-      <body className="min-h-screen bg-[#FAF7F5] font-sans text-[#14242B] antialiased selection:bg-[#74B8CC]/30 selection:text-[#14242B]">
+      <body className="min-h-screen bg-[#080C10] font-sans text-[#F8FAFC] antialiased selection:bg-[#38BDF8]/25 selection:text-white">
         {children}
       </body>
     </html>

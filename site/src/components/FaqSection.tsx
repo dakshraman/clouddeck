@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, HelpCircle } from "lucide-react";
 
 export function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -9,7 +9,7 @@ export function FaqSection() {
   const faqs = [
     {
       q: "How can CloudDeck consume under 50MB RAM when cPanel uses 1.5GB+?",
-      a: "CloudDeck uses a compiled Go binary (stdlib only) for its system agent and a self-contained Next.js 16 server for the web panel. Unlike cPanel's 1990s legacy Perl/CGI monolith, CloudDeck does not run background interpreter daemons or duplicate services. It directly interfaces with native Linux binaries (Nginx, MariaDB, PowerDNS, Postfix) with zero virtualization overhead.",
+      a: "CloudDeck uses a compiled Go binary (stdlib only) for its system agent and a self-contained Next.js 16 server for the web panel. Unlike cPanel's legacy Perl/CGI monolith, CloudDeck does not run persistent interpreter daemons or duplicate services. It directly interfaces with native Linux binaries (Nginx, MariaDB, PowerDNS, Postfix) with zero virtualization overhead.",
     },
     {
       q: "What AI coding agents are integrated into CloudDeck?",
@@ -37,7 +37,7 @@ export function FaqSection() {
     },
     {
       q: "Is CloudDeck truly 100% free and open-source?",
-      a: "Yes. CloudDeck is free and open-source software under an OSI-approved license. There are no monthly per-server fees ($30–$60+/month like cPanel), no per-domain caps, and no paywalled 'Pro' or 'Enterprise' feature restrictions.",
+      a: "Yes. CloudDeck is free and open-source software under the MIT license. There are no monthly per-server fees ($30–$60+/month like cPanel), no per-domain caps, and no paywalled 'Pro' or 'Enterprise' feature restrictions.",
     },
     {
       q: "How do Dual-Mode .zip backups protect my data?",
@@ -50,17 +50,18 @@ export function FaqSection() {
   ];
 
   return (
-    <section id="faq" className="border-t border-[#D2ADAC]/40 bg-[#FAF7F5] py-16 sm:py-24">
+    <section id="faq" className="border-t border-white/5 bg-[#090D14] py-16 sm:py-24">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-[#D2ADAC]/60 bg-white/70 px-3 py-1 text-xs font-semibold text-[#886351]">
-            <span>Frequently Asked Questions &bull; v0.6.53</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-semibold text-[#38BDF8]">
+            <HelpCircle className="h-3.5 w-3.5" />
+            <span>FREQUENTLY ASKED QUESTIONS</span>
           </div>
-          <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-[#14242B] sm:text-5xl">
-            Got questions? <span className="text-[#235361]">We have answers.</span>
+          <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+            Got questions? <span className="text-[#38BDF8]">We have answers.</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base text-[#566E76] sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-base text-slate-400 sm:text-lg">
             Everything you need to know about switching to CloudDeck and utilizing AI agents.
           </p>
         </div>
@@ -72,26 +73,26 @@ export function FaqSection() {
             return (
               <div
                 key={faq.q}
-                className="overflow-hidden rounded-2xl border border-[#D2ADAC]/60 bg-white shadow-xs transition"
+                className="overflow-hidden rounded-2xl border border-white/10 bg-[#0C121A] shadow-md transition hover:border-white/20"
               >
                 <button
                   type="button"
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className="flex w-full items-center justify-between gap-4 p-5 text-left sm:p-6 transition hover:bg-[#FAF7F5]"
+                  className="flex w-full items-center justify-between gap-4 p-5 text-left sm:p-6 transition hover:bg-white/[0.02]"
                   aria-expanded={isOpen}
                 >
-                  <span className="text-sm font-bold text-[#14242B] sm:text-base">
+                  <span className="text-sm font-bold text-white sm:text-base">
                     {faq.q}
                   </span>
                   <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-[#6494AC] transition-transform duration-200 ${
+                    className={`h-4 w-4 shrink-0 text-[#38BDF8] transition-transform duration-200 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-[#D2ADAC]/30 px-5 pt-3 pb-5 text-xs text-[#566E76] leading-relaxed sm:px-6 sm:text-sm">
+                  <div className="border-t border-white/5 px-5 pt-3 pb-5 text-xs text-slate-400 leading-relaxed sm:px-6 sm:text-sm">
                     {faq.a}
                   </div>
                 )}
