@@ -34,6 +34,10 @@
   <a href="SECURITY.md">Security Policy</a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/clouddeck-vs-cpanel.jpg" alt="cPanel vs CloudDeck Comparison Infographic" width="800" style="max-width: 100%; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
+</p>
+
 ---
 
 ## ⚡ 1-Command Universal Installation
