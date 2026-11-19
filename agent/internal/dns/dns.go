@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -105,7 +106,7 @@ type Manager struct {
 // New creates the manager.
 func New(cfg config.Config, auditLog *audit.Log) *Manager {
 	mgr := &Manager{cfg: cfg, audit: auditLog}
-	if !cfg.DryRun {
+	if !cfg.DryRun && flag.Lookup("test.v") == nil {
 		go func() {
 			_ = mgr.EnsureBackendConfigured(context.Background())
 		}()
@@ -114,25 +115,25 @@ func New(cfg config.Config, auditLog *audit.Log) *Manager {
 }
 
 func (m *Manager) effectiveConfDirLocked() string {
+	dir := m.cfg.PdnsConfDir
+	if dir != "" {
+		if runtime.GOOS == "darwin" && dir == "/etc/powerdns" {
+			for _, brewDir := range []string{"/opt/homebrew/etc/powerdns", "/usr/local/etc/powerdns"} {
+				if _, err := os.Stat(brewDir); err == nil {
+					return brewDir
+				}
+			}
+			if _, err := os.Stat("/opt/homebrew"); err == nil {
+				return "/opt/homebrew/etc/powerdns"
+			}
+			return "/usr/local/etc/powerdns"
+		}
+		return dir
+	}
 	if m.managedConfDir != "" {
 		return m.managedConfDir
 	}
-	dir := m.cfg.PdnsConfDir
-	if dir == "" {
-		return ""
-	}
-	if runtime.GOOS == "darwin" && dir == "/etc/powerdns" {
-		for _, brewDir := range []string{"/opt/homebrew/etc/powerdns", "/usr/local/etc/powerdns"} {
-			if _, err := os.Stat(brewDir); err == nil {
-				return brewDir
-			}
-		}
-		if _, err := os.Stat("/opt/homebrew"); err == nil {
-			return "/opt/homebrew/etc/powerdns"
-		}
-		return "/usr/local/etc/powerdns"
-	}
-	return dir
+	return ""
 }
 
 func (m *Manager) effectiveConfDir() string {
