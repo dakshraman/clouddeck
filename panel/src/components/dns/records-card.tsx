@@ -21,7 +21,7 @@ import { ListTree, Plus, Trash2 } from "lucide-react";
 
 // Frozen by docs/api.md section 1.4.
 const RECORD_TYPES: readonly DNSRecordType[] = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA"];
-const RECORD_NAME_REGEX = /^_?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[_a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
+const RECORD_NAME_REGEX = /^(\*|_?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[_a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const RECORD_NAME_MAX = 253;
 const RECORD_CONTENT_MAX = 512;
 const RECORD_TTL_MAX = 604800;
@@ -164,9 +164,10 @@ export function RecordsCard({ zone }: RecordsCardProps) {
     const candidateName = recordName.trim().toLowerCase();
     if (
       candidateName !== "@" &&
+      candidateName !== "*" &&
       (candidateName.length > RECORD_NAME_MAX || !RECORD_NAME_REGEX.test(candidateName))
     ) {
-      setAddError("Enter a relative record name like www, or @ for the zone apex.");
+      setAddError("Enter a relative record name like www, * for wildcard, or @ for the zone apex.");
       return;
     }
 

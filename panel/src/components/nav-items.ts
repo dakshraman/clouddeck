@@ -1,6 +1,7 @@
 import {
   Activity,
   Archive,
+  Bot,
   Boxes,
   Clock,
   CloudUpload,
@@ -71,6 +72,13 @@ export const navGroups: NavGroup[] = [
         keywords: "node php python go ruby versions install uninstall runtime",
       },
       {
+        href: "/agents",
+        label: "AI Agents",
+        icon: Bot,
+        description: "Autonomous AI coding agents (Claude, Codex, Antigravity, OpenCode).",
+        keywords: "ai claude codex antigravity opencode coding agents tools",
+      },
+      {
         href: "/ftp",
         label: "FTP",
         icon: CloudUpload,
@@ -134,8 +142,8 @@ export const navGroups: NavGroup[] = [
         href: "/cron",
         label: "Cron Jobs",
         icon: Clock,
-        description: "Scheduled tasks per site.",
-        keywords: "schedule cronjob",
+        description: "Scheduled tasks and cron manager.",
+        keywords: "schedule cronjob crontab automated tasks",
       },
       {
         href: "/terminal",

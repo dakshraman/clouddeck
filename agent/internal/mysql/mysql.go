@@ -197,6 +197,60 @@ func (s *Service) CreateUser(ctx context.Context, rawUser, password, rawHost str
 	return created, nil
 }
 
+// SetPassword updates an existing MySQL user's password and audits the mutation.
+func (s *Service) SetPassword(ctx context.Context, rawUser, rawHost, password string) error {
+	user, err := ValidateUser(rawUser)
+	if err != nil {
+		return err
+	}
+	host, err := ValidateHost(rawHost)
+	if err != nil {
+		return err
+	}
+	if err := checkPassword(password); err != nil {
+		return err
+	}
+	exists, err := s.userExists(ctx, user, host)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return apierr.NotFound("not_found", fmt.Sprintf("user %q@%q does not exist", user, host))
+	}
+	sql := fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'", user, host, password)
+	if _, err := s.run(ctx, sql); err != nil {
+		return err
+	}
+	if _, err := s.run(ctx, "FLUSH PRIVILEGES"); err != nil {
+		return err
+	}
+	return s.record("mysql.user.password", map[string]any{"user": user, "host": host})
+}
+
+// EnsureUser creates the user if they don't exist or updates their password if they do.
+func (s *Service) EnsureUser(ctx context.Context, rawUser, password, rawHost string) error {
+	user, err := ValidateUser(rawUser)
+	if err != nil {
+		return err
+	}
+	host, err := ValidateHost(rawHost)
+	if err != nil {
+		return err
+	}
+	exists, err := s.userExists(ctx, user, host)
+	if err != nil {
+		return err
+	}
+	if exists {
+		if password != "" {
+			return s.SetPassword(ctx, user, host, password)
+		}
+		return nil
+	}
+	_, err = s.CreateUser(ctx, user, password, host)
+	return err
+}
+
 // DeleteUser drops the account and audits the mutation.
 func (s *Service) DeleteUser(ctx context.Context, rawUser, rawHost string) (User, error) {
 	user, err := ValidateUser(rawUser)

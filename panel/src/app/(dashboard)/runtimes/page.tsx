@@ -14,6 +14,7 @@ import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/compon
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
+import { PhpExtensionsCard } from "@/components/runtimes/php-extensions-card";
 import { Boxes, RefreshCw, Trash2 } from "lucide-react";
 
 const MANAGED_KINDS = ["node", "php", "python", "java", "docker"] as const;
@@ -222,110 +223,118 @@ export default function RuntimesPage() {
           });
           const installKey = `install:${kind}:${selected[kind] ?? ""}`;
           return (
-            <Card key={kind}>
-              <CardHeader>
-                <div>
-                  <CardTitle>{KIND_LABELS[kind]}</CardTitle>
-                  <CardDescription>{KIND_NOTES[kind]}</CardDescription>
-                </div>
-                <Badge variant={rows.length > 0 ? "green" : "neutral"}>
-                  {rows.length > 0 ? `${rows.length} installed` : "not installed"}
-                </Badge>
-              </CardHeader>
-              <CardBody className="grid gap-5">
-                <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Installed
-                  </p>
-                  {rows.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No version detected.</p>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {rows.map((row) => {
-                        const rowKey = `${kind}:${row.version}`;
-                        const rowBusy = busy === `uninstall:${kind}:${row.version}`;
-                        return (
-                          <li
-                            key={row.version}
-                            className="flex flex-wrap items-center gap-2 py-2.5"
-                          >
-                            <span className="font-mono text-sm text-foreground">{row.version}</span>
-                            {row.isDefault ? <Badge variant="indigo">default</Badge> : null}
-                            {row.bin ? (
-                              <span className="font-mono text-[11px] text-muted-foreground">
-                                {row.bin}
-                              </span>
-                            ) : null}
-                            <div className="ml-auto flex items-center gap-2">
-                              {!row.removable ? (
-                                <span className="text-xs text-muted-foreground">managed by the OS</span>
-                              ) : confirm === rowKey ? (
-                                <>
-                                  <span className="text-xs text-muted-foreground">Remove {row.version}?</span>
+            <div key={kind} className="grid gap-4">
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle>{KIND_LABELS[kind]}</CardTitle>
+                    <CardDescription>{KIND_NOTES[kind]}</CardDescription>
+                  </div>
+                  <Badge variant={rows.length > 0 ? "green" : "neutral"}>
+                    {rows.length > 0 ? `${rows.length} installed` : "not installed"}
+                  </Badge>
+                </CardHeader>
+                <CardBody className="grid gap-5">
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Installed
+                    </p>
+                    {rows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No version detected.</p>
+                    ) : (
+                      <ul className="divide-y divide-border">
+                        {rows.map((row) => {
+                          const rowKey = `${kind}:${row.version}`;
+                          const rowBusy = busy === `uninstall:${kind}:${row.version}`;
+                          return (
+                            <li
+                              key={row.version}
+                              className="flex flex-wrap items-center gap-2 py-2.5"
+                            >
+                              <span className="font-mono text-sm text-foreground">{row.version}</span>
+                              {row.isDefault ? <Badge variant="indigo">default</Badge> : null}
+                              {row.bin ? (
+                                <span className="font-mono text-[11px] text-muted-foreground">
+                                  {row.bin}
+                                </span>
+                              ) : null}
+                              <div className="ml-auto flex items-center gap-2">
+                                {!row.removable ? (
+                                  <span className="text-xs text-muted-foreground">managed by the OS</span>
+                                ) : confirm === rowKey ? (
+                                  <>
+                                    <span className="text-xs text-muted-foreground">Remove {row.version}?</span>
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      loading={rowBusy}
+                                      disabled={busy !== null && !rowBusy}
+                                      onClick={() => uninstall(kind, row.version)}
+                                    >
+                                      Confirm
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => setConfirm(null)}>
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
                                   <Button
-                                    variant="danger"
+                                    variant="ghost"
                                     size="sm"
-                                    loading={rowBusy}
-                                    disabled={busy !== null && !rowBusy}
-                                    onClick={() => uninstall(kind, row.version)}
+                                    className="text-muted-foreground hover:text-red-400"
+                                    disabled={busy !== null}
+                                    onClick={() => setConfirm(rowKey)}
                                   >
-                                    Confirm
+                                    <Trash2 size={14} aria-hidden="true" />
+                                    Uninstall
                                   </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => setConfirm(null)}>
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-muted-foreground hover:text-red-400"
-                                  disabled={busy !== null}
-                                  onClick={() => setConfirm(rowKey)}
-                                >
-                                  <Trash2 size={14} aria-hidden="true" />
-                                  Uninstall
-                                </Button>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
-                  <Select
-                    aria-label={`Select a ${KIND_LABELS[kind]} version to install`}
-                    value={selected[kind] ?? ""}
-                    disabled={busy !== null || choices.length === 0}
-                    className="w-48"
-                    onChange={(event) =>
-                      setSelected((prev) => ({ ...prev, [kind]: event.target.value }))
-                    }
-                  >
-                    <option value="">
-                      {choices.length === 0 ? "All supported versions installed" : "Install a version…"}
-                    </option>
-                    {choices.map((version) => (
-                      <option key={version} value={version}>
-                        {version}
+                  <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
+                    <Select
+                      aria-label={`Select a ${KIND_LABELS[kind]} version to install`}
+                      value={selected[kind] ?? ""}
+                      disabled={busy !== null || choices.length === 0}
+                      className="w-48"
+                      onChange={(event) =>
+                        setSelected((prev) => ({ ...prev, [kind]: event.target.value }))
+                      }
+                    >
+                      <option value="">
+                        {choices.length === 0 ? "All supported versions installed" : "Install a version…"}
                       </option>
-                    ))}
-                  </Select>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    loading={busy === installKey}
-                    disabled={!selected[kind] || busy !== null}
-                    onClick={() => install(kind, selected[kind])}
-                  >
-                    Install
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
+                      {choices.map((version) => (
+                        <option key={version} value={version}>
+                          {version}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      loading={busy === installKey}
+                      disabled={!selected[kind] || busy !== null}
+                      onClick={() => install(kind, selected[kind])}
+                    >
+                      Install
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+
+              {kind === "php" ? (
+                <PhpExtensionsCard
+                  installedPhpVersions={(installed["php"] ?? []).map((r) => r.version)}
+                />
+              ) : null}
+            </div>
           );
         })}
 

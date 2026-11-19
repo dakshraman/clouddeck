@@ -20,7 +20,7 @@ import { Check, Copy, KeyRound, ShieldCheck, Trash2, UserPlus, Users } from "luc
 
 const USER_PATTERN = /^[A-Za-z0-9_]{1,32}$/;
 const HOST_PATTERN = /^[A-Za-z0-9_.%:-]{1,255}$/;
-const PASSWORD_PATTERN = /^[A-Za-z0-9!@#$%^&*()_+=.,?-]{8,64}$/;
+const PASSWORD_PATTERN = /^[\x20-\x7E]{8,128}$/;
 const DEFAULT_HOST = "localhost";
 
 type CopyState = "idle" | "copied" | "failed";
@@ -123,7 +123,7 @@ export function UsersCard({ users, databases, error, disabled, onRefresh }: User
     }
     if (password !== "" && !PASSWORD_PATTERN.test(password)) {
       setCreateError(
-        "Password must be 8-64 characters using letters, numbers or !@#$%^&*()_+-=.,?",
+        "Password must be 8-128 printable characters.",
       );
       return;
     }

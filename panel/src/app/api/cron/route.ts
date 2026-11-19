@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
-import { agentFetch } from "@/lib/agent";
-import { handleRoute, json, requireAuth } from "@/lib/http";
-import type { CronAllResponse } from "@/lib/types";
+import { NextResponse, type NextRequest } from "next/server";
+import { proxyAgent } from "@/lib/agent-proxy";
+import { handleRoute, parseJsonBody, requireAuth } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
-    return json(await agentFetch<CronAllResponse>("/v1/cron"));
+    return proxyAgent("/v1/cron", "GET");
+  });
+}
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  return handleRoute(async () => {
+    await requireAuth();
+    const body = await parseJsonBody(req);
+    return proxyAgent("/v1/cron", "POST", body);
   });
 }

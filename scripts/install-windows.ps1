@@ -1,4 +1,4 @@
-# CloudDeck Windows Local Development Suite Installer
+﻿# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
@@ -688,5 +688,5 @@ Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrRe
 Write-Host "  ${tcSky}$gRailMid${clrReset}"
 Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
 Write-Host ""
-$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.51" }
+$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.52" }
 Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."

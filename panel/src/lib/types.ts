@@ -3,7 +3,7 @@
  * This file mirrors docs/api.md exactly. Do not edit without updating docs/api.md first.
  */
 
-export type TaskType = "site.create" | "site.delete" | "ssl.issue" | "backup.create" | "backup.restore" | "runtime.install" | "phpmyadmin.install";
+export type TaskType = "site.create" | "site.delete" | "ssl.issue" | "backup.create" | "backup.restore" | "runtime.install" | "runtime.uninstall" | "phpmyadmin.install" | "php.extension.install" | "agent.install" | "agent.uninstall" | string;
 export type TaskStatus = "pending" | "running" | "succeeded" | "failed";
 export type TaskLogLevel = "info" | "warn" | "error";
 
@@ -525,7 +525,76 @@ export interface SiteCronEntry {
   jobs: SiteCronJob[];
 }
 export interface CronAllResponse {
+  jobs?: CronJob[];
   sites: SiteCronEntry[];
+}
+
+export interface CronJob {
+  id: string;
+  schedule: string;
+  minute: string;
+  hour: string;
+  day: string;
+  month: string;
+  weekday: string;
+  command: string;
+  comment?: string;
+  title?: string;
+  user: string;
+  enabled: boolean;
+  preset?: string;
+  created_at: string;
+  updated_at: string;
+  last_run?: string;
+  last_status?: "success" | "failed" | string;
+  last_output?: string;
+  last_duration_ms?: number;
+  last_exit_code?: number;
+}
+
+export interface CronPreset {
+  id: string;
+  name: string;
+  schedule: string;
+  description: string;
+}
+
+export interface CronExecutionRecord {
+  id: string;
+  job_id: string;
+  job_title?: string;
+  command: string;
+  user: string;
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+  exit_code: number;
+  output: string;
+  success: boolean;
+}
+
+export interface CronRunResult {
+  id: string;
+  job_id: string;
+  command: string;
+  exit_code: number;
+  output: string;
+  duration_ms: number;
+  success: boolean;
+  ran_at: string;
+}
+
+export interface CronListResponse {
+  jobs: CronJob[];
+  sites?: SiteCronEntry[];
+}
+
+export interface CronHistoryResponse {
+  history: CronExecutionRecord[];
+}
+
+export interface CronPresetsResponse {
+  presets: CronPreset[];
 }
 export interface FtpAccount {
   name: string;
@@ -798,4 +867,54 @@ export interface SiteSyncResult {
   dkimApplied: boolean;
   records?: any[];
 }
+
+export interface PhpExtension {
+  name: string;
+  description?: string;
+  installed: boolean;
+  enabled: boolean;
+}
+
+export interface PhpExtensionsResponse {
+  version: string;
+  versions: string[];
+  extensions: PhpExtension[];
+}
+
+export interface PhpExtensionToggleResponse {
+  success: boolean;
+  version: string;
+  extension: string;
+  enabled: boolean;
+}
+
+export interface PhpConfigResponse {
+  version: string;
+  versions: string[];
+  path: string;
+  directives: Record<string, string>;
+}
+
+export interface SetPhpConfigResponse {
+  success: boolean;
+  version: string;
+  path: string;
+  directives: Record<string, string>;
+}
+
+export interface AIAgentInfo {
+  id: string;
+  name: string;
+  command: string;
+  installed: boolean;
+  version?: string;
+  path?: string;
+  description: string;
+  capabilities: string[];
+}
+
+export interface AIAgentsResponse {
+  agents: AIAgentInfo[];
+}
+
 

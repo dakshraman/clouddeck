@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm, type IDisposable } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
@@ -47,7 +48,12 @@ function decodeBase64(value: string): Uint8Array {
   return bytes;
 }
 
-export default function TerminalPage() {
+function TerminalContent() {
+  const searchParams = useSearchParams();
+  const cmdParam = searchParams.get("exec") || searchParams.get("cmd") || searchParams.get("command") || "";
+  const initialCmdRef = useRef<string | null>(cmdParam ? cmdParam.trim() : null);
+  const executedCmdRef = useRef(false);
+
   const [state, setState] = useState<LoadState>("loading");
   const [status, setStatus] = useState<TermStatusResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -242,6 +248,21 @@ export default function TerminalPage() {
       lastSizeRef.current = { cols: term.cols, rows: term.rows };
       setPhase("running");
       setStatus((prev) => (prev ? { ...prev, sessions: prev.sessions + 1 } : prev));
+
+      if (initialCmdRef.current && !executedCmdRef.current) {
+        executedCmdRef.current = true;
+        const cmdToSend = initialCmdRef.current;
+        window.setTimeout(() => {
+          const sid = sessionIdRef.current;
+          if (sid) {
+            void fetch(`/api/term/sessions/${encodeURIComponent(sid)}/input`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ data: encodeBase64(cmdToSend + "\n") }),
+            }).catch(() => {});
+          }
+        }, 350);
+      }
 
       inputSubscriptionRef.current = term.onData((data) => {
         const sessionId = sessionIdRef.current;
@@ -553,5 +574,21 @@ export default function TerminalPage() {
         </div>
       ) : null}
     </>
+  );
+}
+
+export default function TerminalPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card className="overflow-hidden">
+          <div className="p-5">
+            <Skeleton className="h-[72vh] min-h-[420px] w-full rounded-lg" />
+          </div>
+        </Card>
+      }
+    >
+      <TerminalContent />
+    </Suspense>
   );
 }

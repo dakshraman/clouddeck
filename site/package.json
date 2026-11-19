@@ -1,6 +1,6 @@
 {
   "name": "clouddeck-site",
-  "version": "0.6.51",
+  "version": "0.6.52",
   "private": true,
   "engines": {
     "node": ">=20"
@@ -14,7 +14,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
-    "next": "^15.4.0",
+    "next": "^16.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.7.0"

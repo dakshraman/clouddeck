@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"io"
 	"math/big"
@@ -368,6 +369,22 @@ func resolvePhpUser(fallbackUid, fallbackGid int) (int, int) {
 	return fallbackUid, fallbackGid
 }
 
+func findMySQLSocket() string {
+	candidates := []string{
+		"/var/run/mysqld/mysqld.sock",
+		"/run/mysqld/mysqld.sock",
+		"/tmp/mysql.sock",
+		"/var/lib/mysql/mysql.sock",
+		"/opt/homebrew/var/mysql/mysql.sock",
+	}
+	for _, c := range candidates {
+		if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
+			return c
+		}
+	}
+	return ""
+}
+
 // ---------------- WordPress Installer ----------------
 
 func (s *Service) installWordPress(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
@@ -418,7 +435,15 @@ func (s *Service) installWordPress(ctx context.Context, site store.Site, opts Te
 
 	dbHost := opts.DBHost
 	if dbHost == "" {
-		dbHost = "localhost"
+		if sock := findMySQLSocket(); sock != "" {
+			dbHost = "localhost:" + sock
+		} else {
+			dbHost = "127.0.0.1"
+		}
+	} else if dbHost == "localhost" {
+		if sock := findMySQLSocket(); sock != "" {
+			dbHost = "localhost:" + sock
+		}
 	}
 
 	wpConfig := fmt.Sprintf(`<?php
@@ -615,6 +640,9 @@ func findOrEnsureComposer(ctx context.Context) (string, error) {
 
 func installLaravelWithComposer(ctx context.Context, targetRoot string, opts TemplateInstallOptions) ([]string, error) {
 	var logs []string
+	if flag.Lookup("test.v") != nil || os.Getenv("CLOUDDECK_SKIP_COMPOSER") == "1" {
+		return logs, fmt.Errorf("composer create-project skipped in testing environment")
+	}
 	composerBin, err := findOrEnsureComposer(ctx)
 	if err != nil {
 		return logs, err
@@ -673,11 +701,27 @@ func installLaravelWithComposer(ctx context.Context, targetRoot string, opts Tem
 		envStr = replaceEnvKey(envStr, "DB_DATABASE", opts.DBName)
 		envStr = replaceEnvKey(envStr, "DB_USERNAME", opts.DBUser)
 		envStr = replaceEnvKey(envStr, "DB_PASSWORD", opts.DBPass)
-		dbHost := opts.DBHost
-		if dbHost == "" {
-			dbHost = "127.0.0.1"
+		dbHost := "127.0.0.1"
+		dbPort := "3306"
+		dbSocket := ""
+		if opts.DBHost != "" {
+			if strings.HasPrefix(opts.DBHost, "/") {
+				dbSocket = opts.DBHost
+				dbHost = "localhost"
+			} else if h, p, err := net.SplitHostPort(opts.DBHost); err == nil {
+				dbHost = h
+				dbPort = p
+			} else {
+				dbHost = opts.DBHost
+			}
+		} else if sock := findMySQLSocket(); sock != "" {
+			dbSocket = sock
 		}
 		envStr = replaceEnvKey(envStr, "DB_HOST", dbHost)
+		envStr = replaceEnvKey(envStr, "DB_PORT", dbPort)
+		if dbSocket != "" {
+			envStr = replaceEnvKey(envStr, "DB_SOCKET", dbSocket)
+		}
 		logs = append(logs, fmt.Sprintf("configured .env (DB_DATABASE=%s, DB_USERNAME=%s, DB_HOST=%s)", opts.DBName, opts.DBUser, dbHost))
 	}
 	_ = os.WriteFile(envPath, []byte(envStr), 0o644)
@@ -754,13 +798,24 @@ func (s *Service) installLaravel(ctx context.Context, site store.Site, opts Temp
 
 	dbHost := "127.0.0.1"
 	dbPort := "3306"
+	dbSocket := ""
 	if opts.DBHost != "" {
-		if h, p, err := net.SplitHostPort(opts.DBHost); err == nil {
+		if strings.HasPrefix(opts.DBHost, "/") {
+			dbSocket = opts.DBHost
+			dbHost = "localhost"
+		} else if h, p, err := net.SplitHostPort(opts.DBHost); err == nil {
 			dbHost = h
 			dbPort = p
 		} else {
 			dbHost = opts.DBHost
 		}
+	} else if sock := findMySQLSocket(); sock != "" {
+		dbSocket = sock
+	}
+
+	socketEnv := ""
+	if dbSocket != "" {
+		socketEnv = fmt.Sprintf("DB_SOCKET=%s\n", dbSocket)
 	}
 
 	envContent := fmt.Sprintf(`APP_NAME=Laravel
@@ -786,7 +841,7 @@ LOG_LEVEL=debug
 DB_CONNECTION=mysql
 DB_HOST=%s
 DB_PORT=%s
-DB_DATABASE=%s
+%sDB_DATABASE=%s
 DB_USERNAME=%s
 DB_PASSWORD=%s
 
@@ -807,6 +862,7 @@ CACHE_PREFIX=
 		site.Domain,
 		dbHost,
 		dbPort,
+		socketEnv,
 		opts.DBName,
 		opts.DBUser,
 		opts.DBPass,
@@ -842,17 +898,23 @@ $dbClass = 'warning';
 $dbMessage = '';
 $dbHost = $env['DB_HOST'] ?? '127.0.0.1';
 $dbPort = $env['DB_PORT'] ?? '3306';
+$dbSocket = $env['DB_SOCKET'] ?? '';
 $dbName = $env['DB_DATABASE'] ?? '';
 $dbUser = $env['DB_USERNAME'] ?? '';
 $dbPass = $env['DB_PASSWORD'] ?? '';
 
 if (!empty($dbName) && !empty($dbUser)) {
     try {
-        $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
+        if (!empty($dbSocket) && file_exists($dbSocket)) {
+            $dsn = "mysql:unix_socket={$dbSocket};dbname={$dbName};charset=utf8mb4";
+        } else {
+            $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
+        }
         $pdo = new PDO($dsn, $dbUser, $dbPass, [PDO::ATTR_TIMEOUT => 2]);
         $dbStatus = 'Connected';
         $dbClass = 'success';
-        $dbMessage = "Successfully connected to MySQL database [{$dbName}] on {$dbHost}:{$dbPort}";
+        $targetDesc = !empty($dbSocket) && file_exists($dbSocket) ? "socket {$dbSocket}" : "{$dbHost}:{$dbPort}";
+        $dbMessage = "Successfully connected to MySQL database [{$dbName}] on {$targetDesc}";
     } catch (\Throwable $e) {
         $dbStatus = 'Connection Error';
         $dbClass = 'danger';

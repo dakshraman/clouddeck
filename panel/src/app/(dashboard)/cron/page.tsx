@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type {
   CronAllResponse,
+  CronJob,
+  CronRunResult,
   Site,
   SiteCronEntry,
   SiteCronJob,
@@ -14,14 +16,15 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { shortDateTime } from "@/components/format";
-import { Clock, Trash2 } from "lucide-react";
+import { CronTable } from "@/components/cron/cron-table";
+import { CronJobModal } from "@/components/cron/cron-job-modal";
+import { CronRunModal } from "@/components/cron/cron-run-modal";
+import { CronHistoryModal } from "@/components/cron/cron-history-modal";
+import { Clock, Plus, History, Trash2, Layers } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -41,9 +44,9 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
     <Card className={jobs.length > 0 ? "overflow-hidden" : undefined}>
       <CardHeader>
         <div>
-          <CardTitle className="font-mono">{domain}</CardTitle>
+          <CardTitle className="font-mono text-sm">{domain}</CardTitle>
           <CardDescription>
-            Cron jobs written to this site&apos;s dedicated cron.d fragment.
+            Site-specific cron fragment in <code className="text-xs font-mono">/etc/cron.d/clouddeck-{domain.replace(/\./g, "-")}</code>.
           </CardDescription>
         </div>
         <Badge variant={jobs.length > 0 ? "indigo" : "neutral"}>{countLabel}</Badge>
@@ -51,13 +54,13 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
 
       {jobs.length === 0 ? (
         <CardBody>
-          <p className="text-sm text-muted-foreground">No cron jobs for this site yet.</p>
+          <p className="text-sm text-muted-foreground">No site-specific cron jobs for this site.</p>
         </CardBody>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b border-border bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3 text-left font-medium">Schedule</th>
                 <th className="px-5 py-3 text-left font-medium">Command</th>
                 <th className="px-5 py-3 text-left font-medium">Run as</th>
@@ -65,17 +68,15 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
                 <th className="px-5 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {jobs.map((job) => {
                 const key = `${domain}:${job.id}`;
                 const deleting = pendingDelete === key;
                 const rowError = rowErrors[key];
                 return (
-                  <tr key={key} className="border-t border-border hover:bg-muted/40">
+                  <tr key={key} className="hover:bg-muted/40">
                     <td className="px-5 py-3">
-                      <span className="whitespace-pre font-mono text-foreground">
-                        {job.schedule}
-                      </span>
+                      <span className="whitespace-pre font-mono text-foreground">{job.schedule}</span>
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -139,22 +140,25 @@ function SiteCronSection({ entry, busy, pendingDelete, rowErrors, onDelete }: Si
 }
 
 export default function CronPage() {
-  const [cron, setCron] = useState<CronAllResponse | null>(null);
+  const [jobs, setJobs] = useState<CronJob[]>([]);
+  const [sitesCron, setSitesCron] = useState<SiteCronEntry[]>([]);
   const [sites, setSites] = useState<Site[] | null>(null);
   const [state, setState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [sitesError, setSitesError] = useState<string | null>(null);
 
-  const [siteDomain, setSiteDomain] = useState("");
-  const [schedule, setSchedule] = useState("");
-  const [command, setCommand] = useState("");
-  const [comment, setComment] = useState("");
-  const [runAs, setRunAs] = useState("root");
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Modals state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<CronJob | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyJob, setHistoryJob] = useState<CronJob | null>(null);
+  const [runModalOpen, setRunModalOpen] = useState(false);
+  const [runResult, setRunResult] = useState<CronRunResult | null>(null);
 
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  // Per-site cron deletion
+  const [pendingDeleteSiteCron, setPendingDeleteSiteCron] = useState<string | null>(null);
+  const [siteRowErrors, setSiteRowErrors] = useState<Record<string, string>>({});
+
+  const [activeTab, setActiveTab] = useState<"system" | "sites">("system");
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setState("loading");
@@ -173,21 +177,13 @@ export default function CronPage() {
       return;
     }
 
-    setCron(cronResult.value);
+    const data = cronResult.value;
+    setJobs(data.jobs || []);
+    setSitesCron(data.sites || []);
     setState("ready");
 
     if (sitesResult.status === "fulfilled") {
-      const loaded = sitesResult.value.sites;
-      setSites(loaded);
-      setSitesError(null);
-      setSiteDomain((prev) => {
-        if (prev !== "" && loaded.some((site) => site.domain === prev)) return prev;
-        return loaded[0]?.domain ?? "";
-      });
-    } else {
-      setSitesError(
-        sitesResult.reason instanceof Error ? sitesResult.reason.message : "Failed to load sites",
-      );
+      setSites(sitesResult.value.sites);
     }
   }, []);
 
@@ -199,52 +195,87 @@ export default function CronPage() {
     void load({ silent: true });
   }, [load]);
 
-  const busy = submitting || pendingDelete !== null;
-  const sitesReady = sites !== null && sites.length > 0;
+  // Open modal to create
+  function handleOpenCreate() {
+    setEditingJob(null);
+    setModalOpen(true);
+  }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (siteDomain === "") {
-      setFormError("Select a site for the new cron job.");
-      return;
-    }
-    if (schedule.trim() === "") {
-      setFormError('Enter a schedule, for example "0 3 * * *".');
-      return;
-    }
-    if (command.trim() === "") {
-      setFormError("Enter the command to run.");
-      return;
-    }
+  // Open modal to edit
+  function handleOpenEdit(job: CronJob) {
+    setEditingJob(job);
+    setModalOpen(true);
+  }
 
-    setSubmitting(true);
-    setFormError(null);
+  // Save (create or update)
+  async function handleSaveJob(payload: {
+    command: string;
+    schedule: string;
+    preset?: string;
+    minute?: string;
+    hour?: string;
+    day?: string;
+    month?: string;
+    weekday?: string;
+    title?: string;
+    comment?: string;
+    user: string;
+    enabled: boolean;
+  }) {
+    if (editingJob) {
+      await apiFetch(`/api/cron/${encodeURIComponent(editingJob.id)}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await apiPost("/api/cron", payload);
+    }
+    refresh();
+  }
+
+  // Delete system job
+  async function handleDeleteJob(id: string) {
+    await apiFetch(`/api/cron/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    refresh();
+  }
+
+  // Toggle active/inactive
+  async function handleToggleJob(id: string, enabled: boolean) {
+    await apiFetch(`/api/cron/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    });
+    refresh();
+  }
+
+  // Run now test button
+  async function handleRunNow(job: CronJob) {
     try {
-      const payload: { schedule: string; command: string; comment?: string; runAs: string } = {
-        schedule: schedule.trim(),
-        command: command.trim(),
-        runAs,
-      };
-      if (comment.trim() !== "") payload.comment = comment.trim();
-      await apiPost<{ cron: SiteCronJob[] }>(
-        `/api/sites/${encodeURIComponent(siteDomain)}/cron`,
-        payload,
+      const result = await apiPost<CronRunResult>(
+        `/api/cron/${encodeURIComponent(job.id)}/run`,
+        {},
       );
-      setSchedule("");
-      setCommand("");
-      setComment("");
+      setRunResult(result);
+      setRunModalOpen(true);
       refresh();
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Failed to add the cron job");
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to execute cron job");
     }
   }
 
-  async function onDelete(domain: string, id: string) {
+  // View history
+  function handleViewHistory(job?: CronJob) {
+    setHistoryJob(job || null);
+    setHistoryOpen(true);
+  }
+
+  // Delete site cron
+  async function handleDeleteSiteCron(domain: string, id: string) {
     const key = `${domain}:${id}`;
-    setPendingDelete(key);
-    setRowErrors((prev) => {
+    setPendingDeleteSiteCron(key);
+    setSiteRowErrors((prev) => {
       const next = { ...prev };
       delete next[key];
       return next;
@@ -256,20 +287,39 @@ export default function CronPage() {
       );
       refresh();
     } catch (error) {
-      setRowErrors((prev) => ({
+      setSiteRowErrors((prev) => ({
         ...prev,
         [key]: error instanceof Error ? error.message : "Failed to delete the cron job",
       }));
     } finally {
-      setPendingDelete(null);
+      setPendingDeleteSiteCron(null);
     }
   }
+
+  const siteCronCount = sitesCron.reduce((acc, curr) => acc + curr.jobs.length, 0);
 
   return (
     <>
       <PageHeader
-        title="Cron jobs"
-        description="Scheduled commands across all sites on this server."
+        title="Cron Jobs & Scheduled Tasks"
+        description="Automated system tasks, recurring maintenance scripts, and per-site cron fragments."
+        actions={
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleViewHistory()}
+              title="View all execution history"
+            >
+              <History size={15} className="mr-1.5" />
+              History
+            </Button>
+            <Button size="sm" onClick={handleOpenCreate}>
+              <Plus size={15} className="mr-1.5" />
+              Add Scheduled Task
+            </Button>
+          </div>
+        }
       />
 
       {state === "error" ? (
@@ -283,161 +333,105 @@ export default function CronPage() {
         </Alert>
       ) : null}
 
-      {state === "loading" ? (
-        <>
-          <Card className="p-5">
-            <div className="grid gap-3">
-              <Skeleton className="h-8" />
-              <Skeleton className="h-8" />
-              <Skeleton className="h-8" />
-            </div>
-          </Card>
-          <Card className="mt-6 p-5">
-            <div className="grid gap-3">
-              <Skeleton className="h-8" />
-              <Skeleton className="h-8" />
-            </div>
-          </Card>
-        </>
+      {/* Tabs navigation */}
+      <div className="flex items-center gap-2 border-b border-border mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab("system")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+            activeTab === "system"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Clock size={16} />
+          System Tasks
+          <Badge variant={jobs.length > 0 ? "indigo" : "neutral"} className="ml-1 text-[11px] px-1.5 py-0">
+            {jobs.length}
+          </Badge>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("sites")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+            activeTab === "sites"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Layers size={16} />
+          Site Cron Fragments
+          <Badge variant={siteCronCount > 0 ? "indigo" : "neutral"} className="ml-1 text-[11px] px-1.5 py-0">
+            {siteCronCount}
+          </Badge>
+        </button>
+      </div>
+
+      {/* Tab 1: System Cron Manager */}
+      {activeTab === "system" ? (
+        <div className="space-y-6">
+          <CronTable
+            jobs={jobs}
+            loading={state === "loading"}
+            onEdit={handleOpenEdit}
+            onDelete={handleDeleteJob}
+            onToggle={handleToggleJob}
+            onRunNow={handleRunNow}
+            onViewHistory={handleViewHistory}
+          />
+        </div>
       ) : null}
 
-      {state === "ready" ? (
-        <>
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Add cron job</CardTitle>
-                <CardDescription>
-                  The job is written to the selected site&apos;s dedicated cron.d fragment.
-                </CardDescription>
-              </div>
-              <Clock size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </CardHeader>
-
-            <form
-              onSubmit={onSubmit}
-              className="mx-5 mt-4 mb-5 grid gap-3 rounded-lg border border-border bg-background/40 p-4 sm:max-w-md"
-            >
-              <div className="grid gap-1.5">
-                <Label htmlFor="cron-site">Site</Label>
-                <Select
-                  id="cron-site"
-                  value={siteDomain}
-                  onChange={(event) => setSiteDomain(event.target.value)}
-                  disabled={busy || !sitesReady}
-                >
-                  {sites && sites.length > 0 ? (
-                    sites.map((site) => (
-                      <option key={site.domain} value={site.domain}>
-                        {site.domain}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No sites available</option>
-                  )}
-                </Select>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="cron-schedule">Schedule</Label>
-                <Input
-                  id="cron-schedule"
-                  value={schedule}
-                  onChange={(event) => setSchedule(event.target.value)}
-                  placeholder="0 3 * * *"
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={busy}
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-mono">0 3 * * *</span> = daily at 03:00 — five fields:
-                  minute, hour, day of month, month, weekday.
-                </p>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="cron-command">Command</Label>
-                <Input
-                  id="cron-command"
-                  value={command}
-                  onChange={(event) => setCommand(event.target.value)}
-                  placeholder="/usr/bin/php /www/wwwroot/example.com/cron.php"
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={busy}
-                  className="font-mono"
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="cron-comment">Comment (optional)</Label>
-                <Input
-                  id="cron-comment"
-                  value={comment}
-                  onChange={(event) => setComment(event.target.value)}
-                  placeholder="Nightly maintenance"
-                  autoComplete="off"
-                  disabled={busy}
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="cron-runas">Run as</Label>
-                <Select
-                  id="cron-runas"
-                  value={runAs}
-                  onChange={(event) => setRunAs(event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="root">root</option>
-                  <option value="www">www</option>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  root runs as the system administrator; www runs as the web user.
-                </p>
-              </div>
-
-              {sitesError ? <Alert variant="error">{sitesError}</Alert> : null}
-              {formError ? <Alert variant="error">{formError}</Alert> : null}
-
-              <div>
-                <Button type="submit" loading={submitting} disabled={busy || !sitesReady}>
-                  Add cron job
-                </Button>
-              </div>
-            </form>
-          </Card>
-
-          {cron && cron.sites.length === 0 ? (
-            <div className="mt-6">
-              <EmptyState
-                icon={Clock}
-                title="No sites yet"
-                description="Create a site first, then schedule commands for it here."
-                action={
-                  <Link href="/sites" className={buttonClass("secondary", "md")}>
-                    Go to sites
-                  </Link>
-                }
-              />
-            </div>
+      {/* Tab 2: Site Cron Fragments */}
+      {activeTab === "sites" ? (
+        <div className="space-y-6">
+          {sitesCron.length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title="No site cron fragments"
+              description="Per-site cron fragments are configured within each hosted site settings."
+              action={
+                <Link href="/sites" className={buttonClass("secondary", "md")}>
+                  Manage Sites
+                </Link>
+              }
+            />
           ) : (
-            <div className="mt-6 grid gap-6">
-              {cron?.sites.map((entry) => (
-                <SiteCronSection
-                  key={entry.domain}
-                  entry={entry}
-                  busy={busy}
-                  pendingDelete={pendingDelete}
-                  rowErrors={rowErrors}
-                  onDelete={onDelete}
-                />
-              ))}
-            </div>
+            sitesCron.map((entry) => (
+              <SiteCronSection
+                key={entry.domain}
+                entry={entry}
+                busy={pendingDeleteSiteCron !== null}
+                pendingDelete={pendingDeleteSiteCron}
+                rowErrors={siteRowErrors}
+                onDelete={handleDeleteSiteCron}
+              />
+            ))
           )}
-        </>
+        </div>
       ) : null}
+
+      {/* Modals */}
+      <CronJobModal
+        job={editingJob}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSaveJob}
+      />
+
+      <CronRunModal
+        result={runResult}
+        open={runModalOpen}
+        onClose={() => setRunModalOpen(false)}
+      />
+
+      <CronHistoryModal
+        jobId={historyJob?.id}
+        jobTitle={historyJob?.title || historyJob?.comment}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
     </>
   );
 }

@@ -74,8 +74,16 @@ export function taskTypeLabel(type: TaskType | string): string {
       return "Restore backup";
     case "runtime.install":
       return "Install runtime";
+    case "runtime.uninstall":
+      return "Uninstall runtime";
     case "phpmyadmin.install":
       return "Install phpMyAdmin";
+    case "php.extension.install":
+      return "Install PHP extension";
+    case "agent.install":
+      return "Install AI agent";
+    case "agent.uninstall":
+      return "Uninstall AI agent";
     default:
       return type;
   }

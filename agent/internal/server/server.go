@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	stdlog "log"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -14,11 +15,13 @@ import (
 	"strings"
 	"time"
 
+	"clouddeck/agent/internal/agents"
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/config"
+	"clouddeck/agent/internal/cron"
 	"clouddeck/agent/internal/dns"
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/firewall"
@@ -42,7 +45,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.51"
+const Version = "0.6.52"
 
 const maxBodyBytes = 1 << 20
 
@@ -70,11 +73,13 @@ type Server struct {
 	panelSSL *ssl.PanelSSL
 	audit    *audit.Log
 	git      *git.Service
+	agents   *agents.Manager
+	cron     *cron.Service
 }
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, gitSvc *git.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog}
+	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog, agents: agents.New(cfg, auditLog), cron: cron.New(cfg, auditLog)}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -222,8 +227,23 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/mysql/remote", s.handleMySQLAddRemote)
 	mux.HandleFunc("DELETE /v1/mysql/remote/{user}", s.handleMySQLDeleteRemote)
 
-	// v0.5 — aggregate cron + per-site WAF + file actions
-	mux.HandleFunc("GET /v1/cron", s.handleListAllCron)
+	// Scheduled tasks (system & user cron)
+	mux.HandleFunc("GET /v1/cron", s.handleListCronJobs)
+	mux.HandleFunc("GET /api/cron", s.handleListCronJobs)
+	mux.HandleFunc("POST /v1/cron", s.handleCreateCronJob)
+	mux.HandleFunc("POST /api/cron", s.handleCreateCronJob)
+	mux.HandleFunc("GET /v1/cron/history", s.handleCronHistory)
+	mux.HandleFunc("GET /api/cron/history", s.handleCronHistory)
+	mux.HandleFunc("GET /v1/cron/presets", s.handleCronPresets)
+	mux.HandleFunc("GET /api/cron/presets", s.handleCronPresets)
+	mux.HandleFunc("GET /v1/cron/{id}", s.handleGetCronJob)
+	mux.HandleFunc("GET /api/cron/{id}", s.handleGetCronJob)
+	mux.HandleFunc("PUT /v1/cron/{id}", s.handleUpdateCronJob)
+	mux.HandleFunc("PUT /api/cron/{id}", s.handleUpdateCronJob)
+	mux.HandleFunc("DELETE /v1/cron/{id}", s.handleDeleteCronJob)
+	mux.HandleFunc("DELETE /api/cron/{id}", s.handleDeleteCronJob)
+	mux.HandleFunc("POST /v1/cron/{id}/run", s.handleRunCronJob)
+	mux.HandleFunc("POST /api/cron/{id}/run", s.handleRunCronJob)
 	mux.HandleFunc("GET /v1/sites/{domain}/waf", s.handleGetWAF)
 	mux.HandleFunc("PUT /v1/sites/{domain}/waf", s.handleSetWAF)
 	mux.HandleFunc("POST /v1/sites/{domain}/files/chmod", s.handleFileChmod)
@@ -235,6 +255,16 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/runtimes", s.handleListRuntimes)
 	mux.HandleFunc("POST /v1/runtimes/install", s.handleRuntimeInstall)
 	mux.HandleFunc("DELETE /v1/runtimes/{kind}/{version}", s.handleRuntimeUninstall)
+	mux.HandleFunc("GET /v1/runtimes/php/extensions", s.handlePHPExtensions)
+	mux.HandleFunc("POST /v1/runtimes/php/extensions/install", s.handlePHPExtensionInstall)
+	mux.HandleFunc("POST /v1/runtimes/php/extensions/toggle", s.handlePHPExtensionToggle)
+	mux.HandleFunc("GET /v1/runtimes/php/config", s.handlePHPConfigGet)
+	mux.HandleFunc("POST /v1/runtimes/php/config", s.handlePHPConfigSet)
+	mux.HandleFunc("GET /api/runtimes/php/extensions", s.handlePHPExtensions)
+	mux.HandleFunc("POST /api/runtimes/php/extensions/install", s.handlePHPExtensionInstall)
+	mux.HandleFunc("POST /api/runtimes/php/extensions/toggle", s.handlePHPExtensionToggle)
+	mux.HandleFunc("GET /api/runtimes/php/config", s.handlePHPConfigGet)
+	mux.HandleFunc("POST /api/runtimes/php/config", s.handlePHPConfigSet)
 	mux.HandleFunc("GET /v1/apps", s.handleListApps)
 	mux.HandleFunc("POST /v1/apps", s.handleCreateApp)
 	mux.HandleFunc("GET /v1/sites/{domain}/apps", s.handleListApps)
@@ -257,6 +287,16 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /v1/panel/ssl", s.handleGetPanelSSL)
 	mux.HandleFunc("POST /v1/panel/ssl", s.handleInstallPanelSSL)
 	mux.HandleFunc("DELETE /v1/panel/ssl", s.handleDisablePanelSSL)
+
+	// AI Coding Agents
+	mux.HandleFunc("GET /v1/agents", s.handleListAgents)
+	mux.HandleFunc("GET /api/agents", s.handleListAgents)
+	mux.HandleFunc("POST /v1/agents/install", s.handleAgentInstall)
+	mux.HandleFunc("POST /api/agents/install", s.handleAgentInstall)
+	mux.HandleFunc("POST /v1/agents/uninstall", s.handleAgentUninstall)
+	mux.HandleFunc("POST /api/agents/uninstall", s.handleAgentUninstall)
+	mux.HandleFunc("DELETE /v1/agents/{id}", s.handleAgentUninstall)
+	mux.HandleFunc("DELETE /api/agents/{id}", s.handleAgentUninstall)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)
@@ -443,8 +483,18 @@ func (s *Server) handleInstallTemplate(w http.ResponseWriter, r *http.Request) {
 	if req.DBName != "" && s.mysql != nil {
 		_, _ = s.mysql.CreateDatabase(r.Context(), req.DBName)
 		if req.DBUser != "" {
-			for _, host := range []string{"localhost", "127.0.0.1"} {
-				_, _ = s.mysql.CreateUser(r.Context(), req.DBUser, req.DBPass, host)
+			hosts := []string{"localhost", "127.0.0.1"}
+			if req.DBHost != "" {
+				h := req.DBHost
+				if hostOnly, _, err := net.SplitHostPort(h); err == nil {
+					h = hostOnly
+				}
+				if h != "localhost" && h != "127.0.0.1" && !strings.HasPrefix(h, "/") {
+					hosts = append(hosts, h)
+				}
+			}
+			for _, host := range hosts {
+				_ = s.mysql.EnsureUser(r.Context(), req.DBUser, req.DBPass, host)
 				_ = s.mysql.Grant(r.Context(), req.DBUser, host, req.DBName, "all")
 			}
 		}
@@ -507,11 +557,25 @@ func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 
 // ---- v0.4 mail endpoints (docs/api.md section 1.6) ----
 
+func (s *Server) checkMail(w http.ResponseWriter) bool {
+	if s.mail == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "mail_unavailable", "mail service is not configured"))
+		return false
+	}
+	return true
+}
+
 func (s *Server) handleMailStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	writeJSON(w, http.StatusOK, s.mail.Status())
 }
 
 func (s *Server) handleMailListDomains(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	domains, err := s.mail.ListDomains()
 	if err != nil {
 		writeError(w, err)
@@ -521,6 +585,9 @@ func (s *Server) handleMailListDomains(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMailAddDomain(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		Domain string `json:"domain"`
 	}
@@ -536,6 +603,9 @@ func (s *Server) handleMailAddDomain(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMailDeleteDomain(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	domain := r.PathValue("domain")
 	if err := s.mail.DeleteDomain(domain); err != nil {
 		writeError(w, err)
@@ -545,6 +615,9 @@ func (s *Server) handleMailDeleteDomain(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleMailListAccounts(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	accounts, err := s.mail.ListAccounts(r.URL.Query().Get("domain"))
 	if err != nil {
 		writeError(w, err)
@@ -554,6 +627,9 @@ func (s *Server) handleMailListAccounts(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleMailCreateAccount(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -572,6 +648,9 @@ func (s *Server) handleMailCreateAccount(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleMailDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	email := r.PathValue("email")
 	if err := s.mail.DeleteAccount(email); err != nil {
 		writeError(w, err)
@@ -581,6 +660,9 @@ func (s *Server) handleMailDeleteAccount(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleMailSetPassword(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		Password string `json:"password"`
 	}
@@ -597,6 +679,9 @@ func (s *Server) handleMailSetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMailSetQuota(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		QuotaMB int64 `json:"quotaMb"`
 	}
@@ -613,6 +698,9 @@ func (s *Server) handleMailSetQuota(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMailListForwarders(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	forwarders, err := s.mail.ListForwarders(r.URL.Query().Get("domain"))
 	if err != nil {
 		writeError(w, err)
@@ -622,6 +710,9 @@ func (s *Server) handleMailListForwarders(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleMailCreateForwarder(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		Source string `json:"source"`
 		Target string `json:"target"`
@@ -638,6 +729,9 @@ func (s *Server) handleMailCreateForwarder(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMailDeleteForwarder(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	source := r.PathValue("source")
 	if err := s.mail.DeleteForwarder(source); err != nil {
 		writeError(w, err)
@@ -647,6 +741,9 @@ func (s *Server) handleMailDeleteForwarder(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMailGetAutoresponder(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	a, err := s.mail.GetAutoresponder(r.PathValue("email"))
 	if err != nil {
 		writeError(w, err)
@@ -656,6 +753,9 @@ func (s *Server) handleMailGetAutoresponder(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleMailSetAutoresponder(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req struct {
 		Subject string `json:"subject"`
 		Body    string `json:"body"`
@@ -679,6 +779,9 @@ func (s *Server) handleMailSetAutoresponder(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleMailDeleteAutoresponder(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	email := r.PathValue("email")
 	if err := s.mail.DeleteAutoresponder(email); err != nil {
 		writeError(w, err)
@@ -688,6 +791,9 @@ func (s *Server) handleMailDeleteAutoresponder(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleMailDKIMStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	info, err := s.mail.DKIMStatus(r.PathValue("domain"))
 	if err != nil {
 		writeError(w, err)
@@ -697,6 +803,9 @@ func (s *Server) handleMailDKIMStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMailApplyDNS(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMail(w) {
+		return
+	}
 	var req mail.DNSOptions
 	if err := decodeBody(w, r, &req); err != nil {
 		writeError(w, err)

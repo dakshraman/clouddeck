@@ -15,11 +15,25 @@ import (
 // built by internal/mysql from validated identifiers; the API never accepts
 // raw SQL. Mutations are synchronous and audited by the service.
 
+func (s *Server) checkMySQL(w http.ResponseWriter) bool {
+	if s.mysql == nil {
+		writeError(w, apierr.New(http.StatusServiceUnavailable, "mysql_unavailable", "mysql service is not configured"))
+		return false
+	}
+	return true
+}
+
 func (s *Server) handleMySQLStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	writeJSON(w, http.StatusOK, s.mysql.Status())
 }
 
 func (s *Server) handleMySQLListDatabases(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	databases, err := s.mysql.ListDatabases(r.Context())
 	if err != nil {
 		writeError(w, err)
@@ -29,6 +43,9 @@ func (s *Server) handleMySQLListDatabases(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleMySQLCreateDatabase(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -45,6 +62,9 @@ func (s *Server) handleMySQLCreateDatabase(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMySQLDeleteDatabase(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	name, err := s.mysql.DeleteDatabase(r.Context(), r.PathValue("name"))
 	if err != nil {
 		writeError(w, err)
@@ -54,6 +74,9 @@ func (s *Server) handleMySQLDeleteDatabase(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMySQLExportDatabase(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	name := r.PathValue("name")
 	ew := &exportStreamWriter{w: w, name: name}
 	if err := s.mysql.Export(r.Context(), name, ew); err != nil {
@@ -87,6 +110,9 @@ func (e *exportStreamWriter) Write(p []byte) (int, error) {
 }
 
 func (s *Server) handleMySQLImportDatabase(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	name := r.PathValue("name")
 	var reader io.Reader = r.Body
 	defer r.Body.Close()
@@ -130,6 +156,9 @@ func (s *Server) handleMySQLImportDatabase(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMySQLListUsers(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	users, err := s.mysql.ListUsers(r.Context())
 	if err != nil {
 		writeError(w, err)
@@ -139,6 +168,9 @@ func (s *Server) handleMySQLListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMySQLCreateUser(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	var req struct {
 		User     string `json:"user"`
 		Password string `json:"password"`
@@ -157,6 +189,9 @@ func (s *Server) handleMySQLCreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMySQLDeleteUser(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	user, err := s.mysql.DeleteUser(r.Context(), r.PathValue("user"), r.URL.Query().Get("host"))
 	if err != nil {
 		writeError(w, err)
@@ -166,6 +201,9 @@ func (s *Server) handleMySQLDeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMySQLGrant(w http.ResponseWriter, r *http.Request) {
+	if !s.checkMySQL(w) {
+		return
+	}
 	var req struct {
 		User       string `json:"user"`
 		Host       string `json:"host"`

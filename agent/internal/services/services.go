@@ -118,8 +118,8 @@ var specs = []probeSpec{
 		command:      func(cfg config.Config) string { return cfg.PHPFpmRestartCmd },
 		stopCmd:      func(cfg config.Config) string { return cfg.PHPFpmStopCmd },
 		startCmd:     func(cfg config.Config) string { return cfg.PHPFpmStartCmd },
-		matchArgs:    [][]string{{"-x", "php-fpm"}, {"-f", "php-fpm: master"}},
-		versionCmds:  [][]string{{"php-fpm", "-v"}, {"php", "-v"}},
+		matchArgs:    [][]string{{"-x", "php-fpm"}, {"-f", "php-fpm: master"}, {"-f", "php-fpm"}},
+		versionCmds:  [][]string{{"php-fpm", "-v"}, {"php", "-v"}, {"php-fpm8.4", "-v"}, {"php-fpm8.3", "-v"}, {"php-fpm8.2", "-v"}, {"php-fpm8.1", "-v"}},
 		parseVersion: phpVersion,
 	},
 }
@@ -173,11 +173,21 @@ func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
 	if err := runRestart(ctx, name, command); err != nil {
-		// `systemctl restart mysql` fails with "not found" on hosts that only
-		// ship the mariadb unit name; retry once with the alias.
-		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-			if err := runRestart(ctx, name, "systemctl restart mariadb"); err == nil {
-				return probe(ctx, spec), nil
+		if usedDefault {
+			if runtime.GOOS == "darwin" && name == NameMySQL {
+				if err := runRestart(ctx, name, "brew services restart mysql"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+				if err := runRestart(ctx, name, "systemctl restart mariadb"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
+				if err := runRestart(ctx, name, "service "+name+" restart"); err == nil {
+					return probe(ctx, spec), nil
+				}
 			}
 		}
 		return Status{}, err
@@ -212,9 +222,21 @@ func (m *Manager) Stop(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
 	if err := runServiceOp(ctx, "stop", name, command); err != nil {
-		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-			if err := runServiceOp(ctx, "stop", name, "systemctl stop mariadb"); err == nil {
-				return probe(ctx, spec), nil
+		if usedDefault {
+			if runtime.GOOS == "darwin" && name == NameMySQL {
+				if err := runServiceOp(ctx, "stop", name, "brew services stop mysql"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+				if err := runServiceOp(ctx, "stop", name, "systemctl stop mariadb"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
+				if err := runServiceOp(ctx, "stop", name, "service "+name+" stop"); err == nil {
+					return probe(ctx, spec), nil
+				}
 			}
 		}
 		return Status{}, err
@@ -249,9 +271,21 @@ func (m *Manager) Start(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
 	if err := runServiceOp(ctx, "start", name, command); err != nil {
-		if usedDefault && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-			if err := runServiceOp(ctx, "start", name, "systemctl start mariadb"); err == nil {
-				return probe(ctx, spec), nil
+		if usedDefault {
+			if runtime.GOOS == "darwin" && name == NameMySQL {
+				if err := runServiceOp(ctx, "start", name, "brew services start mysql"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
+				if err := runServiceOp(ctx, "start", name, "systemctl start mariadb"); err == nil {
+					return probe(ctx, spec), nil
+				}
+			}
+			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
+				if err := runServiceOp(ctx, "start", name, "service "+name+" start"); err == nil {
+					return probe(ctx, spec), nil
+				}
 			}
 		}
 		return Status{}, err
@@ -462,8 +496,11 @@ func (s probeSpec) version(ctx context.Context) string {
 		if _, err := exec.LookPath(cmdPath); err != nil {
 			for _, candidate := range []string{
 				filepath.Join("/opt/homebrew/bin", cmdPath),
+				filepath.Join("/opt/homebrew/sbin", cmdPath),
 				filepath.Join("/usr/local/bin", cmdPath),
+				filepath.Join("/usr/local/sbin", cmdPath),
 				filepath.Join("/usr/bin", cmdPath),
+				filepath.Join("/usr/sbin", cmdPath),
 			} {
 				if _, statErr := os.Stat(candidate); statErr == nil {
 					cmdPath = candidate

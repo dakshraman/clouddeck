@@ -367,11 +367,18 @@ Clones `user@localhost` (authentication hash + grants) to an extra host so clien
 
 Audit actions: `mysql.remote.add`, `mysql.remote.delete`.
 
-#### Aggregate cron + per-site WAF
+#### Cron Manager & Scheduled Tasks
 
 | Endpoint | Body/query | Success | Errors |
 |---|---|---|---|
-| `GET /v1/cron` | — | `200 {sites:[{domain,jobs:[…]}]}` — every site, sorted by domain | — |
+| `GET /v1/cron` | — | `200 {jobs:[…],sites:[…]}` — scheduled system jobs and per-site cron | — |
+| `POST /v1/cron` | `{"command","schedule"?,preset?,minute?,hour?,day?,month?,weekday?,title?,user?,enabled?}` | `201 {job:{…}}` — writes `/etc/cron.d/clouddeck-cron` | `400 invalid_schedule`, `400 invalid_command` |
+| `GET /v1/cron/{id}` | — | `200 {job:{…}}` | `404 cron_not_found` |
+| `PUT /v1/cron/{id}` | `{command?,schedule?,preset?,enabled?,user?,title?}` | `200 {job:{…}}` — updates and rewrites fragment | `404 cron_not_found` |
+| `DELETE /v1/cron/{id}` | — | `200 {success:true,id}` — removes job and rewrites fragment | `404 cron_not_found` |
+| `POST /v1/cron/{id}/run` | — | `200 {id,command,exit_code,output,duration_ms,success,ran_at}` — manual execution test | `404 cron_not_found` |
+| `GET /v1/cron/history` | `?job_id=&limit=` | `200 {history:[…]}` — recent execution history records | — |
+| `GET /v1/cron/presets` | — | `200 {presets:[…]}` — common presets (every minute, hourly, daily, weekly, etc.) | — |
 | `GET /v1/sites/{domain}/waf` | — | `200 {enabled,engine,note?}` — `engine` is `"nginx-rules"` or `"modsecurity"`, detected from the nginx binary's `-V` modules | `404 site_not_found` |
 | `PUT /v1/sites/{domain}/waf` | `{enabled}` | `200 {enabled,engine,note?}` — re-renders the vhost (apply/test/reload with rollback) | `404 site_not_found`, `409 dry_run` |
 
@@ -445,6 +452,17 @@ Audit actions: `firewall.rule.add`, `firewall.rule.delete`, `firewall.set`.
 | `GET /v1/security/modsec` | — | `200 modsec` | — |
 | `POST /v1/security/unban` | `{jail,ip}` | `200 {ok:true}` | `400 invalid_jail`/`invalid_ip`, `409 fail2ban_unavailable` |
 | `PUT /v1/security/jails/{jail}` | `{enabled}` | `200 {ok:true}` | `400 invalid_jail`, `409 fail2ban_unavailable` |
+
+#### AI coding agents
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/agents` | — | `200 {agents:[{id,name,command,installed,version?,path?,description,capabilities:[…]}]}` | — |
+| `POST /v1/agents/install` | `{agent}` (e.g. `claude-code`, `codex`, `antigravity`, `opencode`) | `202 {task,agent,success:true}` — background install task (`task.type` `agent.install`) | `400 missing_agent`, `404 agent_not_found` |
+| `POST /v1/agents/uninstall` | `{agent}` | `202 {task,agent,success:true}` — background uninstall task (`task.type` `agent.uninstall`) | `400 missing_agent`, `404 agent_not_found` |
+| `DELETE /v1/agents/{id}` | — | `202 {task,agent,success:true}` | `404 agent_not_found` |
+
+Audit actions: `agent.install`, `agent.uninstall`.
 
 `modsec` is `{moduleInstalled,modulePath?,crsInstalled,crsPath?,engine,note?}` where `engine` is `modsecurity` when the nginx module is loaded, otherwise `nginx-rules` (the built-in per-site rules). `fail2ban` is `{installed,active,jails:[{name,banned,total,ips,enabled}],note?}`. `ssh` reports the effective `port`, `permitRootLogin`, `passwordAuthentication` and `pubkeyAuthentication` read from `sshd_config` and its drop-ins. `checks` is the hardening checklist: `[{id,label,status,detail,hint?}]` with `status` `pass`, `warn`, `fail` or `info`.
 
@@ -533,7 +551,11 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET | `/api/sites/{domain}/logs` | `?kind=access\|error&lines=200` |
 | GET/PUT | `/api/backups/schedule` | get / set schedule |
 | POST | `/api/backups/schedule/run` | run now → `202 {started}` |
-| GET | `/api/cron` | aggregate cron passthrough `/v1/cron` |
+| GET/POST | `/api/cron` | list scheduled jobs / create new task passthrough `/v1/cron` |
+| GET/PUT/DELETE | `/api/cron/{id}` | get, update, toggle or delete scheduled task `/v1/cron/{id}` |
+| POST | `/api/cron/{id}/run` | manual run test passthrough `/v1/cron/{id}/run` |
+| GET | `/api/cron/history` | execution history records |
+| GET | `/api/cron/presets` | common schedule presets |
 | GET/POST | `/api/ftp/accounts` | list / `{site,subdir?,name,password}` |
 | DELETE | `/api/ftp/accounts/{name}` | delete account |
 | POST | `/api/ftp/accounts/{name}/password` | `{password}` |

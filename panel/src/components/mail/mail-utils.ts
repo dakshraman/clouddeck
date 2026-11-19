@@ -1,7 +1,7 @@
 // Frozen by docs/api.md section 1.6 — mirror these hints in the UI.
 export const DOMAIN_PATTERN =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
-export const LOCAL_PART_PATTERN = /^[a-z0-9]([a-z0-9._-]{0,62})?$/;
+export const LOCAL_PART_PATTERN = /^[a-z0-9]([a-z0-9._+-]{0,62})?$/;
 export const PASSWORD_MIN_LENGTH = 8;
 export const QUOTA_MAX_MB = 1048576;
 
