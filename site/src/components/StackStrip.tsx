@@ -1,19 +1,20 @@
 export function StackStrip() {
   const stack = [
-    { name: "Nginx 1.26", role: "High-Perf Edge Reverse Proxy" },
+    { name: "8 AI Coding Agents", role: "Claude, Codex, Ollama, Hermes" },
+    { name: "Site Doctor & Auto-Fix", role: "0-100 Score & 1-Click Fix" },
     { name: "Multi-PHP (8.1–8.4)", role: "Coexisting FPM Sockets" },
+    { name: "Visual Cron & php.ini", role: "Crontab Presets & Ext Toggles" },
     { name: "MariaDB 11.4", role: "Native SQL with 1-Click Dumps" },
     { name: "PowerDNS", role: "SQLite Authoritative DNS" },
     { name: "Postfix & Dovecot", role: "Production Mail & RSA DKIM" },
-    { name: "1-Click Panel SSL", role: "IP SANs + Let's Encrypt" },
-    { name: "Next.js 15 & Go", role: "Zero-Root Web Architecture" },
+    { name: "Next.js 16 & Go", role: "<50MB RAM Zero-Root Core" },
   ];
 
   return (
     <div className="border-y border-[#D2ADAC]/40 bg-[#FAF7F5] py-6 sm:py-8">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="text-center text-xs font-semibold tracking-wider text-[#886351] uppercase">
-          Production-Grade Bare Metal Stack • Zero Virtualization Overhead
+          AI-Native Bare Metal Stack • Zero Virtualization Overhead • Under 50MB RAM
         </p>
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
@@ -33,4 +34,3 @@ export function StackStrip() {
     </div>
   );
 }
-

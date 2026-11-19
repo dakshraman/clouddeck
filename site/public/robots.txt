@@ -4,26 +4,44 @@
 User-agent: *
 Allow: /
 
-# Explicit AI Search & Retrieval Crawlers (AEO / GEO citation support)
+# Explicit AI Search & Retrieval Crawlers (AEO / GEO / Agent-Ready citation support)
 User-agent: GPTBot
 Allow: /
 
 User-agent: ChatGPT-User
 Allow: /
 
+User-agent: OAI-SearchBot
+Allow: /
+
 User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
 Allow: /
 
 User-agent: PerplexityBot
 Allow: /
 
+User-agent: Google-Extended
+Allow: /
+
 User-agent: Applebot-Extended
 Allow: /
 
-User-agent: Google-Extended
+User-agent: meta-externalfetcher
+Allow: /
+
+User-agent: meta-webindexer
 Allow: /
 
 User-agent: CCBot
 Allow: /
+
+# Agent & LLM Context References
+# See https://clouddeck.dakshraman.in/llms.txt
+# See https://clouddeck.dakshraman.in/llms-full.txt
+# See https://clouddeck.dakshraman.in/pricing.md
+# See https://clouddeck.dakshraman.in/AGENTS.md
 
 Sitemap: https://clouddeck.dakshraman.in/sitemap.xml

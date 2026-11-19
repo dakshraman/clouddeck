@@ -15,13 +15,18 @@ import {
   HardDrive,
   Key,
   Flame,
-  Radio,
   FileCode,
   Zap,
+  Bot,
+  Stethoscope,
+  Clock,
+  Sliders,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 
 export function BentoGrid() {
-  const [activeCategory, setActiveCategory] = useState<"arch" | "hosting" | "security">("arch");
+  const [activeCategory, setActiveCategory] = useState<"arch" | "ai" | "hosting" | "security">("arch");
 
   return (
     <section id="under-the-hood" className="py-16 sm:py-24">
@@ -29,20 +34,20 @@ export function BentoGrid() {
         {/* Section Header */}
         <div className="text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-[#D2ADAC]/60 bg-white/70 px-3 py-1 text-xs font-semibold text-[#886351]">
-            <span>Deep Dive Architecture</span>
+            <span>Deep Dive Architecture &bull; v0.6.53</span>
           </div>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-[#14242B] sm:text-5xl">
-            Engineered for <span className="text-[#235361]">performance</span>, not bloat.
+            Engineered for <span className="text-[#235361]">performance &amp; autonomy</span>, not bloat.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base text-[#566E76] sm:text-lg">
-            A radical departure from 1990s legacy control panels. Explore the modern foundations
-            powering CloudDeck under the hood.
+            A radical departure from 1990s legacy control panels. Explore the modern foundations,
+            autonomous AI agents, and bare-metal runtime engine powering CloudDeck.
           </p>
         </div>
 
         {/* Category Pill Switcher */}
         <div className="mt-8 flex justify-center">
-          <div className="inline-flex rounded-full border border-[#D2ADAC]/60 bg-white/80 p-1 shadow-xs">
+          <div className="inline-flex flex-wrap justify-center rounded-full border border-[#D2ADAC]/60 bg-white/80 p-1 shadow-xs">
             <button
               type="button"
               onClick={() => setActiveCategory("arch")}
@@ -53,6 +58,19 @@ export function BentoGrid() {
               }`}
             >
               Architecture &amp; Core
+            </button>
+            <button
+              type="button"
+              id="ai-agents"
+              onClick={() => setActiveCategory("ai")}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
+                activeCategory === "ai"
+                  ? "bg-[#235361] text-[#FAAA93] shadow-sm"
+                  : "text-[#566E76] hover:text-[#14242B]"
+              }`}
+            >
+              <Bot className="h-3.5 w-3.5 text-[#FAAA93]" />
+              <span>AI Agents &amp; Autonomy (NEW)</span>
             </button>
             <button
               type="button"
@@ -93,7 +111,7 @@ export function BentoGrid() {
                   Zero-Root Web Layer
                 </h3>
                 <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
-                  The Next.js 15 panel runs as an unprivileged user (<code className="rounded bg-[#FAF7F5] px-1 py-0.5 text-xs text-[#235361]">clouddeck</code>).
+                  The Next.js 16 panel runs as an unprivileged user (<code className="rounded bg-[#FAF7F5] px-1 py-0.5 text-xs text-[#235361]">clouddeck</code>).
                   A privileged Go daemon listens strictly on <code className="rounded bg-[#FAF7F5] px-1 py-0.5 text-xs text-[#235361]">127.0.0.1:9090</code>.
                   No browser request ever executes shell strings (<code className="rounded bg-[#FAF7F5] px-1 py-0.5 text-xs text-[#886351]">no sh -c</code>).
                 </p>
@@ -189,7 +207,115 @@ export function BentoGrid() {
             </div>
           )}
 
-          {/* Category 2: Hosting & Runtimes */}
+          {/* Category 2: AI Agents & Autonomy (NEW in v0.6.53) */}
+          {activeCategory === "ai" && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Card 1: 8 Native AI Coding Agents */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FAAA93] text-[#14242B]">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  8 Native AI Coding Agents
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  Inspect, manage, and launch 8 developer AI agents: Claude Code, OpenAI Codex, Google Antigravity,
+                  OpenCode, Aider, Ollama (local offline models), Goose, and Hermes Agent directly in your browser terminal.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#FAAA93]/20 px-2.5 py-0.5 text-xs font-bold text-[#14242B]">
+                  Claude &bull; Codex &bull; Ollama &bull; Hermes
+                </div>
+              </div>
+
+              {/* Card 2: Autonomous Site Doctor & Auto-Fix */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38BD87] text-white">
+                  <Stethoscope className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  Site Doctor &amp; 1-Click Auto-Fix
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  Real-time 0–100 health scoring across Nginx configs, SSL expiration, DNS propagation,
+                  database connectivity, and file permissions. Fix detected defects with a single click.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#38BD87]/15 px-2.5 py-0.5 text-xs font-bold text-[#38BD87]">
+                  0-100 Score &bull; Autonomous Fix
+                </div>
+              </div>
+
+              {/* Card 3: Encrypted AI Key Vault */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#235361] text-[#74B8CC]">
+                  <Key className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  AI Key Vault &bull; Auto-Injection
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  Store credentials for Anthropic, OpenAI, DeepSeek, Gemini, and Ollama in a protected
+                  vault (<code className="rounded bg-[#FAF7F5] px-1 py-0.5 text-xs text-[#235361]">mode 0600</code>).
+                  Keys are automatically exported into shell sessions upon terminal launch.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#74B8CC]/15 px-2.5 py-0.5 text-xs font-semibold text-[#235361]">
+                  Masked secrets &bull; Terminal injection
+                </div>
+              </div>
+
+              {/* Card 4: Server AI Chat Drawer */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#6494AC] text-white">
+                  <MessageSquare className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  Global Server AI Chat Drawer
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  Floating chat assistant available anywhere in the panel with live server context
+                  (CPU, RAM, sites, systemd units, logs) and multi-tier failover across Anthropic, OpenAI, DeepSeek, and Ollama.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#6494AC]/15 px-2.5 py-0.5 text-xs font-semibold text-[#235361]">
+                  Context-aware &bull; Multi-provider failover
+                </div>
+              </div>
+
+              {/* Card 5: Visual Cron Job Manager */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#886351] text-[#FAAA93]">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  Visual Cron Job Scheduler
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  cPanel-style scheduled tasks manager with visual recurrence selector (every minute, hourly,
+                  daily, weekly, monthly, or crontab syntax). Features 1-click &quot;Run Now&quot; testing and stdout logs.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#886351]/15 px-2.5 py-0.5 text-xs font-semibold text-[#886351]">
+                  Visual presets &bull; Run-Now testing
+                </div>
+              </div>
+
+              {/* Card 6: PHP Extensions & Visual php.ini */}
+              <div className="uni-card p-6 sm:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#74B8CC] text-[#235361]">
+                  <Sliders className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-[#14242B]">
+                  PHP Extensions &amp; php.ini Editor
+                </h3>
+                <p className="mt-2 text-sm text-[#566E76] leading-relaxed">
+                  1-click extension toggling and installation across all coexisting PHP versions (8.1, 8.2, 8.3, 8.4)
+                  for redis, imagick, opcache, curl, and intl, with visual tuning of memory limits and execution times.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#74B8CC]/15 px-2.5 py-0.5 text-xs font-semibold text-[#235361]">
+                  1-Click toggles &bull; Visual memory tuning
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Category 3: Hosting & Runtimes */}
           {activeCategory === "hosting" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* Card 1: Multi-PHP */}
@@ -296,7 +422,7 @@ export function BentoGrid() {
             </div>
           )}
 
-          {/* Category 3: Data, Backups & Security */}
+          {/* Category 4: Data, Backups & Security */}
           {activeCategory === "security" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* Card 1: Dual Mode Zip Backups */}
@@ -407,4 +533,3 @@ export function BentoGrid() {
     </section>
   );
 }
-

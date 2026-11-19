@@ -25,11 +25,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://clouddeck.dakshraman.in"),
   title: {
-    default: "CloudDeck — Modern, Blazing-Fast cPanel Alternative",
+    default: "CloudDeck — Modern, AI-Native cPanel Alternative (<50MB RAM, 8 AI Agents, Zero-Root)",
     template: "%s | CloudDeck",
   },
   description:
-    "Websites, multi-PHP (8.1–8.4), polyglot app runtimes (Node.js, Python, Go, Ruby), MariaDB, Postfix/Dovecot email, and PowerDNS — all from one elegant deck consuming under 50MB idle RAM with zero root web processes.",
+    "Open-source Linux hosting deck and modern cPanel alternative. 8 native AI coding agents (Claude Code, Codex, Ollama, Hermes), autonomous Site Doctor auto-fix, visual Cron manager, PHP extensions & visual php.ini, multi-PHP (8.1–8.4), MariaDB, Postfix/Dovecot email, and PowerDNS in <50MB RAM with zero root web processes.",
   applicationName: "CloudDeck",
   authors: [{ name: "Daksh Raman", url: "https://github.com/dakshraman" }],
   creator: "Daksh Raman",
@@ -37,6 +37,11 @@ export const metadata: Metadata = {
   category: "DeveloperApplication",
   keywords: [
     "cPanel alternative",
+    "AI server control panel",
+    "AI coding agents hosting",
+    "Claude Code control panel",
+    "Ollama local LLM server",
+    "autonomous site doctor auto fix",
     "Linux control panel",
     "open source web hosting panel",
     "free cPanel alternative",
@@ -46,6 +51,8 @@ export const metadata: Metadata = {
     "Next.js web panel",
     "PowerDNS manager",
     "multi-PHP control panel",
+    "visual cron job manager",
+    "PHP extensions manager",
     "aaPanel alternative",
     "CyberPanel alternative",
     "Coolify alternative",
@@ -59,6 +66,10 @@ export const metadata: Metadata = {
       "text/plain": [
         { url: "/llms.txt", title: "CloudDeck LLM Context" },
         { url: "/llms-full.txt", title: "CloudDeck Full LLM Documentation" },
+      ],
+      "text/markdown": [
+        { url: "/pricing.md", title: "CloudDeck Pricing & Cost Analysis" },
+        { url: "/AGENTS.md", title: "CloudDeck AI Agent Integration Guide" },
       ],
     },
   },
@@ -74,9 +85,9 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "CloudDeck — Modern, Blazing-Fast cPanel Alternative",
+    title: "CloudDeck — Modern, AI-Native cPanel Alternative (<50MB RAM, 8 AI Agents, Zero-Root)",
     description:
-      "Websites, multi-PHP (8.1–8.4), polyglot app runtimes, MariaDB, Postfix/Dovecot email, and PowerDNS in <50MB RAM with zero root web processes.",
+      "8 native AI coding agents (Claude Code, Codex, Ollama, Hermes), autonomous Site Doctor auto-fix, visual Cron manager, PHP extensions, multi-PHP (8.1–8.4), MariaDB, and PowerDNS in <50MB RAM.",
     url: "https://clouddeck.dakshraman.in",
     siteName: "CloudDeck",
     images: [
@@ -84,7 +95,7 @@ export const metadata: Metadata = {
         url: "/assets/og.png",
         width: 1200,
         height: 630,
-        alt: "CloudDeck Modern Hosting Control Panel",
+        alt: "CloudDeck AI-Native Modern Hosting Control Panel",
       },
     ],
     locale: "en_US",
@@ -92,9 +103,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CloudDeck — Modern, Blazing-Fast cPanel Alternative",
+    title: "CloudDeck — Modern, AI-Native cPanel Alternative",
     description:
-      "Modern hosting deck consuming under 50MB idle RAM with zero root web processes.",
+      "Modern hosting deck with 8 AI coding agents, autonomous Site Doctor, Cron manager, and multi-PHP consuming under 50MB idle RAM with zero root web processes.",
     images: ["/assets/og.png"],
     creator: "@dakshraman",
   },
@@ -130,6 +141,18 @@ export default function RootLayout({
           type="text/plain"
           href="/llms-full.txt"
           title="Full LLM Documentation"
+        />
+        <link
+          rel="alternate"
+          type="text/markdown"
+          href="/pricing.md"
+          title="CloudDeck Pricing"
+        />
+        <link
+          rel="alternate"
+          type="text/markdown"
+          href="/AGENTS.md"
+          title="CloudDeck AI Agent Guide"
         />
       </head>
       <body className="min-h-screen bg-[#FAF7F5] font-sans text-[#14242B] antialiased selection:bg-[#74B8CC]/30 selection:text-[#14242B]">

@@ -1,13 +1,4 @@
 export function Footer() {
-  const palette = [
-    { name: "Sky Teal", hex: "#74B8CC" },
-    { name: "Marine Teal", hex: "#235361" },
-    { name: "Peach Accent", hex: "#FAAA93" },
-    { name: "Steel Teal", hex: "#6494AC" },
-    { name: "Warm Chestnut", hex: "#886351" },
-    { name: "Soft Mauve", hex: "#D2ADAC" },
-  ];
-
   return (
     <footer className="border-t border-[#D2ADAC]/40 bg-[#F4EFEB] py-12 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -29,10 +20,13 @@ export function Footer() {
                 </svg>
               </div>
               <span className="text-base font-bold text-[#14242B]">CloudDeck</span>
+              <span className="rounded-full bg-[#FAAA93]/20 px-2 py-0.5 text-[10px] font-bold text-[#886351]">
+                v0.6.53
+              </span>
             </div>
             <p className="text-xs text-[#566E76] leading-relaxed">
               The modern, blazing-fast, open-source Linux hosting control panel and local development suite.
-              Consumes under 50MB idle RAM with zero root web processes.
+              Features 8 native AI coding agents, autonomous Site Doctor, Cron manager, and multi-PHP in &lt;50MB RAM.
             </p>
           </div>
 
@@ -41,6 +35,7 @@ export function Footer() {
             <h4 className="text-xs font-bold text-[#14242B] uppercase tracking-wider">Product</h4>
             <ul className="mt-3 space-y-2 text-xs text-[#566E76]">
               <li><a href="#features" className="hover:text-[#235361] transition">Core Features</a></li>
+              <li><a href="#ai-agents" className="hover:text-[#235361] transition">AI Agents &amp; Doctor</a></li>
               <li><a href="#under-the-hood" className="hover:text-[#235361] transition">Under the Hood</a></li>
               <li><a href="#comparison" className="hover:text-[#235361] transition">cPanel Comparison Matrix</a></li>
               <li><a href="#local-dev" className="hover:text-[#235361] transition">Local Dev Suite (WSL / Mac)</a></li>
@@ -105,10 +100,46 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Open Source */}
+          {/* AI & Open Source */}
           <div>
-            <h4 className="text-xs font-bold text-[#14242B] uppercase tracking-wider">Open Source</h4>
+            <h4 className="text-xs font-bold text-[#14242B] uppercase tracking-wider">AI &amp; Machine Context</h4>
             <ul className="mt-3 space-y-2 text-xs text-[#566E76]">
+              <li>
+                <a
+                  href="/llms.txt"
+                  target="_blank"
+                  className="hover:text-[#235361] transition font-semibold text-[#235361]"
+                >
+                  llms.txt Context
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/llms-full.txt"
+                  target="_blank"
+                  className="hover:text-[#235361] transition"
+                >
+                  llms-full.txt Deep Dive
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/pricing.md"
+                  target="_blank"
+                  className="hover:text-[#235361] transition"
+                >
+                  pricing.md ($0 Free FOSS)
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/AGENTS.md"
+                  target="_blank"
+                  className="hover:text-[#235361] transition"
+                >
+                  AGENTS.md Machine Guide
+                </a>
+              </li>
               <li>
                 <a
                   href="https://github.com/dakshraman/clouddeck"
@@ -116,36 +147,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-[#235361] transition"
                 >
-                  GitHub Repository
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/dakshraman/clouddeck/releases"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#235361] transition"
-                >
-                  Releases (Latest Stable)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/dakshraman/clouddeck/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#235361] transition"
-                >
-                  Issue Tracker
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/llms.txt"
-                  target="_blank"
-                  className="hover:text-[#235361] transition"
-                >
-                  llms.txt Specification
+                  GitHub Repository (v0.6.53)
                 </a>
               </li>
             </ul>
@@ -154,11 +156,10 @@ export function Footer() {
 
         {/* Bottom Strip */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[#D2ADAC]/40 pt-6 text-center text-xs text-[#8B9FA6] sm:flex-row sm:text-left">
-          <p>© 2026 Raman Daksh. Released under Open Source License.</p>
-          <p>Crafted with Next.js 15, React 19, Tailwind CSS &amp; Go stdlib.</p>
+          <p>© 2026 Raman Daksh. Released under Open Source MIT License.</p>
+          <p>Built with Next.js 16, React 19, Tailwind CSS &amp; Go stdlib &bull; v0.6.53</p>
         </div>
       </div>
     </footer>
   );
 }
-

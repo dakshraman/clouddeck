@@ -1,0 +1,196 @@
+# CloudDeck — Complete System & Architectural Specification
+
+> CloudDeck is the modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative with native AI coding agent orchestration. Manage websites, multi-PHP (8.1–8.4), application runtimes (Node.js, Python, Go, Ruby), MariaDB, phpMyAdmin, production email, PowerDNS, 1-click panel SSL, visual cron tasks, and backups on your own VPS or local dev workstation — consuming under 50MB of idle RAM with zero root web processes.
+
+- Website: https://clouddeck.dakshraman.in/
+- Pricing & Editions: https://clouddeck.dakshraman.in/pricing.md
+- Machine & Agent Guide: https://clouddeck.dakshraman.in/AGENTS.md
+- GitHub Repository: https://github.com/dakshraman/clouddeck
+- License: Open Source (MIT / OSI-approved)
+- Latest Stable Release: 0.6.53
+
+---
+
+## 1. System Architecture & Zero-Root Security Model
+
+Traditional web control panels (cPanel, aaPanel, CyberPanel) run web servers directly as `root` or use monolithic Perl/Python daemons that accept raw user input into shell strings (`sh -c`). This architectural flaw leads to catastrophic Remote Code Execution (RCE) vulnerabilities.
+
+CloudDeck employs a strict two-tier privilege separation architecture:
+
+```
+[ Browser / Operator ]
+        │ HTTPS (Port 2083) / HTTP (Port 2082)
+        ▼
+[ CloudDeck Panel ] (Runs as unprivileged system user: 'clouddeck')
+  • Next.js 16 App Router / React 19 Server Components
+  • Consumes ~30MB idle RAM
+  • Enforces RFC 6238 TOTP 2FA & session auth
+  • Global AI Chat Drawer & Site Doctor Interfaces
+  • Communicates with Agent over localhost ONLY
+        │ HTTP with X-CloudDeck-Agent-Token header
+        │ Bound strictly to 127.0.0.1:9090 (never exposed externally)
+        ▼
+[ CloudDeck Agent ] (Privileged Go Daemon: 'root')
+  • Compiled static Go binary (zero dynamic dependencies, Go stdlib only)
+  • Consumes ~12MB idle RAM
+  • Typed Argument Arrays: executes commands via explicit argument slices (exec.Command("nginx", "-t"))
+  • Shell interpolation is architecturally impossible (no sh -c)
+  • AI Key Vault: 0600 encrypted file, masked secret GET returns, terminal env injection
+  • Site Doctor diagnostic engine with autonomous 1-click remediation
+  • Append-only tamper-resistant JSONL audit log (/var/lib/clouddeck/audit.jsonl)
+```
+
+### Memory Footprint Comparison
+- cPanel / WHM: ~1,500 MB – 2,000 MB idle RAM (1.5GB–2GB)
+- aaPanel: ~400 MB – 800 MB idle RAM
+- CyberPanel: ~500 MB – 1,000 MB idle RAM
+- Coolify (Docker PaaS): ~500 MB – 1,200 MB idle RAM
+- **CloudDeck: < 50 MB total idle RAM** (Agent + Panel combined; runs effortlessly on a $3.50/mo 1GB VPS)
+
+---
+
+## 2. Core Capabilities & Feature Modules
+
+### AI Coding Agents Ecosystem (v0.6.53)
+- Supported Agents: Claude Code, OpenAI Codex, Google Antigravity, OpenCode, Aider, Ollama (offline local models), Goose, and Hermes Agent.
+- Integrated Capabilities: Binary detection, 1-click installation/updates, web terminal launch with active agent session, and status inspection.
+- Offline Local LLMs: Ollama integration allows downloading, inspecting, and running models (Llama 3, DeepSeek-Coder, Qwen 2.5) locally without external API dependencies.
+
+### Autonomous Site Doctor & Auto-Fix
+- Real-Time Health Scoring: Generates a 0–100 health score for any hosted domain.
+- Diagnostic Suite:
+  - Nginx vhost configuration syntax verification (`nginx -t`).
+  - SSL certificate validity and expiration tracking.
+  - DNS resolution checks (A, AAAA, CNAME).
+  - Database connectivity and privilege grants.
+  - Webroot ownership and octal permissions (`chown -R www-data:www-data`).
+  - PHP-FPM socket accessibility and error log analysis.
+- 1-Click Autonomous Auto-Fix: Resolves detected issues with one click (rebuilds corrupted Nginx configs, restores file permissions, re-requests Let's Encrypt certificates).
+
+### Encrypted AI Key Vault
+- Secure Storage: Stored at `/etc/clouddeck/vault.json` with strict `0600` Linux permissions owned by `root`.
+- API Providers: Anthropic, OpenAI, DeepSeek, Google Gemini, Ollama.
+- Security Guarantees: API keys are masked in all HTTP GET responses.
+- Terminal Injection: Whenever an operator opens the web terminal, stored API keys are automatically exported into the shell environment (`export ANTHROPIC_API_KEY=...`), allowing coding agents to work immediately with zero manual setup.
+
+### Global Server AI Chat Assistant
+- Ubiquitous Floating Drawer: Accessible from any view in the CloudDeck dashboard.
+- Context-Aware: Injects real-time server telemetry (CPU, RAM, disk, active sites, running services, error logs) into the system prompt.
+- Multi-Tier Provider Failover: Queries Anthropic Claude 3.5 Sonnet -> OpenAI GPT-4o -> DeepSeek V3 -> Local Ollama -> Heuristic local diagnostic analyzer.
+
+### Visual Cron Job Manager
+- Intuitive Interface: Visual recurrence picker (Every Minute, Hourly, Daily, Weekly, Monthly, or Custom 5-field Crontab syntax).
+- Execution Testing: 1-click "Run Now" to test commands immediately and inspect output.
+- Management: Enable/disable toggles, execution logs, and automated email alerts on failure.
+
+### PHP Extensions & Visual php.ini Editor
+- 1-Click Extension Management: Toggle and install extensions (redis, opcache, imagick, curl, mbstring, intl, pdo_mysql, zip, etc.) across all coexisting PHP versions (8.1, 8.2, 8.3, 8.4).
+- Visual php.ini Tuning: Real-time adjustment of `memory_limit`, `upload_max_filesize`, `post_max_size`, and `max_execution_time` with automatic PHP-FPM service reload.
+
+### Websites & Virtual Hosts
+- Web Server: Native high-performance Nginx with HTTP/2 and TLS 1.3.
+- Webroot Structure: `/www/wwwroot/<domain>`.
+- Multi-PHP Coexistence: Isolated PHP-FPM Unix domain sockets for coexisting PHP versions (8.1, 8.2, 8.3, 8.4). Sites can run different PHP versions simultaneously without conflict.
+- Features: Subdomains, automatic reverse proxies, custom Nginx configurations, rewrite rules (WordPress, Laravel, Next.js, standard SPA), CIDR IP blocking, and real-time access/error log streaming.
+
+### Polyglot Application Runtimes
+- First-class native hosting for Node.js, Python (WSGI/ASGI), Go, and Ruby applications.
+- Automatic internal port allocation and Nginx reverse proxy routing.
+- Systemd process supervision with auto-restart on crash.
+- Environment variable management and real-time streaming output logs.
+- Docker container version management and service inspection.
+
+### Database Management & phpMyAdmin
+- Engine: Native MariaDB / MySQL.
+- phpMyAdmin Single-Sign-On (SSO): 1-click deep-link into selected database schemas. System schemas (`information_schema`, `mysql`, `performance_schema`, `sys`) are hidden; operators cannot accidentally damage root schemas.
+- Backup & Restore: 1-click SQL export to `.sql` or compressed `.sql.gz` files and instant in-place restore.
+
+### Production Email Server (LEMP Mail)
+- Stack: Postfix (SMTP / submission) + Dovecot (IMAP / POP3) + OpenDKIM.
+- Features: Unlimited mailboxes, custom mailbox storage quotas, email forwarders, autoresponders.
+- Security: Passwords hashed using SHA-512 crypt. RSA-2048 bit DKIM keys generated per domain.
+- 1-Click DNS Sync: Automatically publishes SPF, DMARC, DKIM, and MX records into PowerDNS with zero manual record copying.
+
+### Authoritative DNS (PowerDNS)
+- Engine: Native PowerDNS (`pdns-server`) with SQLite backend (`gsqlite3`).
+- Supported Record Types: A, AAAA, CNAME, MX, TXT, NS, SRV, CAA.
+- Fully automated zone management via Go agent calling `pdnsutil`. Fallback managed SQLite configuration ensures immediate operation even in restricted environments.
+
+### 1-Click Panel SSL
+- Automatic Nginx reverse proxy configuration on port 2083.
+- Self-Signed Certificates with IP SANs: Allows HTTPS access via raw server IP addresses without browser security blocks.
+- Let's Encrypt TLS: Automated issuance and 90-day renewal for custom hostnames.
+- Automated HTTP (2082) -> HTTPS (2083) redirection.
+
+### Security, Firewall & Two-Factor Authentication
+- Two-Factor Authentication (2FA): RFC 6238 TOTP authenticator app support (Google Authenticator, Authy, 1Password) with dynamic SVG QR code generation and 8 single-use cryptographic recovery codes.
+- Host Firewall: UFW (Debian/Ubuntu) and firewalld (RHEL/CentOS) management from the web UI.
+- Fail2ban: Real-time jail monitoring and 1-click IP unbanning.
+- WAF: ModSecurity with OWASP Core Rule Set (CRS) inspection and per-site toggles.
+
+### Dual-Mode .zip Backups & Off-Site Storage
+- Creates standard cross-platform `.zip` archives containing website files and MariaDB SQL dumps.
+- Cold Storage: Download directly to PC or keep on server for 1-click in-place restoration.
+- Off-Site Synchronization: Native background sync to Google Drive, Dropbox, MEGA (via rclone), and Telegram notification channels.
+
+### Web Terminal
+- Full-featured browser terminal powered by xterm.js and WebSocket PTY sessions.
+- Automatically synchronizes sudoers privileges for the `clouddeck` system user so administrative tasks can be performed directly from the browser.
+- Automatically injects decrypted API keys from the AI Key Vault.
+
+---
+
+## 3. Competitive Comparison
+
+| Feature | CloudDeck | cPanel / WHM | aaPanel | Coolify |
+| :--- | :--- | :--- | :--- | :--- |
+| **Monthly Cost** | **$0 Free & Open Source** | $30–$60+/month ($360–$720+/yr) | Freemium ($15–$25/mo Pro) | $0 self-hosted ($5/mo cloud) |
+| **Idle Memory** | **< 50 MB RAM** | 1,500 MB – 2,000 MB | 400 MB – 800 MB | 500 MB – 1,000 MB |
+| **Security Architecture**| **Zero-root unprivileged UI + typed Go agent** | Root Perl/CGI monolithic server | Web app runs as root (frequent CVEs) | Container PaaS (root docker.sock) |
+| **AI Coding Agents** | **8 Native Agents (Claude Code, Codex, Ollama, etc.)** | None | None | None |
+| **Autonomous Site Doctor**| **Built-in Auto-Fix (0-100 score)** | None (Manual logs) | None | None |
+| **AI Key Vault** | **Encrypted 0600 + Terminal Auto-Injection** | None | None | None |
+| **Cron Job Scheduler** | **Visual Crontab Manager + Run-Now** | Basic Cron tab | Shell crontab | Docker cron |
+| **PHP Extensions & Tuning** | **1-Click Toggles + Visual php.ini** | EasyApache (slow compile) | Extension list | Dockerfile edits |
+| **Multi-PHP** | **8.1, 8.2, 8.3, 8.4 coexistence** | MultiPHP (heavy Apache/LiteSpeed) | Multi-PHP via plugins | Containerized Docker PHP only |
+| **Email Server** | **Built-in Postfix + Dovecot + DKIM** | Exim + Dovecot (built-in) | Paid plugin | None (requires 3rd-party SMTP) |
+| **Authoritative DNS** | **PowerDNS (SQLite) with 1-click mail sync** | BIND / PowerDNS | BIND plugin | None |
+| **Local Dev Suite** | **Native Windows WSL2 & macOS support** | Linux server only | Linux only | Docker desktop required |
+
+---
+
+## 4. Installation & Deployment
+
+### Quick Install on Linux (Ubuntu / Debian)
+```bash
+curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash
+```
+Supported Distributions:
+- Ubuntu 20.04, 22.04, 24.04 LTS (x86_64, arm64)
+- Debian 11, 12 (x86_64, arm64)
+
+### Local Dev Suite for Windows 10/11 (WSL 2)
+```powershell
+irm https://clouddeck.dakshraman.in/install.ps1 | iex
+```
+
+### Local Dev Suite for macOS (Apple Silicon & Intel)
+```bash
+curl -fsSL https://clouddeck.dakshraman.in/install-macos.sh | bash
+```
+
+---
+
+## 5. Command-Line Interface (CLI)
+
+```bash
+clouddeck status                    # Check agent, panel, and LEMP services status
+sudo clouddeck restart              # Gracefully restart panel and agent daemons
+clouddeck logs panel -f             # Stream live Next.js panel logs
+clouddeck logs agent -f             # Stream live Go agent logs
+sudo clouddeck doctor [domain]      # Run Site Doctor diagnostics
+sudo clouddeck user add <username>  # Add a new administrative user
+sudo clouddeck user passwd <user>   # Reset password and invalidate existing sessions
+sudo clouddeck update               # Upgrade to the latest stable release
+sudo clouddeck uninstall --purge    # Cleanly remove CloudDeck and associated configs
+```

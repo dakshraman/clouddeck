@@ -10,18 +10,19 @@ import {
   Server,
   Layers,
   ArrowRight,
-  ExternalLink,
   Lock,
   Cpu,
-  HardDrive,
-  Database,
   Globe,
-  Radio,
+  Bot,
+  Stethoscope,
+  Key,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 
 export function Hero() {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"deck" | "php" | "apps" | "term">("deck");
+  const [activeTab, setActiveTab] = useState<"deck" | "php" | "apps" | "ai" | "term">("deck");
 
   const installCommand = "curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash";
 
@@ -55,10 +56,10 @@ export function Hero() {
             className="group flex items-center gap-2 rounded-full border border-[#D2ADAC]/60 bg-white/80 px-3.5 py-1 text-xs font-medium text-[#235361] shadow-sm backdrop-blur transition hover:border-[#6494AC] hover:bg-white"
           >
             <span className="flex h-2 w-2 rounded-full bg-[#38BD87] ring-4 ring-[#38BD87]/20" />
-            <span className="font-semibold text-[#14242B]">LATEST STABLE RELEASE</span>
+            <span className="font-semibold text-[#14242B]">v0.6.53 STABLE</span>
             <span className="text-[#886351]">•</span>
             <span className="text-[#566E76] group-hover:text-[#235361]">
-              The Modern cPanel Alternative
+              AI-Native cPanel Replacement &bull; 8 AI Agents
             </span>
             <ArrowRight className="h-3 w-3 text-[#6494AC] transition group-hover:translate-x-0.5" />
           </a>
@@ -72,8 +73,8 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-base text-[#566E76] sm:text-xl sm:leading-relaxed">
-            Websites, multi-PHP (8.1–8.4), polyglot app runtimes, MariaDB, Postfix/Dovecot email,
-            and PowerDNS — all from one elegant deck consuming{" "}
+            8 native AI coding agents (Claude, Codex, Ollama), autonomous Site Doctor auto-fix,
+            visual Cron manager, multi-PHP (8.1–8.4), MariaDB, and PowerDNS — all from one elegant deck consuming{" "}
             <strong className="font-semibold text-[#14242B]">under 50MB of idle RAM</strong>{" "}
             without ever exposing a root process to the browser.
           </p>
@@ -87,6 +88,17 @@ export function Hero() {
           >
             <span>Quick Install (~4 mins)</span>
             <ArrowRight className="h-4 w-4" />
+          </a>
+
+          <a
+            href="#ai-agents"
+            className="flex items-center gap-2 rounded-full border border-[#D2ADAC]/80 bg-white/90 px-6 py-3 text-sm font-semibold text-[#235361] shadow-sm transition hover:border-[#6494AC] hover:bg-white hover:shadow-md"
+          >
+            <Bot className="h-4 w-4 text-[#74B8CC]" />
+            <span>AI Agents &amp; Doctor</span>
+            <span className="rounded-full bg-[#74B8CC]/20 px-2 py-0.5 text-[11px] font-bold text-[#235361]">
+              NEW v0.6.53
+            </span>
           </a>
 
           <a
@@ -148,6 +160,9 @@ export function Hero() {
                 <span className="h-1.5 w-1.5 rounded-full bg-[#38BD87] animate-pulse" />
                 <span className="font-semibold">42 MB Idle RAM</span>
               </div>
+              <div className="hidden rounded-full bg-[#FAAA93]/15 px-2.5 py-0.5 font-medium text-[#FAAA93] sm:inline-block">
+                8 AI Agents Ready
+              </div>
               <div className="hidden rounded-full bg-[#74B8CC]/15 px-2.5 py-0.5 font-medium text-[#74B8CC] sm:inline-block">
                 Zero-Root Active
               </div>
@@ -166,6 +181,17 @@ export function Hero() {
             >
               <Server className="h-3.5 w-3.5" />
               <span>Overview Deck</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai")}
+              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${activeTab === "ai"
+                ? "border-[#FAAA93] text-[#FAAA93]"
+                : "border-transparent text-[#9BB2BA] hover:text-white"
+                }`}
+            >
+              <Bot className="h-3.5 w-3.5 text-[#FAAA93]" />
+              <span>AI Agents &amp; Doctor</span>
             </button>
             <button
               type="button"
@@ -232,12 +258,12 @@ export function Hero() {
 
                   <div className="rounded-xl border border-white/10 bg-[#182D35]/50 p-4">
                     <div className="flex items-center justify-between text-xs text-[#9BB2BA]">
-                      <span>Security &amp; SSL</span>
-                      <Shield className="h-4 w-4 text-[#38BD87]" />
+                      <span>Autonomous Doctor</span>
+                      <Stethoscope className="h-4 w-4 text-[#38BD87]" />
                     </div>
-                    <div className="mt-2 text-2xl font-bold text-white">100% Secured</div>
-                    <div className="mt-1 text-xs text-[#9BB2BA]">
-                      Auto Let&apos;s Encrypt &amp; Panel SSL
+                    <div className="mt-2 text-2xl font-bold text-white">98 / 100</div>
+                    <div className="mt-1 text-xs text-[#38BD87]">
+                      Site Health &bull; 0 Defects
                     </div>
                   </div>
                 </div>
@@ -269,7 +295,7 @@ export function Hero() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="rounded bg-[#886351]/40 px-2 py-0.5 text-[11px] font-medium text-[#FAAA93]">
-                          Node.js (Next.js)
+                          Node.js (Next.js 16)
                         </span>
                         <span className="rounded bg-[#38BD87]/15 px-2 py-0.5 text-[11px] text-[#38BD87]">
                           active
@@ -281,15 +307,118 @@ export function Hero() {
               </div>
             )}
 
+            {activeTab === "ai" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* Site Doctor Diagnostic Preview */}
+                  <div className="rounded-xl border border-white/10 bg-[#0C171C] p-4 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-[#FAAA93]">
+                        <Stethoscope className="h-4 w-4" />
+                        <span>Autonomous Site Doctor</span>
+                      </div>
+                      <span className="rounded-full bg-[#38BD87]/15 px-2.5 py-0.5 font-bold text-[#38BD87]">
+                        Score: 98/100
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5">
+                        <span className="text-white">Nginx Vhost Syntax</span>
+                        <span className="text-[#38BD87] font-semibold">PASS (nginx -t ok)</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5">
+                        <span className="text-white">TLS/SSL Expiry</span>
+                        <span className="text-[#38BD87] font-semibold">Valid (78 days)</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5">
+                        <span className="text-white">Webroot Permissions</span>
+                        <span className="text-[#38BD87] font-semibold">www-data:www-data 0755</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[11px] text-[#9BB2BA]">
+                      <span>Auto-Remediation: Ready</span>
+                      <span className="text-[#74B8CC] font-bold">1-Click Fix Active</span>
+                    </div>
+                  </div>
+
+                  {/* AI Key Vault & Terminal Injection */}
+                  <div className="rounded-xl border border-white/10 bg-[#0C171C] p-4 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-[#74B8CC]">
+                        <Key className="h-4 w-4" />
+                        <span>AI Key Vault &bull; Mode 0600</span>
+                      </div>
+                      <span className="rounded-full bg-[#74B8CC]/15 px-2 py-0.5 font-mono text-[10px] text-[#74B8CC]">
+                        Auto-Injected
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5 font-mono">
+                        <span className="text-white">ANTHROPIC_API_KEY</span>
+                        <span className="text-[#9BB2BA]">sk-ant-••••••••••••</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5 font-mono">
+                        <span className="text-white">OPENAI_API_KEY</span>
+                        <span className="text-[#9BB2BA]">sk-proj-••••••••••••</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-[#182D35] px-2.5 py-1.5 font-mono">
+                        <span className="text-white">OLLAMA_HOST</span>
+                        <span className="text-[#38BD87]">http://127.0.0.1:11434</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 border-t border-white/10 pt-2 text-[11px] text-[#9BB2BA]">
+                      Masked secrets &bull; Exported into terminal on launch
+                    </div>
+                  </div>
+                </div>
+
+                {/* 8 AI Coding Agents Grid */}
+                <div className="rounded-xl border border-white/10 bg-[#0C171C] p-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs uppercase tracking-wider">
+                      8 Supported Native AI Coding Agents
+                    </span>
+                    <span className="text-[11px] text-[#FAAA93]">
+                      Click to launch inside Web Terminal
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      { name: "Claude Code", model: "Anthropic Opus/Sonnet", status: "Installed" },
+                      { name: "OpenAI Codex", model: "GPT-4o Agentic", status: "Ready" },
+                      { name: "Google Antigravity", model: "Gemini CLI / SDK", status: "Installed" },
+                      { name: "Ollama (Offline)", model: "Llama 3 / DeepSeek", status: "Local Engine" },
+                      { name: "Aider", model: "Multi-model Git Pair", status: "Ready" },
+                      { name: "OpenCode", model: "Self-Hosted Agent", status: "Ready" },
+                      { name: "Goose", model: "Block Open Agent", status: "Ready" },
+                      { name: "Hermes Agent", model: "Nous Research Core", status: "Ready" },
+                    ].map((agent) => (
+                      <div
+                        key={agent.name}
+                        className="rounded-lg border border-[#74B8CC]/20 bg-[#182D35] p-2.5"
+                      >
+                        <div className="font-bold text-white truncate">{agent.name}</div>
+                        <div className="text-[10px] text-[#9BB2BA] truncate">{agent.model}</div>
+                        <div className="mt-1 flex items-center gap-1 text-[9px] text-[#38BD87]">
+                          <span className="h-1 w-1 rounded-full bg-[#38BD87]" />
+                          <span>{agent.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === "php" && (
               <div className="space-y-4">
                 <div className="rounded-xl border border-white/10 bg-[#0C171C] p-4 text-xs">
                   <div className="text-sm font-bold text-[#74B8CC]">
-                    Isolated Multi-PHP Sockets (Coexistence)
+                    Isolated Multi-PHP Sockets (Coexistence) &bull; Extensions &amp; php.ini
                   </div>
                   <p className="mt-1 text-[#9BB2BA]">
                     Run PHP 8.1, 8.2, 8.3, and 8.4 simultaneously on the same machine without
-                    Docker. Each website gets its own Unix domain socket.
+                    Docker. 1-click toggle extensions (redis, opcache, imagick) and tune memory limits.
                   </p>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,7 +431,7 @@ export function Hero() {
                         <div className="mt-1 text-[11px] text-[#38BD87]">
                           /run/php/php{["8.1", "8.2", "8.3", "8.4"][i]}-fpm.sock
                         </div>
-                        <div className="mt-2 text-[10px] text-[#9BB2BA]">Coexisting</div>
+                        <div className="mt-2 text-[10px] text-[#9BB2BA]">Visual php.ini Editor</div>
                       </div>
                     ))}
                   </div>
@@ -323,7 +452,7 @@ export function Hero() {
 
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between rounded-lg bg-[#182D35] px-3 py-2">
-                      <span className="font-mono text-white">web-frontend (Next.js)</span>
+                      <span className="font-mono text-white">web-frontend (Next.js 16)</span>
                       <span className="text-[#74B8CC]">Port 3000 • systemd active</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg bg-[#182D35] px-3 py-2">
@@ -346,15 +475,20 @@ export function Hero() {
                   [✓] CloudDeck Agent: active (pid 1420, 127.0.0.1:9090)
                 </div>
                 <div className="text-[#38BD87]">
-                  [✓] CloudDeck Panel: active (pid 1485, port 2083)
+                  [✓] CloudDeck Panel: active (pid 1485, port 2083) [Next.js 16.4.6]
                 </div>
                 <div className="text-[#74B8CC]">
                   [✓] Memory: 42.4 MB / 1024 MB (4.1% utilization)
                 </div>
                 <div className="text-[#FAAA93]">
-                  [✓] 1-Click Panel SSL: Enabled (IP SANs: 198.51.100.22)
+                  [✓] AI Key Vault: 5 API keys auto-injected into shell environment
+                </div>
+                <div className="text-[#38BD87]">
+                  [✓] Site Doctor: 0 defects detected across all virtual hosts
                 </div>
                 <div className="mt-2 text-[#9BB2BA]">
+                  clouddeck@vps-nyc3:~$ claude --version<br />
+                  claude-code v0.6.53 (ready to pair-program)<br />
                   clouddeck@vps-nyc3:~$ <span className="animate-pulse">_</span>
                 </div>
               </div>
@@ -365,4 +499,3 @@ export function Hero() {
     </section>
   );
 }
-
