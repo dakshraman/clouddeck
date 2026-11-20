@@ -48,9 +48,9 @@ Parameters:
     return
 }
 
-# --- OpenCode-Style Resilient Terminal Formatting -----------------------------
-# Supports Windows PowerShell 5.1 (classic conhost), PowerShell 7+, Windows Terminal,
-# and VS Code with zero-width-bug-free, drift-free native coloring.
+# --- Terminal Output Helpers --------------------------------------------------
+# Safe for Windows PowerShell 5.1, PowerShell 7, Windows Terminal, and classic conhost.
+# Strictly emits CRLF (\r\n) atomic lines to prevent terminal staircasing bugs.
 
 $isModernConsole = [bool]($env:WT_SESSION -or $env:TERM_PROGRAM -or $env:ALACRITTY_WINDOW_ID -or $env:GHOSTTY_RESOURCES_DIR)
 
@@ -63,12 +63,6 @@ if ($isModernConsole) {
     $gErr        = [char]0x2716       # ✖
     $gRadioOn    = [char]0x25CF       # ●
     $gRadioOff   = [char]0x25CB       # ○
-    $gRailTop    = [char]0x250C       # ┌
-    $gRailMid    = [char]0x2502       # │
-    $gRailDiv    = [char]0x251C       # ├
-    $gRailBot    = [char]0x2514       # └
-    $gDiamond    = [char]0x25C6       # ◆
-    $gDiamondOff = [char]0x25C7       # ◇
 } else {
     $gArrow      = ">"
     $gCheck      = "[OK]"
@@ -78,77 +72,26 @@ if ($isModernConsole) {
     $gErr        = "[X]"
     $gRadioOn    = "(*)"
     $gRadioOff   = "( )"
-    $gRailTop    = "+"
-    $gRailMid    = "|"
-    $gRailDiv    = "+"
-    $gRailBot    = "+"
-    $gDiamond    = "#"
-    $gDiamondOff = ">"
-}
-
-# Stream-safe OpenCode-style tree rail line printer: immune to line-wrapping bugs,
-# byte-offset drift, and ANSI parse errors in Windows PowerShell 5.1
-function Write-RailLine {
-    param(
-        [string]$Rail = $gRailMid,
-        [ConsoleColor]$RailColor = [ConsoleColor]::DarkCyan,
-        [string]$Glyph = "",
-        [ConsoleColor]$GlyphColor = [ConsoleColor]::Cyan,
-        [string]$Text = "",
-        [ConsoleColor]$TextColor = [ConsoleColor]::White,
-        [string]$Muted = "",
-        [ConsoleColor]$MutedColor = [ConsoleColor]::DarkGray,
-        [switch]$NoNewline
-    )
-    if ($Rail) {
-        Write-Host "  $Rail" -ForegroundColor $RailColor -NoNewline
-        if ($Glyph -or $Text -or $Muted) {
-            Write-Host "  " -NoNewline
-        } else {
-            if (-not $NoNewline) { Write-Host "" }
-            return
-        }
-    } else {
-        Write-Host "    " -NoNewline
-    }
-
-    if ($Glyph) {
-        Write-Host "$Glyph " -ForegroundColor $GlyphColor -NoNewline
-    }
-    if ($Text) {
-        Write-Host $Text -ForegroundColor $TextColor -NoNewline
-    }
-    if ($Muted) {
-        Write-Host " $Muted" -ForegroundColor $MutedColor -NoNewline
-    }
-    if (-not $NoNewline) {
-        Write-Host ""
-    }
 }
 
 function Write-Step([string]$msg) {
-    Write-Host "  $gArrow " -ForegroundColor Cyan -NoNewline
-    Write-Host $msg -ForegroundColor White
+    Write-Host "  $gArrow $msg" -ForegroundColor Cyan
 }
 
 function Write-Success([string]$msg) {
-    Write-Host "  $gCheck " -ForegroundColor Green -NoNewline
-    Write-Host $msg -ForegroundColor White
+    Write-Host "  $gCheck $msg" -ForegroundColor Green
 }
 
 function Write-Info([string]$msg) {
-    Write-Host "  $gInfo " -ForegroundColor DarkCyan -NoNewline
-    Write-Host $msg -ForegroundColor Gray
+    Write-Host "  $gInfo $msg" -ForegroundColor DarkCyan
 }
 
 function Write-Warn([string]$msg) {
-    Write-Host "  $gWarn " -ForegroundColor Yellow -NoNewline
-    Write-Host $msg -ForegroundColor Yellow
+    Write-Host "  $gWarn $msg" -ForegroundColor Yellow
 }
 
 function Write-Err([string]$msg) {
-    Write-Host "  $gErr " -ForegroundColor Red -NoNewline
-    Write-Host $msg -ForegroundColor Red
+    Write-Host "  $gErr [ERROR] $msg" -ForegroundColor Red
 }
 
 function Write-Banner {
@@ -159,9 +102,8 @@ function Write-Banner {
     Write-Host " | |___| | (_) | |_| | (_| | |_| |  __/ (__|   <" -ForegroundColor Cyan
     Write-Host "  \____|_|\___/ \__,_|\__,_|____/ \___|\___|_|\_\" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  CLOUDDECK" -ForegroundColor DarkCyan -NoNewline
-    Write-Host "  The Modern, Lightweight cPanel Alternative" -ForegroundColor Yellow
-    Write-Host "  Windows & WSL 2 Local Development Suite · OpenCode TUI Edition" -ForegroundColor DarkGray
+    Write-Host "  CLOUDDECK - The Modern, Lightweight cPanel Alternative" -ForegroundColor Yellow
+    Write-Host "  Windows & WSL 2 Local Development Suite · Pure TUI Edition" -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -457,10 +399,8 @@ function Ensure-PortsAvailable([int]$Port = 2083, [string]$DistroName = "", [has
         Write-Warn "Target Web Panel port $Port is currently in use by $($usage.Description)."
         
         if (-not $Yes) {
-            Write-Host "  $gArrow " -ForegroundColor Cyan -NoNewline
-            Write-Host "Enter an alternate port or press Enter for automatic fallback:" -ForegroundColor White
-            Write-Host "  $gBullet " -ForegroundColor Yellow -NoNewline
-            $pIn = Read-Host "Web Panel Port [suggested free: $suggested]"
+            Write-Host "  $gArrow Enter an alternate port or press Enter for automatic fallback:" -ForegroundColor Cyan
+            $pIn = Read-Host "  $gBullet Web Panel Port [suggested free: $suggested]"
             if ($pIn -match "^\d+$") {
                 $candidate = [int]$pIn
                 $candUsage = Get-PortUsageDetails -Port $candidate -DistroName $DistroName
@@ -503,33 +443,30 @@ function Prompt-InteractiveOptions {
         }
     }
 
-    Write-Host "  $gRailTop  " -ForegroundColor DarkCyan -NoNewline
-    Write-Host "CloudDeck · System Configuration" -ForegroundColor Cyan
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gDiamond -GlyphColor Cyan -Text "System Environment" -TextColor White
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "Host OS:            " -TextColor DarkGray -Muted "Windows 10/11" -MutedColor White
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "WSL 2 Distribution: " -TextColor DarkGray -Muted $DistroName -MutedColor White
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "Target Ports:       " -TextColor DarkGray -Muted "Web Panel: $Port  |  Agent Daemon: 9090" -MutedColor Yellow
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gDiamondOff -GlyphColor Yellow -Text "Choose Installation Profile" -TextColor Yellow
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor Yellow -Text "[1] Recommended Full LEMP Stack" -TextColor White -Muted "(Default)" -MutedColor Cyan
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Next.js 16 Panel, Go Agent & Windows CLI" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Nginx Web Server + MariaDB Database" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Node.js 22 LTS Runtime & npm" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Local Root CA in Windows Store for Green Padlocks (*.local)" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOff -GlyphColor DarkGray -Text "[2] Fast Core Development Suite" -TextColor Gray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Next.js 16 Panel, Go Agent & Windows CLI" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Nginx Web Server + MariaDB + PHP 8.4 + Node.js 22 LTS" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOff -GlyphColor DarkGray -Text "[3] Minimal Deck Only" -TextColor Gray
-    Write-RailLine -Rail $gRailMid -Glyph "   $gBullet" -GlyphColor DarkGray -Text "Panel, Agent and CLI only (Bring your own hosting stack)" -TextColor DarkGray
-    Write-RailLine -Rail $gRailMid
-    Write-Host "  $gRailBot  " -ForegroundColor DarkCyan -NoNewline
-    Write-Host "$gArrow " -ForegroundColor Cyan -NoNewline
-    $choice = Read-Host "Enter choice [1-3] (default: 1)"
+    Write-Host ""
+    Write-Host "  System Environment:" -ForegroundColor Cyan
+    Write-Host "    Host OS:            Windows 10/11" -ForegroundColor Gray
+    Write-Host "    WSL 2 Distribution: $DistroName" -ForegroundColor Gray
+    Write-Host "    Target Ports:       Web Panel: $Port  |  Agent Daemon: 9090" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Choose Installation Profile:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  $gRadioOn [1] Recommended Full LEMP Stack (Default)" -ForegroundColor Yellow
+    Write-Host "        $gBullet Next.js 16 Panel, Go Agent & Windows CLI" -ForegroundColor DarkGray
+    Write-Host "        $gBullet Nginx Web Server + MariaDB Database" -ForegroundColor DarkGray
+    Write-Host "        $gBullet Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)" -ForegroundColor DarkGray
+    Write-Host "        $gBullet Node.js 22 LTS Runtime & npm" -ForegroundColor DarkGray
+    Write-Host "        $gBullet Local Root CA in Windows Store for Green Padlocks (*.local)" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  $gRadioOff [2] Fast Core Development Suite" -ForegroundColor Gray
+    Write-Host "        $gBullet Next.js 16 Panel, Go Agent & Windows CLI" -ForegroundColor DarkGray
+    Write-Host "        $gBullet Nginx Web Server + MariaDB + PHP 8.4 + Node.js 22 LTS" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  $gRadioOff [3] Minimal Deck Only" -ForegroundColor Gray
+    Write-Host "        $gBullet Panel, Agent and CLI only (Bring your own hosting stack)" -ForegroundColor DarkGray
+    Write-Host ""
+
+    $choice = Read-Host "  $gArrow Enter choice [1-3] (default: 1)"
     $chosenProfile = $CurrentProfile
     switch ($choice.Trim()) {
         "2" {
@@ -547,8 +484,7 @@ function Prompt-InteractiveOptions {
     }
 
     $chosenPort = $Port
-    Write-Host "  $gBullet " -ForegroundColor Yellow -NoNewline
-    $portIn = Read-Host "CloudDeck Web Panel Port [$Port]"
+    $portIn = Read-Host "  $gArrow CloudDeck Web Panel Port [$Port]"
     if ($portIn -match "^\d+$") {
         $candidate = [int]$portIn
         if (Test-PortInUse $candidate -and $candidate -ne $chosenPort) {
@@ -562,14 +498,11 @@ function Prompt-InteractiveOptions {
 
     $chosenUser = $User
     $chosenPass = $Pass
-    Write-Host "  $gBullet " -ForegroundColor Cyan -NoNewline
-    $adminAns = Read-Host "Configure Initial Admin Account? [y/N]"
+    $adminAns = Read-Host "  $gArrow Configure Initial Admin Account? [y/N]"
     if ($adminAns -match "^[yY]") {
-        Write-Host "    $gBullet " -ForegroundColor DarkCyan -NoNewline
-        $u = Read-Host "Admin Username [admin]"
+        $u = Read-Host "    Admin Username [admin]"
         $chosenUser = if ($u) { $u } else { "admin" }
-        Write-Host "    $gBullet " -ForegroundColor DarkCyan -NoNewline
-        $p = Read-Host "Admin Password (leave blank to auto-generate)"
+        $p = Read-Host "    Admin Password (leave blank to auto-generate)"
         $chosenPass = $p
     }
 
@@ -870,25 +803,22 @@ switch ($cmd) {
     $existing = Get-ExistingCloudDeckInstall -DistroName $targetDistro
     if ($existing.IsInstalled) {
         Write-Host ""
-        Write-Host "  $gRailTop  " -ForegroundColor DarkCyan -NoNewline
-        Write-Host "Existing CloudDeck Installation Detected" -ForegroundColor Cyan
-        Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor Yellow -Text "WSL 2 Distribution:" -TextColor White -Muted $targetDistro -MutedColor Cyan
-        Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor Yellow -Text "Installed Version: " -TextColor White -Muted $existing.Version -MutedColor Cyan
-        Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor Yellow -Text "Active Panel URL:  " -TextColor White -Muted "http://localhost:$($existing.PanelPort)" -MutedColor Cyan
-        Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor Yellow -Text "Current Profile:   " -TextColor White -Muted $existing.Profile -MutedColor Cyan
-        Write-RailLine -Rail $gRailMid
-        Write-RailLine -Rail $gRailMid -Glyph $gDiamondOff -GlyphColor Yellow -Text "Select Maintenance Action:" -TextColor Yellow
-        Write-RailLine -Rail $gRailMid -Glyph "[1]" -GlyphColor Cyan -Text "Upgrade to $Version (Recommended)" -TextColor White -Muted "Updates panel, agent & CLI" -MutedColor DarkGray
-        Write-RailLine -Rail $gRailMid -Glyph "[2]" -GlyphColor Cyan -Text "Reinstall / Repair Stack" -TextColor White -Muted "Re-provisions LEMP stack and daemons" -MutedColor DarkGray
-        Write-RailLine -Rail $gRailMid -Glyph "[3]" -GlyphColor Cyan -Text "Open Web Panel in Browser" -TextColor White -Muted "http://localhost:$($existing.PanelPort)" -MutedColor DarkGray
-        Write-RailLine -Rail $gRailMid -Glyph "[4]" -GlyphColor Cyan -Text "Exit" -TextColor White
-        Write-RailLine -Rail $gRailMid
+        Write-Host "  Existing CloudDeck Installation Detected" -ForegroundColor Cyan
+        Write-Host "    WSL 2 Distribution: $targetDistro" -ForegroundColor Gray
+        Write-Host "    Installed Version:  $($existing.Version)" -ForegroundColor Gray
+        Write-Host "    Active Panel URL:   http://localhost:$($existing.PanelPort)" -ForegroundColor Cyan
+        Write-Host "    Current Profile:    $($existing.Profile)" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "  Select Maintenance Action:" -ForegroundColor Yellow
+        Write-Host "    [1] Upgrade to $Version (Recommended - preserves sites & DBs)" -ForegroundColor White
+        Write-Host "    [2] Reinstall / Repair Stack" -ForegroundColor White
+        Write-Host "    [3] Open Web Panel in Browser" -ForegroundColor White
+        Write-Host "    [4] Exit" -ForegroundColor White
+        Write-Host ""
 
         $maintChoice = "1"
         if (-not $Yes) {
-            Write-Host "  $gRailBot  " -ForegroundColor DarkCyan -NoNewline
-            Write-Host "$gArrow " -ForegroundColor Cyan -NoNewline
-            $rawMaint = Read-Host "Enter choice [1-4] (default: 1)"
+            $rawMaint = Read-Host "  $gArrow Enter choice [1-4] (default: 1)"
             if ($rawMaint -and $rawMaint.Trim()) {
                 $maintChoice = $rawMaint.Trim()
             }
@@ -923,19 +853,19 @@ switch ($cmd) {
                 Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
 
                 Write-Host ""
-                Write-Host "  $gRailTop  " -ForegroundColor DarkCyan -NoNewline
-                Write-Host "CloudDeck Upgrade Complete" -ForegroundColor Green
-                Write-RailLine -Rail $gRailMid -Glyph $gCheck -GlyphColor Green -Text "Control Panel URL: " -TextColor White -Muted "http://localhost:$PanelPort" -MutedColor Cyan
-                Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "Upgraded Version:  " -TextColor White -Muted $Version -MutedColor Cyan
-                Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "WSL 2 Distro:      " -TextColor White -Muted $targetDistro -MutedColor Cyan
-                Write-RailLine -Rail $gRailMid
-                Write-RailLine -Rail $gRailMid -Glyph $gDiamond -GlyphColor Cyan -Text "Quick Windows CLI Commands:" -TextColor Yellow
-                Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck status " -TextColor White -Muted "Check stack services & health" -MutedColor DarkGray
-                Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck open   " -TextColor White -Muted "Open panel in default browser" -MutedColor DarkGray
-                Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck restart" -TextColor White -Muted "Restart all stack services" -MutedColor DarkGray
-                Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck wsl    " -TextColor White -Muted "Interactive terminal inside WSL" -MutedColor DarkGray
-                Write-Host "  $gRailBot  " -ForegroundColor DarkCyan -NoNewline
-                Write-Host "All services active" -ForegroundColor Green
+                Write-Host "  ================================================================" -ForegroundColor DarkCyan
+                Write-Host "  CloudDeck Upgrade Complete!" -ForegroundColor Green
+                Write-Host "  ================================================================" -ForegroundColor DarkCyan
+                Write-Host "    Control Panel URL:   http://localhost:$PanelPort" -ForegroundColor Cyan
+                Write-Host "    Upgraded Version:    $Version" -ForegroundColor Gray
+                Write-Host "    WSL 2 Distro:        $targetDistro" -ForegroundColor Gray
+                Write-Host ""
+                Write-Host "  Quick Windows CLI Commands:" -ForegroundColor Yellow
+                Write-Host "    clouddeck status     Check stack services & health" -ForegroundColor Gray
+                Write-Host "    clouddeck open       Open panel in default browser" -ForegroundColor Gray
+                Write-Host "    clouddeck restart    Restart all stack services" -ForegroundColor Gray
+                Write-Host "    clouddeck wsl        Interactive terminal inside WSL" -ForegroundColor Gray
+                Write-Host "  ================================================================" -ForegroundColor DarkCyan
                 Write-Host ""
                 Write-Success "CloudDeck upgraded! Run 'clouddeck open' or 'clouddeck status'."
                 return
@@ -961,21 +891,21 @@ switch ($cmd) {
     Setup-LocalCATrust -DistroName $targetDistro
     Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
 
-    # OpenCode Tree Layout Completion Card
+    # Completion Summary
     Write-Host ""
-    Write-Host "  $gRailTop  " -ForegroundColor DarkCyan -NoNewline
-    Write-Host "CloudDeck Installation Complete" -ForegroundColor Green
-    Write-RailLine -Rail $gRailMid -Glyph $gCheck -GlyphColor Green -Text "Control Panel URL: " -TextColor White -Muted "http://localhost:$PanelPort" -MutedColor Cyan
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "Installed Profile: " -TextColor White -Muted $Profile -MutedColor Cyan
-    Write-RailLine -Rail $gRailMid -Glyph $gRadioOn -GlyphColor DarkCyan -Text "WSL 2 Distro:      " -TextColor White -Muted $targetDistro -MutedColor Cyan
-    Write-RailLine -Rail $gRailMid
-    Write-RailLine -Rail $gRailMid -Glyph $gDiamond -GlyphColor Cyan -Text "Quick Windows CLI Commands:" -TextColor Yellow
-    Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck status " -TextColor White -Muted "Check stack services & health" -MutedColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck open   " -TextColor White -Muted "Open panel in default browser" -MutedColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck restart" -TextColor White -Muted "Restart all stack services" -MutedColor DarkGray
-    Write-RailLine -Rail $gRailMid -Glyph "  " -Text "clouddeck wsl    " -TextColor White -Muted "Interactive terminal inside WSL" -MutedColor DarkGray
-    Write-Host "  $gRailBot  " -ForegroundColor DarkCyan -NoNewline
-    Write-Host "LEMP Stack Provisioned Successfully" -ForegroundColor Green
+    Write-Host "  ================================================================" -ForegroundColor DarkCyan
+    Write-Host "  CloudDeck Installation Complete!" -ForegroundColor Green
+    Write-Host "  ================================================================" -ForegroundColor DarkCyan
+    Write-Host "    Control Panel URL:   http://localhost:$PanelPort" -ForegroundColor Cyan
+    Write-Host "    Installed Profile:   $Profile" -ForegroundColor Gray
+    Write-Host "    WSL 2 Distribution:  $targetDistro" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Quick Windows CLI Commands:" -ForegroundColor Yellow
+    Write-Host "    clouddeck status     Check stack services & health" -ForegroundColor Gray
+    Write-Host "    clouddeck open       Open panel in default browser" -ForegroundColor Gray
+    Write-Host "    clouddeck restart    Restart all stack services" -ForegroundColor Gray
+    Write-Host "    clouddeck wsl        Interactive terminal inside WSL" -ForegroundColor Gray
+    Write-Host "  ================================================================" -ForegroundColor DarkCyan
     Write-Host ""
     $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.55" }
     Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
