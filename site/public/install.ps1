@@ -127,7 +127,7 @@ function Write-Banner {
     Write-OpenLine "   ╚═════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝" -Color Cyan
     Write-OpenLine ""
     Write-OpenLine "    CLOUDDECK   The Modern, Lightweight cPanel Alternative" -Color Yellow
-    Write-OpenLine "  Windows & WSL 2 Local Development Suite • OpenCode TUI Edition" -Color DarkGray
+    Write-OpenLine "  Windows & WSL 2 Local Development Suite" -Color DarkGray
     Write-OpenLine ""
 }
 
