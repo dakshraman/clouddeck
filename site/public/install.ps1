@@ -249,7 +249,7 @@ generateResolvConf=true
     }
 }
 
-# --- Port Collision Detection & Auto-Fallback -------------------------------
+# --- Port Collision Detection & Process Attribution -------------------------
 
 function Test-PortInUse([int]$Port) {
     try {
@@ -285,19 +285,141 @@ function Find-NextFreePort([int]$StartPort) {
     return $StartPort
 }
 
-function Ensure-PortsAvailable([int]$Port = 2083) {
-    if (Test-PortInUse $Port) {
+function Get-PortUsageDetails([int]$Port, [string]$DistroName = "") {
+    $res = @{
+        IsInUse     = $false
+        ProcessName = ""
+        ProcessId   = 0
+        IsCloudDeck = $false
+        Description = ""
+    }
+
+    if (-not (Test-PortInUse $Port)) {
+        return $res
+    }
+
+    $res.IsInUse = $true
+
+    # Check if a process inside WSL is listening on this port
+    if ($DistroName) {
+        try {
+            $wslProc = (wsl.exe -d $DistroName -u root bash -c "ss -tulpn '( sport = :$Port )' 2>/dev/null | grep -E 'node|clouddeck|nginx' || true" 2>$null)
+            if ($wslProc -and ($wslProc -replace "`0", "").Trim()) {
+                $res.IsCloudDeck = $true
+                $res.ProcessName = "CloudDeck"
+                $res.Description = "CloudDeck Service inside WSL ($DistroName)"
+                return $res
+            }
+        } catch {}
+    }
+
+    # Check Windows TCP connections via Get-NetTCPConnection
+    try {
+        $conns = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Listen" }
+        if ($conns) {
+            $pidToInspect = $conns[0].OwningProcess
+            if ($pidToInspect -gt 0) {
+                $proc = Get-Process -Id $pidToInspect -ErrorAction SilentlyContinue
+                if ($proc) {
+                    $res.ProcessId = $pidToInspect
+                    $res.ProcessName = $proc.ProcessName
+                    if ($proc.ProcessName -match "wslhost|wslservice|wsl") {
+                        $res.IsCloudDeck = $true
+                        $res.Description = "WSL 2 Port Proxy ($($proc.ProcessName)) - CloudDeck stack"
+                    } elseif ($proc.ProcessName -match "clouddeck|node") {
+                        $res.IsCloudDeck = $true
+                        $res.Description = "CloudDeck ($($proc.ProcessName))"
+                    } else {
+                        $res.Description = "$($proc.ProcessName) (PID: $pidToInspect)"
+                    }
+                    return $res
+                }
+            }
+        }
+    } catch {}
+
+    # Netstat fallback for Windows PowerShell 5.1
+    try {
+        $netstatOut = netstat -ano | Select-String ":$Port\s+.*LISTENING\s+(\d+)"
+        if ($netstatOut) {
+            $m = [regex]::Match($netstatOut.ToString(), ":$Port\s+.*LISTENING\s+(\d+)")
+            if ($m.Success) {
+                $pId = [int]$m.Groups[1].Value
+                $res.ProcessId = $pId
+                $proc = Get-Process -Id $pId -ErrorAction SilentlyContinue
+                $pName = if ($proc) { $proc.ProcessName } else { "PID $pId" }
+                $res.ProcessName = $pName
+                if ($pName -match "wslhost|wslservice|wsl") {
+                    $res.IsCloudDeck = $true
+                    $res.Description = "WSL 2 Port Proxy ($pName) - CloudDeck stack"
+                } elseif ($pName -match "clouddeck|node") {
+                    $res.IsCloudDeck = $true
+                    $res.Description = "CloudDeck ($pName)"
+                } else {
+                    $res.Description = "$pName (PID: $pId)"
+                }
+                return $res
+            }
+        }
+    } catch {}
+
+    $res.Description = "Port $Port"
+    return $res
+}
+
+function Get-ExistingCloudDeckInstall([string]$DistroName) {
+    if (-not $DistroName) { return @{ IsInstalled = $false } }
+    try {
+        $checkCmd = 'if [ -f /opt/clouddeck/.clouddeck-version ] || [ -f /opt/clouddeck/.clouddeck-install ] || [ -f /etc/clouddeck/panel.env ]; then ' +
+                    '_v=$(cat /opt/clouddeck/.clouddeck-version 2>/dev/null || echo "installed"); ' +
+                    '_p=$(grep -E "^PORT=" /etc/clouddeck/panel.env 2>/dev/null | cut -d= -f2 || echo "2083"); ' +
+                    '_prof=$(grep -E "^PROFILE=" /opt/clouddeck/.clouddeck-install 2>/dev/null | cut -d= -f2 || echo "recommended"); ' +
+                    'echo "$_v|$_p|$_prof"; ' +
+                    'fi'
+        $res = (wsl.exe -d $DistroName -u root bash -c $checkCmd 2>$null)
+        if ($res) {
+            $trimmed = ($res -replace "`0", "").Trim()
+            if ($trimmed) {
+                $parts = $trimmed.Split('|')
+                $pVal = if ($parts.Length -gt 1 -and $parts[1] -match '^\d+$') { [int]$parts[1] } else { 2083 }
+                $profVal = if ($parts.Length -gt 2 -and $parts[2]) { $parts[2] } else { "recommended" }
+                return @{
+                    IsInstalled = $true
+                    Version     = $parts[0]
+                    PanelPort   = $pVal
+                    Profile     = $profVal
+                }
+            }
+        }
+    } catch {}
+    return @{ IsInstalled = $false }
+}
+
+function Ensure-PortsAvailable([int]$Port = 2083, [string]$DistroName = "", [hashtable]$ExistingInstall = $null) {
+    if ($ExistingInstall -and $ExistingInstall.IsInstalled -and $ExistingInstall.PanelPort -eq $Port) {
+        Write-Info "Web Panel port $Port is reserved for this CloudDeck installation."
+        return $Port
+    }
+
+    $usage = Get-PortUsageDetails -Port $Port -DistroName $DistroName
+    if ($usage.IsInUse) {
+        if ($usage.IsCloudDeck) {
+            Write-Info "Web Panel port $Port is held by existing CloudDeck service ($($usage.Description))."
+            return $Port
+        }
+
         $suggested = Find-NextFreePort ($Port + 1)
-        Write-Warn "Target Web Panel port $Port is currently in use by another application."
+        Write-Warn "Target Web Panel port $Port is currently in use by $($usage.Description)."
         
         if (-not $Yes) {
             Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter an alternate port or press Enter for automatic fallback:${clrReset}"
             $pIn = Read-Host "  ${tcMauve}$gBullet Web Panel Port [suggested free: $suggested]${clrReset}"
             if ($pIn -match "^\d+$") {
                 $candidate = [int]$pIn
-                if (Test-PortInUse $candidate -and $candidate -ne $Port) {
+                $candUsage = Get-PortUsageDetails -Port $candidate -DistroName $DistroName
+                if ($candUsage.IsInUse -and $candidate -ne $Port) {
                     $nextFree = Find-NextFreePort ($candidate + 1)
-                    Write-Warn "Port $candidate is also busy! Automatically falling back to $nextFree."
+                    Write-Warn "Port $candidate is also busy ($($candUsage.Description))! Automatically falling back to $nextFree."
                     $Port = $nextFree
                 } else {
                     $Port = $candidate
@@ -731,7 +853,82 @@ switch ($cmd) {
     }
     Write-Success "Selected WSL 2 distribution: $targetDistro"
 
-    $PanelPort = Ensure-PortsAvailable -Port $PanelPort
+    $existing = Get-ExistingCloudDeckInstall -DistroName $targetDistro
+    if ($existing.IsInstalled) {
+        Write-Host ""
+        Write-Host "  ${tcSky}${clrBold}$gRailTop Existing CloudDeck Installation Detected ───────────────────────${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Installed Version:${clrReset}   $($existing.Version)"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Active Panel URL:${clrReset}    http://localhost:$($existing.PanelPort)"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Current Profile:${clrReset}    $($existing.Profile)"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}"
+        Write-Host "  ${tcSky}$gRailDiv Select Maintenance Action ────────────────────────────────────────${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[1] Upgrade to $Version (Recommended)${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Updates panel, agent and CLI while preserving sites & databases${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[2] Reinstall / Repair Stack${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Re-provisions LEMP stack and reconfigures service daemons${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[3] Open Web Panel in Browser${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Launches http://localhost:$($existing.PanelPort) in default browser${clrReset}"
+        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[4] Exit${clrReset}"
+        Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
+        Write-Host ""
+
+        $maintChoice = "1"
+        if (-not $Yes) {
+            $rawMaint = Read-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter choice [1-4] (default: 1)${clrReset}"
+            if ($rawMaint -and $rawMaint.Trim()) {
+                $maintChoice = $rawMaint.Trim()
+            }
+        }
+
+        switch ($maintChoice) {
+            "3" {
+                $panelUrl = "http://localhost:$($existing.PanelPort)"
+                Write-Step "Opening CloudDeck Web Panel: $panelUrl..."
+                Start-Process $panelUrl
+                return
+            }
+            "4" {
+                Write-Info "Installer exited. Your existing CloudDeck installation remains active."
+                return
+            }
+            "2" {
+                Write-Step "Proceeding with full reinstallation / repair..."
+                $PanelPort = $existing.PanelPort
+                $Profile = $existing.Profile
+            }
+            default {
+                Write-Step "Upgrading CloudDeck to $Version..."
+                $PanelPort = $existing.PanelPort
+                $Profile = $existing.Profile
+                Configure-WSLDistro -DistroName $targetDistro
+                $installed = Install-CloudDeckInsideWSL -DistroName $targetDistro -VersionTag $Version -Port $PanelPort -SelectedProfile $Profile -User $AdminUser -Pass $AdminPass
+                if (-not $installed) {
+                    return
+                }
+                Setup-LocalCATrust -DistroName $targetDistro
+                Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
+
+                Write-Host ""
+                Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Upgrade Complete ───────────────────────────────────────${clrReset}"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Upgraded Version:${clrReset}  $Version"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}"
+                Write-Host "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────────────────${clrReset}"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check health & active stack services"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in default Windows browser"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services inside WSL"
+                Write-Host "  ${tcSky}$gRailMid${clrReset}"
+                Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
+                Write-Host ""
+                Write-Success "CloudDeck upgraded! Run 'clouddeck open' or 'clouddeck status'."
+                return
+            }
+        }
+    }
+
+    $PanelPort = Ensure-PortsAvailable -Port $PanelPort -DistroName $targetDistro -ExistingInstall $existing
 
     $opts = Prompt-InteractiveOptions -DistroName $targetDistro -Port $PanelPort -CurrentProfile $Profile -User $AdminUser -Pass $AdminPass
     $Profile = $opts.Profile

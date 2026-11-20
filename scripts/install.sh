@@ -448,49 +448,171 @@ find_next_free_port() {
   echo "$_start_port"
 }
 
+is_clouddeck_listening() {
+  local _p="$1"
+  # Check if port matches existing configured panel port in panel.env
+  if [ -f "$ETCDIR/panel.env" ]; then
+    local _cfg_port
+    _cfg_port="$(grep -E '^PORT=' "$ETCDIR/panel.env" 2>/dev/null | cut -d= -f2 | tr -d ' "\r\n')"
+    if [ "$_cfg_port" = "$_p" ]; then
+      return 0
+    fi
+  fi
+  # Check if listening process is clouddeck or node running clouddeck
+  if command -v ss >/dev/null 2>&1; then
+    local _ss_out
+    _ss_out="$(ss -tulpn "( sport = :${_p} )" 2>/dev/null | grep -E 'node|clouddeck|next' || true)"
+    if [ -n "$_ss_out" ]; then
+      return 0
+    fi
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    local _lsof_out
+    _lsof_out="$(lsof -iTCP:"${_p}" -sTCP:LISTEN -P -n 2>/dev/null | grep -E 'node|clouddeck|next' || true)"
+    if [ -n "$_lsof_out" ]; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+get_port_process_name() {
+  local _p="$1"
+  local _proc=""
+  if command -v ss >/dev/null 2>&1; then
+    _proc="$(ss -tulpn "( sport = :${_p} )" 2>/dev/null | grep -o 'users:(("[^"]*"' | sed 's/users:(("//;s/"//' | head -n1)"
+  fi
+  if [ -z "$_proc" ] && command -v lsof >/dev/null 2>&1; then
+    _proc="$(lsof -iTCP:"${_p}" -sTCP:LISTEN -P -n 2>/dev/null | awk 'NR>1 {print $1, "(PID:" $2 ")"}' | head -n1)"
+  fi
+  [ -z "$_proc" ] && _proc="another application"
+  echo "$_proc"
+}
+
 check_and_resolve_ports() {
   # 1. Resolve PANEL_PORT if busy
   if is_port_in_use "$PANEL_PORT"; then
-    local _fallback_panel
-    _fallback_panel="$(find_next_free_port "$((PANEL_PORT + 1))")"
-    warn "Web Panel port ${PANEL_PORT} is currently in use by another service."
-    if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
-      say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate port or press Enter for automatic fallback:${CLR_RESET}"
-      printf "    ${TC_MAUVE}• Web Panel Port [suggested free: ${_fallback_panel}]: ${CLR_RESET}"
-      local _chosen_panel=""
-      prompt_read _chosen_panel "$_fallback_panel"
-      if [ -n "$_chosen_panel" ] && [ "$_chosen_panel" -eq "$_chosen_panel" ] 2>/dev/null; then
-        PANEL_PORT="$_chosen_panel"
+    if is_clouddeck_listening "$PANEL_PORT"; then
+      info "Port ${PANEL_PORT} is reserved for CloudDeck (active instance detected)."
+    else
+      local _proc
+      _proc="$(get_port_process_name "$PANEL_PORT")"
+      local _fallback_panel
+      _fallback_panel="$(find_next_free_port "$((PANEL_PORT + 1))")"
+      warn "Web Panel port ${PANEL_PORT} is currently in use by ${_proc}."
+      if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
+        say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate port or press Enter for automatic fallback:${CLR_RESET}"
+        printf "    ${TC_MAUVE}• Web Panel Port [suggested free: ${_fallback_panel}]: ${CLR_RESET}"
+        local _chosen_panel=""
+        prompt_read _chosen_panel "$_fallback_panel"
+        if [ -n "$_chosen_panel" ] && [ "$_chosen_panel" -eq "$_chosen_panel" ] 2>/dev/null; then
+          PANEL_PORT="$_chosen_panel"
+        else
+          PANEL_PORT="$_fallback_panel"
+        fi
       else
+        info "Automatically falling back to free port: ${PANEL_PORT} -> ${_fallback_panel}"
         PANEL_PORT="$_fallback_panel"
       fi
-    else
-      info "Automatically falling back to free port: ${PANEL_PORT} -> ${_fallback_panel}"
-      PANEL_PORT="$_fallback_panel"
+      ok "Web Panel will listen on port: ${TC_PEACH}${PANEL_PORT}${CLR_RESET}"
     fi
-    ok "Web Panel will listen on port: ${TC_PEACH}${PANEL_PORT}${CLR_RESET}"
   fi
 
   # 2. Resolve AGENT_PORT if busy
   if is_port_in_use "$AGENT_PORT"; then
-    local _fallback_agent
-    _fallback_agent="$(find_next_free_port "$((AGENT_PORT + 1))")"
-    warn "Agent Daemon port ${AGENT_PORT} is currently in use by another service."
-    if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
-      say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate daemon port or press Enter for automatic fallback:${CLR_RESET}"
-      printf "    ${TC_MAUVE}• Agent Daemon Port [suggested free: ${_fallback_agent}]: ${CLR_RESET}"
-      local _chosen_agent=""
-      prompt_read _chosen_agent "$_fallback_agent"
-      if [ -n "$_chosen_agent" ] && [ "$_chosen_agent" -eq "$_chosen_agent" ] 2>/dev/null; then
-        AGENT_PORT="$_chosen_agent"
+    if is_clouddeck_listening "$AGENT_PORT"; then
+      info "Port ${AGENT_PORT} is reserved for CloudDeck Agent (active instance detected)."
+    else
+      local _proc
+      _proc="$(get_port_process_name "$AGENT_PORT")"
+      local _fallback_agent
+      _fallback_agent="$(find_next_free_port "$((AGENT_PORT + 1))")"
+      warn "Agent Daemon port ${AGENT_PORT} is currently in use by ${_proc}."
+      if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
+        say "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter an alternate daemon port or press Enter for automatic fallback:${CLR_RESET}"
+        printf "    ${TC_MAUVE}• Agent Daemon Port [suggested free: ${_fallback_agent}]: ${CLR_RESET}"
+        local _chosen_agent=""
+        prompt_read _chosen_agent "$_fallback_agent"
+        if [ -n "$_chosen_agent" ] && [ "$_chosen_agent" -eq "$_chosen_agent" ] 2>/dev/null; then
+          AGENT_PORT="$_chosen_agent"
+        else
+          AGENT_PORT="$_fallback_agent"
+        fi
       else
+        info "Automatically falling back to free port: ${AGENT_PORT} -> ${_fallback_agent}"
         AGENT_PORT="$_fallback_agent"
       fi
-    else
-      info "Automatically falling back to free port: ${AGENT_PORT} -> ${_fallback_agent}"
-      AGENT_PORT="$_fallback_agent"
+      ok "Agent Daemon will listen on port: ${TC_PEACH}${AGENT_PORT}${CLR_RESET}"
     fi
-    ok "Agent Daemon will listen on port: ${TC_PEACH}${AGENT_PORT}${CLR_RESET}"
+  fi
+}
+
+check_existing_installation() {
+  local _existing_ver=""
+  [ -f "$PREFIX/.clouddeck-version" ] && _existing_ver="$(cat "$PREFIX/.clouddeck-version" 2>/dev/null || true)"
+  [ -z "$_existing_ver" ] && [ -f "$PREFIX/.clouddeck-install" ] && _existing_ver="installed"
+
+  if [ -n "$_existing_ver" ] || [ -f "$ETCDIR/panel.env" ]; then
+    # Read existing panel port if available
+    if [ -f "$ETCDIR/panel.env" ]; then
+      local _p
+      _p="$(grep -E '^PORT=' "$ETCDIR/panel.env" 2>/dev/null | cut -d= -f2 | tr -d ' "\r\n')"
+      [ -n "$_p" ] && PANEL_PORT="$_p"
+    fi
+
+    # Read existing profile
+    if [ -f "$PREFIX/.clouddeck-install" ]; then
+      local _prof
+      _prof="$(cat "$PREFIX/.clouddeck-install" 2>/dev/null || true)"
+      [ -n "$_prof" ] && INSTALL_PROFILE="$_prof"
+    fi
+
+    # In interactive mode (not WSL non-interactive sub-call, not scripted non-interactive)
+    if [ "$NON_INTERACTIVE" = "0" ] && [ "$HAS_TTY" = "1" ]; then
+      say ""
+      say "  ${TC_SKY}${CLR_BOLD}╭─ Existing CloudDeck Installation Detected ─────────────────────────${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● Current Version:${CLR_RESET}   ${_existing_ver:-installed}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● Target Release:${CLR_RESET}    $VERSION"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● Active Panel Port:${CLR_RESET} $PANEL_PORT"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● Current Profile:${CLR_RESET}   ${INSTALL_PROFILE:-recommended}"
+      say "  ${TC_STEEL}│${CLR_RESET}"
+      say "  ${TC_STEEL}├─ Maintenance Options ─────────────────────────────────────────────${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[1] Upgrade to $VERSION${CLR_RESET} ${TC_SKY}(Recommended)${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Updates panel, agent and CLI while preserving sites & databases${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[2] Reinstall / Repair Stack${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Re-provisions LEMP stack and reconfigures service daemons${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[3] Open Web Panel in Browser${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Launches http://localhost:${PANEL_PORT} and exits${CLR_RESET}"
+      say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}[4] Exit${CLR_RESET}"
+      say "  ${TC_STEEL}╰───────────────────────────────────────────────────────────────────${CLR_RESET}"
+      say ""
+      printf "  ${TC_SKY}${CLR_BOLD}❯${CLR_RESET} ${CLR_BOLD}Enter choice [1-4] (default: 1): ${CLR_RESET}"
+      local _maint_choice="1"
+      prompt_read _maint_choice "1"
+      case "$_maint_choice" in
+        3)
+          local _url="http://localhost:${PANEL_PORT}"
+          say "Opening CloudDeck Web Panel: ${_url}..."
+          if command -v xdg-open >/dev/null 2>&1; then
+            xdg-open "$_url" 2>/dev/null || true
+          elif command -v open >/dev/null 2>&1; then
+            open "$_url" 2>/dev/null || true
+          fi
+          exit 0
+          ;;
+        4)
+          info "Installer exited. Your existing CloudDeck installation remains active."
+          exit 0
+          ;;
+        2)
+          step "Proceeding with full reinstallation / repair..."
+          ;;
+        *)
+          step "Upgrading CloudDeck to $VERSION..."
+          NON_INTERACTIVE=1
+          ;;
+      esac
+    fi
   fi
 }
 
@@ -1754,6 +1876,7 @@ fi
 
 setup_interactive_tty
 resolve_latest
+check_existing_installation
 check_and_resolve_ports
 prompt_component_selection
 
