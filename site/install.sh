@@ -1771,29 +1771,38 @@ EOF
 
   # Fallback start/stop scripts
   mkdir -p "$PREFIX/run"
-  cat > "$PREFIX/run/start.sh" << 'EOF'
+  cat > "$PREFIX/run/start.sh" << EOF
 #!/bin/sh
 set -eu
-[ -x "$PREFIX/run/stop.sh" ] && "$PREFIX/run/stop.sh" >/dev/null 2>&1 || true
-if [ -f "$ETCDIR/agent.env" ]; then
-  set -a; . "$ETCDIR/agent.env"; set +a
-  ( cd "$PREFIX" && setsid "$PREFIX/clouddeck-agent" >> "$PREFIX/run/agent.log" 2>&1 & echo $! > "$PREFIX/run/agent.pid" )
+PREFIX="${PREFIX}"
+ETCDIR="${ETCDIR}"
+[ -x "\$PREFIX/run/stop.sh" ] && "\$PREFIX/run/stop.sh" >/dev/null 2>&1 || true
+if [ -f "\$ETCDIR/agent.env" ]; then
+  set -a; . "\$ETCDIR/agent.env"; set +a
+  ( cd "\$PREFIX" && setsid "\$PREFIX/clouddeck-agent" >> "\$PREFIX/run/agent.log" 2>&1 & echo \$! > "\$PREFIX/run/agent.pid" )
 fi
-if [ -f "$ETCDIR/panel.env" ]; then
-  set -a; . "$ETCDIR/panel.env"; set +a
-  ( cd "$PREFIX/panel" && setsid "$PREFIX/node/bin/node" server.js >> "$PREFIX/run/panel.log" 2>&1 & echo $! > "$PREFIX/run/panel.pid" )
+if [ -f "\$ETCDIR/panel.env" ]; then
+  set -a; . "\$ETCDIR/panel.env"; set +a
+  ( cd "\$PREFIX/panel" && setsid "\$PREFIX/node/bin/node" server.js >> "\$PREFIX/run/panel.log" 2>&1 & echo \$! > "\$PREFIX/run/panel.pid" )
 fi
+# Ensure web server, database and PHP runtimes are running if not managed by systemd
+service nginx start >/dev/null 2>&1 || /etc/init.d/nginx start >/dev/null 2>&1 || true
+service mariadb start >/dev/null 2>&1 || service mysql start >/dev/null 2>&1 || /etc/init.d/mariadb start >/dev/null 2>&1 || true
+for v in 8.1 8.2 8.3 8.4; do
+  service "php\$v-fpm" start >/dev/null 2>&1 || /etc/init.d/"php\$v-fpm" start >/dev/null 2>&1 || true
+done
 echo "started"
 EOF
-  cat > "$PREFIX/run/stop.sh" << 'EOF'
+  cat > "$PREFIX/run/stop.sh" << EOF
 #!/bin/sh
-for p in "$PREFIX/run/panel.pid" "$PREFIX/run/agent.pid"; do
-  [ -f "$p" ] || continue
-  pid="$(cat "$p")"
-  kill -TERM "$pid" 2>/dev/null || true
+PREFIX="${PREFIX}"
+for p in "\$PREFIX/run/panel.pid" "\$PREFIX/run/agent.pid"; do
+  [ -f "\$p" ] || continue
+  pid="\$(cat "\$p")"
+  kill -TERM "\$pid" 2>/dev/null || true
   sleep 1
-  kill -9 "$pid" 2>/dev/null || true
-  rm -f "$p"
+  kill -9 "\$pid" 2>/dev/null || true
+  rm -f "\$p"
 done
 echo "stopped"
 EOF

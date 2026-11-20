@@ -1168,6 +1168,15 @@ function serviceAction(action, args) {
       const res = spawnSync("systemctl", [action, target], { stdio: "inherit" });
       if (res.status === 0) console.log(`  ${clrGreen}${gCheck} Service ${target} ${action}ed successfully.${clrReset}\n`);
       return;
+    } else {
+      console.log(`  ${tcSky}${gArrow} service ${target} ${action}...${clrReset}`);
+      const res = spawnSync("service", [target, action], { stdio: "inherit" });
+      if (res.status === 0) {
+        console.log(`  ${clrGreen}${gCheck} Service ${target} ${action}ed successfully.${clrReset}\n`);
+        return;
+      }
+      spawnSync(`/etc/init.d/${target}`, [action], { stdio: "inherit" });
+      return;
     }
   }
 
