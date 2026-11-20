@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   UserRound,
   Users,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 import type { PanelSSLStatus, SystemInfo } from "@/lib/types";
@@ -36,6 +37,7 @@ import { TwoFactorCard } from "@/components/two-factor-card";
 import { PanelSSLDialog } from "@/components/settings/panel-ssl-dialog";
 import { AlertsSettingsCard } from "@/components/settings/alerts-settings-card";
 import { UsersRbacCard } from "@/components/settings/users-rbac-card";
+import { FleetManager } from "@/components/fleet/fleet-manager";
 
 interface Profile {
   username: string;
@@ -84,6 +86,7 @@ const INSTALL_COMMAND =
 const sections = [
   { id: "account", label: "Account", icon: UserRound },
   { id: "rbac", label: "Users & Sub-Accounts", icon: Users },
+  { id: "fleet", label: "Fleet Nodes", icon: Network },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "two-factor", label: "Two-Factor Auth", icon: KeyRound },
   { id: "alerts", label: "Alerts & Notifications", icon: BellRing },
@@ -546,6 +549,10 @@ export default function SettingsPage() {
 
           <div id="rbac">
             <UsersRbacCard />
+          </div>
+
+          <div id="fleet">
+            <FleetManager />
           </div>
 
           <SectionCard

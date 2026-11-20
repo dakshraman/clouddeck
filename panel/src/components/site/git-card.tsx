@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { DeployRecord, GitConfig } from "@/lib/types";
+import type { DeployRecord, GitConfig, GitRelease, GitReleasesResponse, GitRollbackResponse } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +18,12 @@ import {
   GitBranch,
   GitCommit,
   GitPullRequest,
+  History,
   Key,
+  Layers,
   Play,
   RefreshCw,
+  RotateCcw,
   Settings,
   Terminal,
   Trash2,
@@ -75,6 +78,31 @@ export function GitCard({ domain }: GitCardProps) {
   const [buildCommand, setBuildCommand] = useState("");
   const [autoDeploy, setAutoDeploy] = useState(true);
 
+  // Releases & Rollback state
+  const [releases, setReleases] = useState<GitRelease[]>([]);
+  const [currentRelease, setCurrentRelease] = useState<string | null>(null);
+  const [atomicDeploy, setAtomicDeploy] = useState<boolean>(true);
+  const [rollingBackId, setRollingBackId] = useState<string | null>(null);
+  const [releasesLoading, setReleasesLoading] = useState<boolean>(false);
+
+  const loadReleases = useCallback(async () => {
+    setReleasesLoading(true);
+    try {
+      const data = await apiFetch<GitReleasesResponse>(
+        `/api/sites/${encodeURIComponent(domain)}/git/releases`,
+      );
+      if (data && data.releases) {
+        setReleases(data.releases);
+        if (data.currentRelease) setCurrentRelease(data.currentRelease);
+        if (typeof data.atomicDeploy === "boolean") setAtomicDeploy(data.atomicDeploy);
+      }
+    } catch {
+      // Releases endpoint may be initializing or no releases yet
+    } finally {
+      setReleasesLoading(false);
+    }
+  }, [domain]);
+
   const loadGit = useCallback(async () => {
     try {
       const data = await apiFetch<GitConfig>(`/api/sites/${encodeURIComponent(domain)}/git`);
@@ -96,7 +124,30 @@ export function GitCard({ domain }: GitCardProps) {
 
   useEffect(() => {
     void loadGit();
-  }, [loadGit]);
+    void loadReleases();
+  }, [loadGit, loadReleases]);
+
+  async function handleRollback(releaseId: string) {
+    if (!confirm(`Are you sure you want to rollback to release ${releaseId}? This will instantly switch the active symlink.`)) {
+      return;
+    }
+    setRollingBackId(releaseId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await apiPost<GitRollbackResponse>(
+        `/api/sites/${encodeURIComponent(domain)}/git/rollback`,
+        { releaseId },
+      );
+      setSuccess(res.message || `Successfully rolled back to release ${releaseId}!`);
+      setTimeout(() => setSuccess(null), 5000);
+      await Promise.all([loadGit(), loadReleases()]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Rollback failed.");
+    } finally {
+      setRollingBackId(null);
+    }
+  }
 
   async function handleCopy(key: string, text: string) {
     if (!text) return;
@@ -149,7 +200,7 @@ export function GitCard({ domain }: GitCardProps) {
     try {
       const record = await apiPost<DeployRecord>(
         `/api/sites/${encodeURIComponent(domain)}/git/deploy`,
-        {},
+        { atomic: atomicDeploy },
       );
       if (record.status === "failed") {
         setError(`Deployment failed: ${record.commitMsg || "build process error"}`);
@@ -157,11 +208,11 @@ export function GitCard({ domain }: GitCardProps) {
         setSuccess(`Deployment succeeded for commit ${record.commitHash?.slice(0, 7) || ""}`);
         setTimeout(() => setSuccess(null), 5000);
       }
-      await loadGit();
+      await Promise.all([loadGit(), loadReleases()]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Deployment failed";
       setError(msg);
-      await loadGit();
+      await Promise.all([loadGit(), loadReleases()]);
     } finally {
       setDeploying(false);
     }
@@ -575,6 +626,129 @@ export function GitCard({ domain }: GitCardProps) {
           )}
         </CardBody>
       </Card>
+
+      {/* Zero-Downtime Atomic Releases & Rollback Table */}
+      {isConfigured && (
+        <Card>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+                <RotateCcw className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Zero-Downtime Releases & Rollback</CardTitle>
+                  <Badge variant="green" className="text-[10px]">Atomic Symlink</Badge>
+                </div>
+                <CardDescription>
+                  Every atomic release is staged in an isolated timestamped directory before switching the symlink to /current.
+                </CardDescription>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={atomicDeploy}
+                  onChange={(e) => setAtomicDeploy(e.target.checked)}
+                  className="rounded border-border text-brand focus:ring-brand"
+                />
+                <span className="text-foreground font-medium">Atomic Zero-Downtime</span>
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadReleases()}
+              >
+                <RefreshCw size={12} className={releasesLoading ? "animate-spin mr-1" : "mr-1"} />
+                Refresh
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardBody className="p-0">
+            {releases.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground italic">
+                No atomic releases generated yet. Deploy with &quot;Atomic Zero-Downtime&quot; enabled to create your first release.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">Release</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Commit</th>
+                      <th className="px-4 py-3">Deployed At</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {releases.map((rel) => {
+                      const isCurrent = rel.current || rel.id === currentRelease;
+                      const isRolling = rollingBackId === rel.id;
+                      return (
+                        <tr key={rel.id} className={isCurrent ? "bg-emerald-500/5 font-medium" : "hover:bg-muted/20"}>
+                          <td className="px-4 py-3 font-mono">
+                            <div className="flex items-center gap-2">
+                              <span className="text-foreground font-semibold">{rel.name || rel.id}</span>
+                              {isCurrent && (
+                                <Badge variant="green" className="text-[10px]">
+                                  Active (current)
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={isCurrent ? "green" : "neutral"}>
+                              {isCurrent ? "LIVE" : "ARCHIVED"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="font-mono text-foreground">
+                                {rel.commitHash ? rel.commitHash.slice(0, 7) : "—"}
+                              </span>
+                              {rel.commitMsg && (
+                                <span className="truncate max-w-[220px] text-[11px] text-muted-foreground">
+                                  {rel.commitMsg}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                            {rel.createdAt ? new Date(rel.createdAt).toLocaleString() : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {!isCurrent ? (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => void handleRollback(rel.id)}
+                                disabled={rollingBackId !== null || deploying}
+                              >
+                                {isRolling ? (
+                                  <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="mr-1 h-3 w-3" />
+                                )}
+                                Rollback
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-emerald-500 font-semibold">Active Symlink</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Deployment History Table */}
       {isConfigured && git?.history && git.history.length > 0 && (

@@ -33,6 +33,11 @@ func New(st *store.Store, base context.Context) *Engine {
 	return &Engine{st: st, base: base}
 }
 
+// Store returns the underlying store used by the task engine.
+func (e *Engine) Store() *store.Store {
+	return e.st
+}
+
 // Create persists a pending task and starts it in the background.
 func (e *Engine) Create(taskType, site string, fn RunFunc) (store.Task, error) {
 	task := store.Task{

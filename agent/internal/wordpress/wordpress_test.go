@@ -163,4 +163,40 @@ func TestWordPressLifecycle(t *testing.T) {
 	if !upRes.Success || len(upRes.Updated) == 0 {
 		t.Fatalf("expected update success with updated components, got %+v", upRes)
 	}
+
+	// 7. Bidirectional Push Staging to Production
+	// Create a new file in staging to verify sync
+	testFile := filepath.Join(stagingRoot, "wp-content", "new_feature.txt")
+	_ = os.WriteFile(testFile, []byte("feature from staging"), 0o644)
+
+	pushRes, err := wpSvc.PushStaging(ctx, domain)
+	if err != nil {
+		t.Fatalf("PushStaging: %v", err)
+	}
+	if !pushRes.Success {
+		t.Fatalf("expected push success")
+	}
+	if pushRes.ProductionDomain != domain || pushRes.StagingDomain != "staging."+domain {
+		t.Fatalf("unexpected domains in push result: %+v", pushRes)
+	}
+
+	// Verify safety backup was taken
+	if _, err := os.Stat(pushRes.SafetyBackup); err != nil {
+		t.Fatalf("expected safety backup directory to exist: %v", err)
+	}
+
+	// Verify file was synced to production
+	prodFile := filepath.Join(siteRoot, "wp-content", "new_feature.txt")
+	if data, err := os.ReadFile(prodFile); err != nil || string(data) != "feature from staging" {
+		t.Fatalf("expected synced file in production, err=%v, content=%q", err, string(data))
+	}
+
+	// Verify DB name in production wp-config.php is preserved
+	prodCfg, err := os.ReadFile(filepath.Join(siteRoot, "wp-config.php"))
+	if err != nil {
+		t.Fatalf("read prod wp-config.php: %v", err)
+	}
+	if !strings.Contains(string(prodCfg), "wp_myblog") {
+		t.Fatalf("production wp-config.php did not preserve original DB name")
+	}
 }

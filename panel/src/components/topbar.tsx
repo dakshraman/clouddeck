@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
 import { buttonClass } from "@/components/ui/button";
 import { CommandPalette } from "@/components/command-palette";
+import { ServerSwitcher } from "@/components/fleet/server-switcher";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -22,7 +23,8 @@ const segmentLabels: Record<string, string> = {
   cron: "Cron Jobs",
   terminal: "Terminal",
   ssh: "SSH",
-  apps: "Applications",
+  apps: "App Store",
+  servers: "Fleet Nodes",
   security: "Security",
 };
 
@@ -83,6 +85,7 @@ export function Topbar() {
         ) : null}
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+          <ServerSwitcher />
           <Link href="/sites/new" className={buttonClass("outline", "sm")}>
             <Plus size={14} aria-hidden="true" />
             <span className="hidden sm:inline">New site</span>

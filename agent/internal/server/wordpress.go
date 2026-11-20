@@ -124,3 +124,24 @@ func (s *Server) handleUpdateWordPress(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, res)
 }
+
+// handlePushStagingWordPress pushes staging changes back into production with safety backup.
+func (s *Server) handlePushStagingWordPress(w http.ResponseWriter, r *http.Request) {
+	if s.wordpress == nil {
+		writeError(w, apierr.Internal("wordpress service is not initialized"))
+		return
+	}
+	domain := strings.TrimSpace(r.PathValue("domain"))
+	if domain == "" {
+		writeError(w, apierr.BadRequest("missing_domain", "domain is required"))
+		return
+	}
+
+	res, err := s.wordpress.PushStaging(r.Context(), domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, res)
+}

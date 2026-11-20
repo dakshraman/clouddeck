@@ -12,6 +12,7 @@ export async function proxyAgent(
   path: string,
   method: string,
   body?: unknown,
+  timeoutMs: number = AGENT_TIMEOUT_MS,
 ): Promise<NextResponse> {
   const hasBody = body !== undefined;
   let res: Response;
@@ -21,7 +22,7 @@ export async function proxyAgent(
       headers: agentHeaders(hasBody ? "application/json" : undefined),
       body: hasBody ? JSON.stringify(body) : undefined,
       cache: "no-store",
-      signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     return NextResponse.json(

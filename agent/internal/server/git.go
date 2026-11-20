@@ -61,12 +61,55 @@ func (s *Server) handleDeploySiteGit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	domain := r.PathValue("domain")
-	record, err := s.git.Deploy(r.Context(), domain, "manual")
+	atomic := r.URL.Query().Get("atomic") == "true"
+	if r.Body != nil && r.ContentLength > 0 {
+		var req struct {
+			Atomic bool `json:"atomic"`
+		}
+		if err := decodeBody(w, r, &req); err == nil && req.Atomic {
+			atomic = true
+		}
+	}
+	record, err := s.git.DeployWithOpts(r.Context(), domain, "manual", atomic)
 	if err != nil {
 		writeError(w, apierr.Internal(fmt.Sprintf("deploy: %v", err)))
 		return
 	}
 	writeJSON(w, http.StatusOK, record)
+}
+
+func (s *Server) handleGetSiteGitReleases(w http.ResponseWriter, r *http.Request) {
+	if s.git == nil {
+		writeError(w, apierr.Internal("git service is not configured"))
+		return
+	}
+	domain := r.PathValue("domain")
+	releases, err := s.git.ListReleases(domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"releases": releases})
+}
+
+func (s *Server) handleRollbackSiteGit(w http.ResponseWriter, r *http.Request) {
+	if s.git == nil {
+		writeError(w, apierr.Internal("git service is not configured"))
+		return
+	}
+	domain := r.PathValue("domain")
+	var req struct {
+		ReleaseID string `json:"releaseId"`
+	}
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = decodeBody(w, r, &req)
+	}
+	rel, err := s.git.Rollback(r.Context(), domain, req.ReleaseID)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rel)
 }
 
 func (s *Server) handleGetSiteGitHistory(w http.ResponseWriter, r *http.Request) {

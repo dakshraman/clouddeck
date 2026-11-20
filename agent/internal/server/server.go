@@ -17,8 +17,10 @@ import (
 
 	"clouddeck/agent/internal/agents"
 	"clouddeck/agent/internal/alerts"
+	"clouddeck/agent/internal/analytics"
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
+	"clouddeck/agent/internal/appstore"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/backup"
 	"clouddeck/agent/internal/caching"
@@ -28,6 +30,7 @@ import (
 	"clouddeck/agent/internal/doctor"
 	"clouddeck/agent/internal/files"
 	"clouddeck/agent/internal/firewall"
+	"clouddeck/agent/internal/fleet"
 	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/git"
 	"clouddeck/agent/internal/mail"
@@ -89,6 +92,9 @@ type Server struct {
 	migration *migration.Service
 	postgres  *postgres.Service
 	rbac      *rbac.Service
+	analytics *analytics.Service
+	fleet     *fleet.Service
+	appstore  *appstore.Service
 }
 
 // New builds the HTTP handler.
@@ -126,6 +132,9 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 		migration: migration.New(cfg, siteSvc, mysqlSvc, mailSvc, auditLog, eng),
 		postgres:  postgres.New(cfg, auditLog),
 		rbac:      rbac.New(cfg, auditLog),
+		analytics: analytics.New(cfg, eng.Store()),
+		fleet:     fleet.New(cfg, auditLog),
+		appstore:  appstore.New(cfg, siteSvc, auditLog),
 	}
 
 	mux := http.NewServeMux()
@@ -473,6 +482,58 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /api/security/scan", s.handleScanSecurityPosture)
 	mux.HandleFunc("POST /v1/security/harden", s.handleHardenSecurity)
 	mux.HandleFunc("POST /api/security/harden", s.handleHardenSecurity)
+
+	// Zero-Downtime Atomic Git Deployments & Releases
+	mux.HandleFunc("GET /v1/sites/{domain}/git/releases", s.handleGetSiteGitReleases)
+	mux.HandleFunc("GET /api/sites/{domain}/git/releases", s.handleGetSiteGitReleases)
+	mux.HandleFunc("POST /v1/sites/{domain}/git/rollback", s.handleRollbackSiteGit)
+	mux.HandleFunc("POST /api/sites/{domain}/git/rollback", s.handleRollbackSiteGit)
+
+	// Privacy-First Visitor & Traffic Analytics
+	mux.HandleFunc("GET /v1/sites/{domain}/analytics", s.handleGetSiteAnalytics)
+	mux.HandleFunc("GET /api/sites/{domain}/analytics", s.handleGetSiteAnalytics)
+	mux.HandleFunc("GET /v1/system/analytics", s.handleGetSystemAnalytics)
+	mux.HandleFunc("GET /api/system/analytics", s.handleGetSystemAnalytics)
+
+	// Wildcard SSL & DNS-01 Providers
+	mux.HandleFunc("GET /v1/ssl/providers", s.handleListSSLProviders)
+	mux.HandleFunc("GET /api/ssl/providers", s.handleListSSLProviders)
+	mux.HandleFunc("POST /v1/sites/{domain}/ssl/wildcard", s.handleIssueWildcardSSL)
+	mux.HandleFunc("POST /api/sites/{domain}/ssl/wildcard", s.handleIssueWildcardSSL)
+
+	// Bidirectional WordPress Staging Sync (Push Staging -> Production)
+	mux.HandleFunc("POST /v1/sites/{domain}/wordpress/push-staging", s.handlePushStagingWordPress)
+	mux.HandleFunc("POST /api/sites/{domain}/wordpress/push-staging", s.handlePushStagingWordPress)
+
+	// Multi-Server Fleet Orchestration
+	mux.HandleFunc("GET /v1/fleet/nodes", s.handleListFleetNodes)
+	mux.HandleFunc("GET /api/fleet/nodes", s.handleListFleetNodes)
+	mux.HandleFunc("POST /v1/fleet/nodes", s.handleRegisterFleetNode)
+	mux.HandleFunc("POST /api/fleet/nodes", s.handleRegisterFleetNode)
+	mux.HandleFunc("GET /v1/fleet/nodes/{id}", s.handleGetFleetNode)
+	mux.HandleFunc("GET /api/fleet/nodes/{id}", s.handleGetFleetNode)
+	mux.HandleFunc("PUT /v1/fleet/nodes/{id}", s.handleUpdateFleetNode)
+	mux.HandleFunc("PUT /api/fleet/nodes/{id}", s.handleUpdateFleetNode)
+	mux.HandleFunc("DELETE /v1/fleet/nodes/{id}", s.handleDeleteFleetNode)
+	mux.HandleFunc("DELETE /api/fleet/nodes/{id}", s.handleDeleteFleetNode)
+	mux.HandleFunc("POST /v1/fleet/nodes/{id}/ping", s.handlePingFleetNode)
+	mux.HandleFunc("POST /api/fleet/nodes/{id}/ping", s.handlePingFleetNode)
+	mux.HandleFunc("GET /v1/fleet/overview", s.handleGetFleetOverview)
+	mux.HandleFunc("GET /api/fleet/overview", s.handleGetFleetOverview)
+
+	// 1-Click App Store & Docker Compose Orchestrator
+	mux.HandleFunc("GET /v1/appstore/catalog", s.handleGetAppStoreCatalog)
+	mux.HandleFunc("GET /api/appstore/catalog", s.handleGetAppStoreCatalog)
+	mux.HandleFunc("GET /v1/appstore/installed", s.handleListInstalledApps)
+	mux.HandleFunc("GET /api/appstore/installed", s.handleListInstalledApps)
+	mux.HandleFunc("POST /v1/appstore/install", s.handleInstallApp)
+	mux.HandleFunc("POST /api/appstore/install", s.handleInstallApp)
+	mux.HandleFunc("POST /v1/appstore/{id}/action", s.handleAppAction)
+	mux.HandleFunc("POST /api/appstore/{id}/action", s.handleAppAction)
+	mux.HandleFunc("DELETE /v1/appstore/{id}", s.handleUninstallApp)
+	mux.HandleFunc("DELETE /api/appstore/{id}", s.handleUninstallApp)
+	mux.HandleFunc("GET /v1/appstore/{id}/logs", s.handleGetAppLogs)
+	mux.HandleFunc("GET /api/appstore/{id}/logs", s.handleGetAppLogs)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

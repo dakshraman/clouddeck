@@ -1354,6 +1354,271 @@ export interface HardenResponse {
   message: string;
 }
 
+// ---- Phase A: Zero-Downtime Atomic Git Deployments & Rollback ----
+export interface GitRelease {
+  id: string;
+  name: string;
+  path: string;
+  commitHash?: string;
+  commitMsg?: string;
+  author?: string;
+  createdAt: string;
+  current: boolean;
+  sizeBytes?: number;
+}
+
+export interface GitReleasesResponse {
+  releases: GitRelease[];
+  currentRelease?: string;
+  atomicDeploy: boolean;
+}
+
+export interface GitRollbackRequest {
+  releaseId?: string;
+}
+
+export interface GitRollbackResponse {
+  success: boolean;
+  previousRelease?: string;
+  currentRelease: string;
+  message?: string;
+}
+
+// ---- Phase A: Privacy-First Visitor & Traffic Analytics ----
+export interface TrafficTimelinePoint {
+  timestamp: string;
+  requests: number;
+  bandwidthBytes: number;
+  uniqueVisitors?: number;
+}
+
+export interface StatusCodesBreakdown {
+  "2xx": number;
+  "3xx": number;
+  "4xx": number;
+  "5xx": number;
+}
+
+export interface TopUrlItem {
+  path: string;
+  count: number;
+  bandwidthBytes?: number;
+}
+
+export interface ReferrerItem {
+  referrer: string;
+  count: number;
+}
+
+export interface BotCategoryItem {
+  category: string;
+  name: string;
+  count: number;
+}
+
+export interface SiteAnalytics {
+  domain: string;
+  period: string;
+  totalRequests: number;
+  totalBandwidthBytes: number;
+  uniqueVisitors: number;
+  statusCodes: StatusCodesBreakdown;
+  timeline: TrafficTimelinePoint[];
+  topUrls: TopUrlItem[];
+  referrers: ReferrerItem[];
+  bots: BotCategoryItem[];
+}
+
+export interface SystemAnalytics {
+  period: string;
+  totalSites: number;
+  totalRequests: number;
+  totalBandwidthBytes: number;
+  uniqueVisitors: number;
+  statusCodes: StatusCodesBreakdown;
+  topSites: { domain: string; requests: number; bandwidthBytes: number }[];
+  timeline: TrafficTimelinePoint[];
+}
+
+// ---- Phase A: Wildcard SSL & DNS-01 Challenge ----
+export interface DnsProviderInfo {
+  id: string;
+  name: string;
+  description: string;
+  configured: boolean;
+  requiredFields: string[];
+}
+
+export interface DnsProvidersResponse {
+  providers: DnsProviderInfo[];
+}
+
+export interface WildcardSslRequest {
+  provider: string;
+  credentials?: Record<string, string>;
+  email?: string;
+  autoRenew?: boolean;
+}
+
+export interface WildcardSslResponse {
+  success: boolean;
+  certificate?: string;
+  issuer?: string;
+  domains: string[];
+  expiresAt: string;
+  dnsProvider: string;
+  message?: string;
+}
+
+// ---- Phase A: WordPress Push Staging to Production ----
+export interface WordPressPushStagingRequest {
+  stagingSubdomain?: string;
+  syncFiles?: boolean;
+  syncDatabase?: boolean;
+  takeBackup?: boolean;
+}
+
+export interface WordPressPushStagingResponse {
+  success: boolean;
+  backupId?: string;
+  filesSynced?: number;
+  dbUpdated?: boolean;
+  message?: string;
+}
+
+// ---- Phase B: Multi-Server Fleet Orchestration ----
+export interface FleetNodeStats {
+  cpuUsagePct?: number;
+  memoryUsagePct?: number;
+  diskUsagePct?: number;
+  sitesCount?: number;
+  loadAverage?: string;
+  uptimeSeconds?: number;
+}
+
+export interface FleetNode {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  tags?: string[];
+  status: "online" | "offline" | "degraded" | "unreachable";
+  lastPing?: string;
+  latencyMs?: number;
+  version?: string;
+  stats?: FleetNodeStats;
+  isCurrent?: boolean;
+}
+
+export interface FleetNodesResponse {
+  nodes: FleetNode[];
+  currentNodeId: string;
+}
+
+export interface CreateFleetNodeRequest {
+  name: string;
+  host: string;
+  port?: number;
+  apiKey?: string;
+  tags?: string[];
+}
+
+export interface UpdateFleetNodeRequest {
+  name?: string;
+  host?: string;
+  port?: number;
+  apiKey?: string;
+  tags?: string[];
+}
+
+export interface FleetOverview {
+  totalNodes: number;
+  onlineNodes: number;
+  offlineNodes: number;
+  totalSites: number;
+  averageCpuUsage: number;
+  averageMemoryUsage: number;
+  averageDiskUsage: number;
+  nodes: FleetNode[];
+}
+
+export interface FleetPingResponse {
+  success: boolean;
+  latencyMs: number;
+  status: "online" | "offline" | "unreachable";
+  message?: string;
+}
+
+// ---- Phase B: 1-Click App Store & Docker Compose Orchestrator ----
+export interface AppTemplateEnvVar {
+  key: string;
+  label: string;
+  description?: string;
+  defaultValue?: string;
+  required?: boolean;
+  type?: "text" | "password" | "number" | "boolean";
+}
+
+export interface AppStoreTemplate {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  category: "CMS" | "Analytics" | "Automation" | "Storage" | "Security" | "Search" | "Productivity";
+  icon: string;
+  defaultPort: number;
+  websiteUrl?: string;
+  githubUrl?: string;
+  envVars: AppTemplateEnvVar[];
+  minRamMb?: number;
+}
+
+export interface AppStoreCatalogResponse {
+  dockerAvailable: boolean;
+  dockerComposeAvailable: boolean;
+  catalog: AppStoreTemplate[];
+}
+
+export interface InstalledAppStoreApp {
+  id: string;
+  templateId: string;
+  name: string;
+  domain?: string;
+  port: number;
+  status: "running" | "stopped" | "error" | "installing";
+  installedAt: string;
+  version?: string;
+  composeDir: string;
+  env?: Record<string, string>;
+}
+
+export interface AppStoreInstalledResponse {
+  apps: InstalledAppStoreApp[];
+}
+
+export interface InstallAppStoreRequest {
+  templateId: string;
+  domain?: string;
+  port?: number;
+  env?: Record<string, string>;
+}
+
+export interface AppStoreActionRequest {
+  action: "start" | "stop" | "restart" | "upgrade";
+}
+
+export interface AppStoreActionResponse {
+  success: boolean;
+  status: string;
+  message?: string;
+}
+
+export interface AppStoreLogsResponse {
+  logs: string;
+}
+
+
+
 
 
 

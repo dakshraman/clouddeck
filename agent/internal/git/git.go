@@ -154,6 +154,11 @@ func (s *Service) Remove(domain string) error {
 
 // Deploy triggers an asynchronous or synchronous deployment for a site.
 func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (store.DeployRecord, error) {
+	return s.DeployWithOpts(ctx, domain, trigger, false)
+}
+
+// DeployWithOpts triggers a deployment with optional atomic symlink releases.
+func (s *Service) DeployWithOpts(ctx context.Context, domain string, trigger string, atomic bool) (store.DeployRecord, error) {
 	site, ok := s.st.GetSite(domain)
 	if !ok {
 		return store.DeployRecord{}, apierr.NotFound("site_not_found", fmt.Sprintf("site %q does not exist", domain))
@@ -179,6 +184,7 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 	gitCfg := *site.Git
 	startedAt := time.Now()
 	deployID, _ := randomHex(8)
+	releaseID := fmt.Sprintf("release_%s_%s", startedAt.UTC().Format("20060102150405"), deployID)
 
 	record := store.DeployRecord{
 		ID:        deployID,
@@ -200,7 +206,11 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 		logBuf.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, msg))
 	}
 
-	logLine(fmt.Sprintf("Starting %s deployment for %s (branch: %s)", trigger, gitCfg.RepoURL, gitCfg.Branch))
+	deployMode := "standard"
+	if atomic {
+		deployMode = "atomic zero-downtime"
+	}
+	logLine(fmt.Sprintf("Starting %s (%s) deployment for %s (branch: %s)", trigger, deployMode, gitCfg.RepoURL, gitCfg.Branch))
 
 	// Ensure site root exists
 	if err := os.MkdirAll(site.Root, 0o755); err != nil {
@@ -211,6 +221,20 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 		record.Logs = logBuf.String()
 		s.recordDeploy(domain, record)
 		return record, fmt.Errorf("create webroot: %w", err)
+	}
+
+	targetDir := site.Root
+	if atomic {
+		targetDir = filepath.Join(site.Root, "releases", releaseID)
+		if err := os.MkdirAll(targetDir, 0o755); err != nil {
+			record.Status = "failed"
+			record.FinishedAt = time.Now()
+			record.DurationMs = time.Since(startedAt).Milliseconds()
+			logLine(fmt.Sprintf("Failed to create release dir: %v", err))
+			record.Logs = logBuf.String()
+			s.recordDeploy(domain, record)
+			return record, fmt.Errorf("create release dir: %w", err)
+		}
 	}
 
 	keyFile := gitCfg.DeployKeyPrivate
@@ -226,34 +250,72 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 	}
 	env = append(env, "PATH="+extraPaths+":"+os.Getenv("PATH"))
 
-	dotGit := filepath.Join(site.Root, ".git")
-	isCloned := false
-	if fi, err := os.Stat(dotGit); err == nil && fi.IsDir() {
-		isCloned = true
-	}
-
 	var execErr error
-	if !isCloned {
-		logLine("Cloning repository into webroot…")
-		// Clean placeholder index.html if empty or stock
-		idxPath := filepath.Join(site.Root, "index.html")
-		if _, err := os.Stat(idxPath); err == nil {
-			_ = os.Remove(idxPath)
+	if atomic {
+		logLine(fmt.Sprintf("Cloning release into %s…", targetDir))
+		cmd := exec.CommandContext(ctx, "git", "clone", "--branch", gitCfg.Branch, "--depth=50", gitCfg.RepoURL, targetDir)
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		logBuf.Write(out)
+		if err != nil {
+			execErr = fmt.Errorf("git clone release: %w", err)
+		}
+	} else {
+		dotGit := filepath.Join(targetDir, ".git")
+		isCloned := false
+		if fi, err := os.Stat(dotGit); err == nil && fi.IsDir() {
+			isCloned = true
 		}
 
-		// If webroot has files, use git init + remote + fetch + reset to avoid non-empty dir clone failure
-		entries, _ := os.ReadDir(site.Root)
-		if len(entries) > 0 {
-			logLine("Initializing git repository in existing directory…")
+		if !isCloned {
+			logLine("Cloning repository into webroot…")
+			// Clean placeholder index.html if empty or stock
+			idxPath := filepath.Join(targetDir, "index.html")
+			if _, err := os.Stat(idxPath); err == nil {
+				_ = os.Remove(idxPath)
+			}
+
+			// If webroot has files, use git init + remote + fetch + reset to avoid non-empty dir clone failure
+			entries, _ := os.ReadDir(targetDir)
+			if len(entries) > 0 {
+				logLine("Initializing git repository in existing directory…")
+				commands := [][]string{
+					{"git", "init"},
+					{"git", "remote", "add", "origin", gitCfg.RepoURL},
+					{"git", "fetch", "--depth=50", "origin", gitCfg.Branch},
+					{"git", "checkout", "-f", "-B", gitCfg.Branch, "origin/" + gitCfg.Branch},
+				}
+				for _, args := range commands {
+					cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+					cmd.Dir = targetDir
+					cmd.Env = env
+					out, err := cmd.CombinedOutput()
+					logBuf.Write(out)
+					if err != nil {
+						execErr = fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+						break
+					}
+				}
+			} else {
+				cmd := exec.CommandContext(ctx, "git", "clone", "--branch", gitCfg.Branch, "--depth=50", gitCfg.RepoURL, targetDir)
+				cmd.Env = env
+				out, err := cmd.CombinedOutput()
+				logBuf.Write(out)
+				if err != nil {
+					execErr = fmt.Errorf("git clone: %w", err)
+				}
+			}
+		} else {
+			logLine("Fetching latest commits from remote…")
 			commands := [][]string{
-				{"git", "init"},
-				{"git", "remote", "add", "origin", gitCfg.RepoURL},
+				{"git", "remote", "set-url", "origin", gitCfg.RepoURL},
 				{"git", "fetch", "--depth=50", "origin", gitCfg.Branch},
-				{"git", "checkout", "-f", "-B", gitCfg.Branch, "origin/" + gitCfg.Branch},
+				{"git", "checkout", gitCfg.Branch},
+				{"git", "reset", "--hard", "origin/" + gitCfg.Branch},
 			}
 			for _, args := range commands {
 				cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-				cmd.Dir = site.Root
+				cmd.Dir = targetDir
 				cmd.Env = env
 				out, err := cmd.CombinedOutput()
 				logBuf.Write(out)
@@ -261,33 +323,6 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 					execErr = fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 					break
 				}
-			}
-		} else {
-			cmd := exec.CommandContext(ctx, "git", "clone", "--branch", gitCfg.Branch, "--depth=50", gitCfg.RepoURL, site.Root)
-			cmd.Env = env
-			out, err := cmd.CombinedOutput()
-			logBuf.Write(out)
-			if err != nil {
-				execErr = fmt.Errorf("git clone: %w", err)
-			}
-		}
-	} else {
-		logLine("Fetching latest commits from remote…")
-		commands := [][]string{
-			{"git", "remote", "set-url", "origin", gitCfg.RepoURL},
-			{"git", "fetch", "--depth=50", "origin", gitCfg.Branch},
-			{"git", "checkout", gitCfg.Branch},
-			{"git", "reset", "--hard", "origin/" + gitCfg.Branch},
-		}
-		for _, args := range commands {
-			cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-			cmd.Dir = site.Root
-			cmd.Env = env
-			out, err := cmd.CombinedOutput()
-			logBuf.Write(out)
-			if err != nil {
-				execErr = fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-				break
 			}
 		}
 	}
@@ -304,7 +339,7 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 
 	// Read commit info: Hash, Author, Subject, Date
 	commitCmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%H%n%an%n%s%n%cI")
-	commitCmd.Dir = site.Root
+	commitCmd.Dir = targetDir
 	commitCmd.Env = env
 	if commitOut, err := commitCmd.Output(); err == nil {
 		lines := strings.Split(strings.TrimSpace(string(commitOut)), "\n")
@@ -324,7 +359,7 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 	if gitCfg.BuildCommand != "" {
 		logLine(fmt.Sprintf("Running build command: %s", gitCfg.BuildCommand))
 		buildCmd := exec.CommandContext(ctx, "sh", "-c", gitCfg.BuildCommand)
-		buildCmd.Dir = site.Root
+		buildCmd.Dir = targetDir
 		buildCmd.Env = env
 		out, err := buildCmd.CombinedOutput()
 		logBuf.Write(out)
@@ -340,10 +375,37 @@ func (s *Service) Deploy(ctx context.Context, domain string, trigger string) (st
 		logLine("Build command completed successfully.")
 	}
 
+	// If atomic, swap symlink current -> targetDir
+	if atomic {
+		logLine("Atomically swapping 'current' symlink…")
+		currentLink := filepath.Join(site.Root, "current")
+		tmpLink := filepath.Join(site.Root, "current.tmp")
+		_ = os.Remove(tmpLink)
+		if err := os.Symlink(targetDir, tmpLink); err != nil {
+			logLine(fmt.Sprintf("Symlink creation error: %v", err))
+		} else {
+			if err := os.Rename(tmpLink, currentLink); err != nil {
+				logLine(fmt.Sprintf("Symlink rename error: %v", err))
+			} else {
+				logLine("Symlink switched successfully.")
+			}
+		}
+
+		_ = s.RecordAtomicRelease(site.Root, Release{
+			ID:         releaseID,
+			CommitHash: record.CommitHash,
+			CommitMsg:  record.CommitMsg,
+			Branch:     gitCfg.Branch,
+			Path:       targetDir,
+			Active:     true,
+			DeployedAt: startedAt,
+		})
+	}
+
 	// Apply directory permissions
 	uid, gid, _ := s.resolveRunAs()
 	if uid >= 0 && gid >= 0 {
-		_ = filepath.Walk(site.Root, func(p string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(targetDir, func(p string, info os.FileInfo, err error) error {
 			if err == nil {
 				_ = os.Chown(p, uid, gid)
 			}

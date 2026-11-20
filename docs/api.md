@@ -607,6 +607,70 @@ Audit actions: `postgres.database.create`, `postgres.database.delete`, `postgres
 
 Audit action: `security.unban`.
 
+#### Zero-Downtime Atomic Git Deployments & Rollback
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/sites/{domain}/git/releases` | — | `200 {releases:[{id,commitHash,commitMsg,branch,path,active,deployedAt}]}` | `404 site_not_found`, `500` |
+| `POST /v1/sites/{domain}/git/deploy` | `{atomic?:bool}` or `?atomic=true` | `200 {id,trigger,status,startedAt,finishedAt,durationMs,commitHash,author,commitMsg,logs}` | `404`, `409 deploy_in_progress`, `500` |
+| `POST /v1/sites/{domain}/git/rollback` | `{releaseId?:string}` | `200 {id,commitHash,commitMsg,branch,path,active:true,deployedAt}` | `400 no_previous_release`, `404 release_not_found`, `500` |
+
+Audit actions: `git.rollback`.
+
+#### Privacy-First Visitor & Traffic Analytics
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/sites/{domain}/analytics` | `?timeframe=24h\|7d\|30d` | `200 {domain,timeframe,totalRequests,uniqueVisitors,totalBandwidth,statusCodes:{2xx,3xx,4xx,5xx},timeline:[{timestamp,requests,bandwidth,status2xx,status3xx,status4xx,status5xx,uniqueVisitors}],topUrls:[{name,requests,bytes}],topReferrers:[{name,requests}],botMetrics:{humanRequests,botRequests,topBots:[{name,requests}]}}` | `404 site_not_found`, `500` |
+| `GET /v1/system/analytics` | `?timeframe=24h\|7d\|30d` | `200 {timeframe,totalSites,totalRequests,totalBandwidth,uniqueVisitors,statusCodes,topSites:[{domain,requests,bandwidth}],timeline,botMetrics}` | `500` |
+
+#### Wildcard SSL & DNS-01 ACME Challenge Automation
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/ssl/providers` | — | `200 {providers:[{id,name,description,fields:[...]}]}` | `500` |
+| `POST /v1/sites/{domain}/ssl/wildcard` | `{email,provider,credentials:{...}}` | `200 {success:true,domain,wildcard,issuer,provider,expiresAt,issuedAt,message}` | `400 missing_provider\|invalid_provider\|invalid_email\|missing_credentials`, `404 site_not_found`, `500` |
+
+Supported DNS providers: `cloudflare` (api_token), `powerdns` (api_key, api_url), `digitalocean` (auth_token), `route53` (access_key_id, secret_access_key, region), `manual`.
+Audit actions: `ssl.wildcard`.
+
+#### Bidirectional WordPress Staging Sync (Push Staging -> Production)
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `POST /v1/sites/{domain}/wordpress/push-staging` | — | `200 {success:true,productionDomain,stagingDomain,safetyBackup,pushedAt,message}` | `400 missing_domain\|staging_not_initialized`, `404 site_not_found`, `500` |
+
+Automatically captures pre-push safety snapshot in `.clouddeck_backups/pre_push_<timestamp>`, syncs staging files into production preserving production database credentials, and executes `wp search-replace` to update domain references.
+Audit actions: `wordpress.push_staging`.
+
+#### Multi-Server Fleet Orchestration
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/fleet/nodes` | — | `200 {nodes:[{id,name,host,port,tags,status,lastPing,latencyMs,version,stats:{cpuUsagePct,ramUsagePct,diskUsagePct,sitesCount,load1},createdAt,updatedAt}]}` | `500` |
+| `POST /v1/fleet/nodes` | `{name,host,port,token,tags?:[...]}` | `200 {id,name,host,port,status,tags,stats,...}` | `400 missing_name\|missing_host`, `500` |
+| `GET /v1/fleet/nodes/{id}` | — | `200 {id,name,host,port,tags,status,lastPing,latencyMs,stats,...}` | `404 node_not_found`, `500` |
+| `PUT /v1/fleet/nodes/{id}` | `{name?,host?,port?,token?,tags?:[...]}` | `200 {id,name,host,port,status,tags,stats,...}` | `404 node_not_found`, `500` |
+| `DELETE /v1/fleet/nodes/{id}` | — | `200 {status:"deleted",id}` | `400 cannot_delete_primary`, `404 node_not_found`, `500` |
+| `POST /v1/fleet/nodes/{id}/ping` | — | `200 {id,name,status,latencyMs,lastPing,...}` | `404 node_not_found`, `500` |
+| `GET /v1/fleet/overview` | — | `200 {totalNodes,onlineNodes,offlineNodes,totalSites,avgCpu,avgRam,avgDisk,nodes:[...]}` | `500` |
+
+Audit actions: `fleet.node.register`, `fleet.node.update`, `fleet.node.delete`.
+
+#### 1-Click App Store & Docker Compose Orchestrator
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/appstore/catalog` | — | `200 {catalog:[{id,name,category,description,icon,defaultPort,envVars,composeYaml}]}` | `500` |
+| `GET /v1/appstore/installed` | — | `200 {apps:[{id,templateId,name,domain,port,status,envVars,appDir,installedAt,updatedAt}]}` | `500` |
+| `POST /v1/appstore/install` | `{templateId,name?,domain,port?,envVars?:{...}}` | `200 {id,templateId,name,domain,port,status:"running",appDir,...}` | `400 missing_domain`, `404 template_not_found`, `500` |
+| `POST /v1/appstore/{id}/action` | `{action:"start"\|"stop"\|"restart"\|"upgrade"}` | `200 {id,action,status,message}` | `400 invalid_action`, `404 app_not_found`, `500` |
+| `DELETE /v1/appstore/{id}` | — | `200 {status:"uninstalled",id}` | `404 app_not_found`, `500` |
+| `GET /v1/appstore/{id}/logs` | `?tail=100` | `200 {id,logs:string}` | `404 app_not_found`, `500` |
+
+Curated catalog templates: Ghost CMS, Plausible Analytics, Umami Analytics, n8n Automation, MinIO Object Storage, Vaultwarden, Meilisearch, Nextcloud Hub.
+Audit actions: `appstore.install`, `appstore.action`, `appstore.uninstall`.
+
 ## 2. Panel API
 
 Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax, 7 days). Every route except `/api/auth/login` and `/api/auth/logout` returns `401 {"error":{"message":"unauthorized"}}` without a valid session. Until the first account exists the panel runs in **setup mode**: page requests are redirected to `/setup` and API routes answer `403 {"error":{"code":"setup_required","message":"setup required"}}`. Completing `POST /api/setup` (with `PANEL_SEED_*` unset) creates the admin account, signs it in, and disables setup mode permanently.

@@ -7,6 +7,7 @@ import {
   decodeDomainParam,
   handleRoute,
   json,
+  parseJsonBody,
   requireAuth,
 } from "@/lib/http";
 
@@ -28,14 +29,17 @@ async function resolveDomain(ctx: RouteContext): Promise<string> {
   return domain;
 }
 
-export async function POST(_req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
+export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
   return handleRoute(async () => {
     await requireAuth();
     const domain = await resolveDomain(ctx);
+    const body = await parseJsonBody(req).catch(() => undefined);
+    const hasBody = body !== undefined && Object.keys(body).length > 0;
 
     const res = await fetch(`${config.agentUrl}/v1/sites/${encodeURIComponent(domain)}/git/deploy`, {
       method: "POST",
-      headers: agentHeaders(),
+      headers: agentHeaders(hasBody ? "application/json" : undefined),
+      body: hasBody ? JSON.stringify(body) : undefined,
       cache: "no-store",
       signal: AbortSignal.timeout(AGENT_DEPLOY_TIMEOUT_MS),
     });

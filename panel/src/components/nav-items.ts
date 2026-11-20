@@ -10,8 +10,10 @@ import {
   Globe,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   Mail,
   Network,
+  Server,
   Settings,
   ShieldAlert,
   SquareTerminal,
@@ -56,6 +58,13 @@ export const navGroups: NavGroup[] = [
         icon: Globe,
         description: "Domains hosted on this server.",
         keywords: "domains vhost webroot",
+      },
+      {
+        href: "/apps",
+        label: "App Store",
+        icon: LayoutGrid,
+        description: "1-Click Docker stacks (Ghost, Plausible, Umami, n8n, MinIO, Vaultwarden).",
+        keywords: "docker compose apps store 1-click ghost plausible n8n minio vaultwarden",
       },
       {
         href: "/files",
@@ -137,6 +146,13 @@ export const navGroups: NavGroup[] = [
         icon: Activity,
         description: "Host metrics and web-stack services.",
         keywords: "metrics services uptime",
+      },
+      {
+        href: "/servers",
+        label: "Fleet Nodes",
+        icon: Server,
+        description: "Multi-server fleet management and cluster health overview.",
+        keywords: "fleet cluster nodes multi-server remote servers",
       },
       {
         href: "/cron",

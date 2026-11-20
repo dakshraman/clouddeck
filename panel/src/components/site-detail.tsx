@@ -31,6 +31,8 @@ import { TunnelCard } from "@/components/site/tunnel-card";
 import { SiteDoctorCard } from "@/components/site/site-doctor-card";
 import { FastCgiCacheCard } from "@/components/site/fastcgi-cache-card";
 import { WordPressCard } from "@/components/site/wordpress-card";
+import { TrafficAnalyticsCard } from "@/components/site/traffic-analytics-card";
+import { WildcardSslModal } from "@/components/site/wildcard-ssl-modal";
 import { cn } from "@/components/ui/cn";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
 import { ArrowLeft, ExternalLink, Eye, FolderOpen, Globe, HelpCircle, ShieldCheck, Trash2 } from "lucide-react";
@@ -98,7 +100,15 @@ function TabPanel({ id, active, children }: { id: SiteTabId; active: boolean; ch
   );
 }
 
-export function SiteDetail({ domain }: { domain: string }) {
+export function SiteDetail({
+  domain,
+  initialTab = "overview",
+  autoOpenWildcardSsl = false,
+}: {
+  domain: string;
+  initialTab?: SiteTabId;
+  autoOpenWildcardSsl?: boolean;
+}) {
   const router = useRouter();
   const [site, setSite] = useState<Site | null>(null);
   const [state, setState] = useState<LoadState>("loading");
@@ -108,12 +118,13 @@ export function SiteDetail({ domain }: { domain: string }) {
   const [sslError, setSslError] = useState<string | null>(null);
   const [sslSubmitting, setSslSubmitting] = useState(false);
   const [sslTaskId, setSslTaskId] = useState<string | null>(null);
+  const [showWildcardModal, setShowWildcardModal] = useState(autoOpenWildcardSsl);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
-  const [tab, setTab] = useState<SiteTabId>("overview");
+  const [tab, setTab] = useState<SiteTabId>(initialTab);
   const [appsRefreshTrigger, setAppsRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -396,6 +407,13 @@ export function SiteDetail({ domain }: { domain: string }) {
                     {site.ssl.expiresAt ? shortDateTime(site.ssl.expiresAt) : "—"}
                   </span>
                 </DetailRow>
+                <div className="sm:col-span-2 pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">Wildcard (*.{site.domain}) certificate via DNS-01 challenge</span>
+                  <Button variant="secondary" size="sm" onClick={() => setShowWildcardModal(true)}>
+                    <ShieldCheck size={14} className="mr-1.5 text-emerald-500" />
+                    Configure Wildcard SSL
+                  </Button>
+                </div>
               </dl>
             ) : (
               <form onSubmit={onIssueSsl} className="grid gap-4">
@@ -415,9 +433,13 @@ export function SiteDetail({ domain }: { domain: string }) {
                   </p>
                 </div>
                 {sslError ? <Alert variant="error">{sslError}</Alert> : null}
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Button type="submit" loading={sslSubmitting} disabled={sslTaskId !== null}>
-                    Issue SSL
+                    Issue Standard SSL (HTTP-01)
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowWildcardModal(true)}>
+                    <ShieldCheck size={14} className="mr-1.5 text-emerald-500" />
+                    Issue Wildcard SSL (*.{site.domain})
                   </Button>
                 </div>
               </form>
@@ -523,6 +545,7 @@ export function SiteDetail({ domain }: { domain: string }) {
       </TabPanel>
 
       <TabPanel id="usage" active={tab === "usage"}>
+        <TrafficAnalyticsCard domain={site.domain} />
         <UsageCard domain={site.domain} />
         <StatsCard domain={site.domain} />
       </TabPanel>
@@ -530,6 +553,13 @@ export function SiteDetail({ domain }: { domain: string }) {
       <TabPanel id="logs" active={tab === "logs"}>
         <LogsCard domain={site.domain} />
       </TabPanel>
+
+      <WildcardSslModal
+        domain={site.domain}
+        open={showWildcardModal}
+        onOpenChange={setShowWildcardModal}
+        onSuccess={() => void load()}
+      />
     </>
   );
 }

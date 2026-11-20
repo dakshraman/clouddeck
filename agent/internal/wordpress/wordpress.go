@@ -91,6 +91,16 @@ type WPStageResult struct {
 	Message         string `json:"message"`
 }
 
+// WPPushResult reports the outcome of pushing staging changes to production.
+type WPPushResult struct {
+	Success          bool      `json:"success"`
+	ProductionDomain string    `json:"productionDomain"`
+	StagingDomain    string    `json:"stagingDomain"`
+	SafetyBackup     string    `json:"safetyBackup"`
+	PushedAt         time.Time `json:"pushedAt"`
+	Message          string    `json:"message"`
+}
+
 // WPLoginResult returns a temporary passwordless login URL.
 type WPLoginResult struct {
 	Success   bool      `json:"success"`
@@ -528,6 +538,107 @@ func (s *Service) CloneToStaging(ctx context.Context, domain string) (WPStageRes
 	}, nil
 }
 
+// PushStaging pushes changes from staging back to production with an automatic safety backup.
+func (s *Service) PushStaging(ctx context.Context, rawDomain string) (WPPushResult, error) {
+	rawDomain = strings.TrimSpace(rawDomain)
+	if rawDomain == "" {
+		return WPPushResult{}, apierr.BadRequest("missing_domain", "domain is required")
+	}
+
+	prodDomain := rawDomain
+	stageDomain := "staging." + rawDomain
+	if strings.HasPrefix(rawDomain, "staging.") {
+		prodDomain = strings.TrimPrefix(rawDomain, "staging.")
+		stageDomain = rawDomain
+	}
+
+	prodSite, err := s.sites.Get(prodDomain)
+	if err != nil {
+		return WPPushResult{}, apierr.NotFound("site_not_found", fmt.Sprintf("production site %q not found", prodDomain))
+	}
+	stagingSite, err := s.sites.Get(stageDomain)
+	if err != nil {
+		return WPPushResult{}, apierr.NotFound("site_not_found", fmt.Sprintf("staging site %q not found", stageDomain))
+	}
+
+	stagingConfigPath := filepath.Join(stagingSite.Root, "wp-config.php")
+	if _, err := os.Stat(stagingConfigPath); err != nil {
+		return WPPushResult{}, apierr.BadRequest("staging_not_initialized", fmt.Sprintf("staging site %q has no WordPress installation", stageDomain))
+	}
+
+	// 1. Take automatic safety snapshot of production files & configuration
+	ts := time.Now().UTC().Format("20060102150405")
+	backupDir := filepath.Join(prodSite.Root, ".clouddeck_backups", fmt.Sprintf("pre_push_%s", ts))
+	_ = os.MkdirAll(backupDir, 0o755)
+
+	prodConfigPath := filepath.Join(prodSite.Root, "wp-config.php")
+	prodConfigContent, _ := os.ReadFile(prodConfigPath)
+
+	// Save safety copy of existing production files
+	_ = copyDir(prodSite.Root, backupDir)
+
+	// 2. Extract production DB credentials to ensure they are preserved
+	prodDB := extractDefine(string(prodConfigContent), "DB_NAME")
+	prodUser := extractDefine(string(prodConfigContent), "DB_USER")
+	prodPass := extractDefine(string(prodConfigContent), "DB_PASSWORD")
+	prodHost := extractDefine(string(prodConfigContent), "DB_HOST")
+
+	// 3. Copy files from staging to production
+	if err := copyDir(stagingSite.Root, prodSite.Root); err != nil {
+		return WPPushResult{}, apierr.Internal("failed to synchronize files from staging: " + err.Error())
+	}
+
+	// 4. Restore / enforce production DB credentials and URL definitions in production wp-config.php
+	if updatedConfig, err := os.ReadFile(prodConfigPath); err == nil {
+		content := string(updatedConfig)
+		if prodDB != "" {
+			content = replaceDefine(content, "DB_NAME", prodDB)
+		}
+		if prodUser != "" {
+			content = replaceDefine(content, "DB_USER", prodUser)
+		}
+		if prodPass != "" {
+			content = replaceDefine(content, "DB_PASSWORD", prodPass)
+		}
+		if prodHost != "" {
+			content = replaceDefine(content, "DB_HOST", prodHost)
+		}
+
+		// Replace staging URLs with production URLs
+		content = strings.ReplaceAll(content, stageDomain, prodDomain)
+		_ = os.WriteFile(prodConfigPath, []byte(content), 0o644)
+	}
+
+	// 5. Run `wp search-replace` to update DB domain references
+	cliInstalled, _ := s.detectWPCLI()
+	if cliInstalled && !s.cfg.DryRun {
+		cmd := exec.CommandContext(ctx, "wp", "search-replace",
+			stageDomain, prodDomain,
+			fmt.Sprintf("--path=%s", prodSite.Root),
+			"--all-tables",
+			"--allow-root",
+		)
+		_ = cmd.Run()
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Append(audit.Record{
+			Action: "wordpress.push_staging",
+			Params: map[string]any{"production": prodDomain, "staging": stageDomain, "safetyBackup": backupDir},
+			Result: audit.ResultAccepted,
+		})
+	}
+
+	return WPPushResult{
+		Success:          true,
+		ProductionDomain: prodDomain,
+		StagingDomain:    stageDomain,
+		SafetyBackup:     backupDir,
+		PushedAt:         time.Now().UTC(),
+		Message:          fmt.Sprintf("Successfully pushed staging changes from %s to %s with safety snapshot %s", stageDomain, prodDomain, filepath.Base(backupDir)),
+	}, nil
+}
+
 // GenerateMagicLogin creates a 1-time passwordless admin access link valid for 10 minutes.
 func (s *Service) GenerateMagicLogin(ctx context.Context, domain string) (WPLoginResult, error) {
 	site, err := s.sites.Get(domain)
@@ -761,7 +872,7 @@ func copyDir(src, dst string) error {
 	for _, entry := range entries {
 		s := filepath.Join(src, entry.Name())
 		d := filepath.Join(dst, entry.Name())
-		if entry.Name() == ".git" || entry.Name() == "cache" {
+		if entry.Name() == ".git" || entry.Name() == "cache" || entry.Name() == ".clouddeck_backups" {
 			continue
 		}
 		if entry.IsDir() {

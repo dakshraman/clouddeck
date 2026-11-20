@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type {
   WordPressInstallRequest,
   WordPressLoginResponse,
+  WordPressPushStagingRequest,
+  WordPressPushStagingResponse,
   WordPressStageResponse,
   WordPressStatus,
   WordPressUpdateResponse,
@@ -17,6 +19,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  AlertTriangle,
   ArrowUpCircle,
   Copy,
   ExternalLink,
@@ -28,7 +31,9 @@ import {
   Package,
   Palette,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
+  UploadCloud,
   Wand2,
 } from "lucide-react";
 
@@ -51,6 +56,10 @@ export function WordPressCard({ domain }: WordPressCardProps) {
 
   // Staging form state
   const [stagingSubdomain, setStagingSubdomain] = useState("staging");
+  const [showPushConfirm, setShowPushConfirm] = useState(false);
+  const [pushSyncFiles, setPushSyncFiles] = useState(true);
+  const [pushSyncDb, setPushSyncDb] = useState(true);
+  const [pushTakeBackup, setPushTakeBackup] = useState(true);
 
   const loadStatus = useCallback(async () => {
     setError(null);
@@ -134,6 +143,34 @@ export function WordPressCard({ domain }: WordPressCardProps) {
       await loadStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create staging clone.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handlePushStaging() {
+    setBusyAction("push-staging");
+    setError(null);
+    setNotice(null);
+    try {
+      const payload: WordPressPushStagingRequest = {
+        stagingSubdomain: stagingSubdomain.trim() || "staging",
+        syncFiles: pushSyncFiles,
+        syncDatabase: pushSyncDb,
+        takeBackup: pushTakeBackup,
+      };
+      const res = await apiPost<WordPressPushStagingResponse>(
+        `/api/sites/${encodeURIComponent(domain)}/wordpress/push-staging`,
+        payload,
+      );
+      setNotice(
+        res.message ||
+          `Staging pushed to production successfully! ${res.backupId ? `(Automatic safety backup: ${res.backupId})` : ""}`,
+      );
+      setShowPushConfirm(false);
+      await loadStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to push staging to production.");
     } finally {
       setBusyAction(null);
     }
@@ -352,17 +389,99 @@ export function WordPressCard({ domain }: WordPressCardProps) {
                   <span className="text-muted-foreground">.{domain}</span>
                 </div>
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void handleCloneStaging()}
-                  disabled={busyAction !== null}
-                  className="gap-1.5 shrink-0 w-full sm:w-auto"
-                >
-                  {busyAction === "stage" ? <Spinner className="h-3 w-3" /> : <Copy size={13} />}
-                  <span>Create Staging Copy</span>
-                </Button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void handleCloneStaging()}
+                    disabled={busyAction !== null}
+                    className="gap-1.5 shrink-0 flex-1 sm:flex-initial"
+                  >
+                    {busyAction === "stage" ? <Spinner className="h-3 w-3" /> : <Copy size={13} />}
+                    <span>Create Staging</span>
+                  </Button>
+
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowPushConfirm(!showPushConfirm)}
+                    disabled={busyAction !== null}
+                    className="gap-1.5 shrink-0 flex-1 sm:flex-initial"
+                  >
+                    <UploadCloud size={13} />
+                    <span>Push to Production</span>
+                  </Button>
+                </div>
               </div>
+
+              {/* Push Staging Confirmation Box */}
+              {showPushConfirm && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 space-y-3 mt-3 animate-in fade-in">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        Push Staging ({stagingSubdomain}.{domain}) to Live Production ({domain})
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        This action will overwrite production files and database tables with changes from staging, running search-and-replace to update URLs. An automatic safety backup will be captured before any changes are applied.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-3 pt-1 text-xs">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pushTakeBackup}
+                        onChange={(e) => setPushTakeBackup(e.target.checked)}
+                        className="rounded border-border text-brand focus:ring-brand"
+                      />
+                      <span>Automatic Safety Backup</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pushSyncFiles}
+                        onChange={(e) => setPushSyncFiles(e.target.checked)}
+                        className="rounded border-border text-brand focus:ring-brand"
+                      />
+                      <span>Sync WP Files</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pushSyncDb}
+                        onChange={(e) => setPushSyncDb(e.target.checked)}
+                        className="rounded border-border text-brand focus:ring-brand"
+                      />
+                      <span>Sync DB & Search-Replace</span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-500/20">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPushConfirm(false)}
+                      disabled={busyAction !== null}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => void handlePushStaging()}
+                      loading={busyAction === "push-staging"}
+                    >
+                      <UploadCloud size={13} className="mr-1.5" />
+                      Confirm & Push to Production
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Updates Manager */}
