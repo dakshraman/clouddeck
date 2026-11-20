@@ -849,7 +849,7 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 
-**Next.js 15 notes (panel code):**
+**Next.js 16 notes (panel code):**
 - Dynamic route handlers: `ctx: { params: Promise<{ domain: string }> }`, then `const { domain } = await ctx.params;`
 - `cookies()` is async: `const store = await cookies();`
 - GET route handlers are cached by default — every route file must have `export const dynamic = "force-dynamic";` and `export const runtime = "nodejs";`

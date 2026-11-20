@@ -76,7 +76,7 @@ transitions) — ops flows stay instant. Delivered as the **cPanel-style UI pass
 - **Local Development Suite** — transforms Windows (WSL 2) and macOS into production-identical LEMP workstations with automated Local Root CA trust in Windows Certificate Store and macOS Keychain (`*.local` green padlocks).
 - **Single Unified Installer** — universal `install.sh` automatically detecting Linux, macOS, and Windows WSL 2 with interactive component selection and Uni theme ANSI styling.
 - **Primary Design Theme** — Uni 6-color palette (`#74B8CC`, `#235361`, `#FAAA93`, `#6494AC`, `#886351`, `#D2ADAC`) set as the default primary theme across panel, marketing site, terminal, and brand assets.
-- **Next.js 15 Static Marketing Site** — modern marketing site built with Next.js 15, React 19, and Tailwind CSS.
+- **Next.js 16 Static Marketing Site** — modern marketing site built with Next.js 16, React 19, and Tailwind CSS.
 
 ## v0.7 — multi-server / SaaS
 

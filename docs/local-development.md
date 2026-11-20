@@ -55,7 +55,7 @@ curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash
 | **Database Management** | Bloated global phpMyAdmin instance exposed directly | **1-Click Deep-Linked phpMyAdmin** scoped strictly to the chosen schema + instant `.sql` / `.sql.gz` dump exports |
 | **Code Editing Experience** | Edit in local folder; permission conflicts or slow syncing | **Zero permission hassles**; edit files in Windows/macOS VS Code or Cursor with bare-metal speed |
 | **Idle Memory Consumption** | 300MB – 600MB+ RAM | **Under 50MB RAM idle** |
-| **User Interface** | Dated 1990s desktop dialog box (or basic web index) | **Modern Next.js 15 Dark-Mode Deck** with live log streaming, metrics, and terminal |
+| **User Interface** | Dated 1990s desktop dialog box (or basic web index) | **Modern Next.js 16 Dark-Mode Deck** with live log streaming, metrics, and terminal |
 
 ---
 

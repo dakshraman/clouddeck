@@ -1094,7 +1094,7 @@ return [
 	return logs, nil
 }
 
-// ---------------- Next.js 15 Installer ----------------
+// ---------------- Next.js 16 Installer ----------------
 
 func (s *Service) installNextJS(ctx context.Context, site store.Site, opts TemplateInstallOptions, uid, gid int) ([]string, error) {
 	var logs []string
@@ -1176,7 +1176,7 @@ export default function RootLayout({
         </div>
         <div style={{ background: "#171717", border: "1px solid #262626", borderRadius: "0.75rem", padding: "1.5rem" }}>
           <div style={{ color: "#a1a1aa", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Framework</div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem", color: "#38bdf8" }}>Next.js 15.x</div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem", color: "#38bdf8" }}>Next.js 16.x</div>
           <p style={{ color: "#71717a", fontSize: "0.875rem", margin: "0.5rem 0 0 0" }}>App Router + React Server Components</p>
         </div>
         <div style={{ background: "#171717", border: "1px solid #262626", borderRadius: "0.75rem", padding: "1.5rem" }}>
@@ -1200,7 +1200,7 @@ const html = ` + "`" + `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Next.js 15 Standalone Server</title>
+  <title>Next.js 16 Standalone Server</title>
   <style>
     body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #ededed; margin: 0; padding: 3rem 1.5rem; display: flex; justify-content: center; align-items: center; min-height: 80vh; }
     .card { background: #171717; border: 1px solid #262626; border-radius: 1rem; max-width: 600px; width: 100%; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
@@ -1212,9 +1212,9 @@ const html = ` + "`" + `<!DOCTYPE html>
 </head>
 <body>
   <div class="card">
-    <span class="badge">Next.js 15 Standalone</span>
+    <span class="badge">Next.js 16 Standalone</span>
     <h1>CloudDeck Next.js Server</h1>
-    <p>Your Next.js 15 and React 19 application is online and ready for incoming production traffic.</p>
+    <p>Your Next.js 16 and React 19 application is online and ready for incoming production traffic.</p>
     <div class="meta">Serving HTTP on port ${port}</div>
   </div>
 </body>

@@ -312,7 +312,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.51"
+      VERSION="v0.6.53"
     fi
   fi
 }
@@ -499,7 +499,7 @@ prompt_component_selection() {
   say "  ${TC_STEEL}├─ Choose Installation Profile ─────────────────────────────────────${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}● [1] Recommended Full LEMP Stack${CLR_RESET} ${TC_SKY}(Default)${CLR_RESET}"
-  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 15 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 16 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Nginx Web Server + MariaDB Database${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Node.js 22 LTS Runtime & npm${CLR_RESET}"
@@ -511,7 +511,7 @@ prompt_component_selection() {
   fi
   say "  ${TC_STEEL}│${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}  ${TC_PEACH}${CLR_BOLD}○ [2] Fast Core Development Suite${CLR_RESET}"
-  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 15 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
+  say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Next.js 16 Panel, Go Daemon & CloudDeck CLI${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Nginx Web Server + MariaDB + PHP 8.4 + Node.js 22 LTS${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}        ${CLR_DIM}• Skips heavy mail, DNS, and WAF setup${CLR_RESET}"
   say "  ${TC_STEEL}│${CLR_RESET}"
