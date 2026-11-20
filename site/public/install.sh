@@ -16,6 +16,7 @@
 # selector (removing the need for separate fast/standard scripts), and
 # provisions the complete LEMP hosting or local development environment.
 set -eu
+stty onlcr 2>/dev/null || true
 
 REPO="dakshraman/clouddeck"
 NODE_VERSION="22.23.4"
@@ -1774,6 +1775,7 @@ EOF
   cat > "$PREFIX/run/start.sh" << EOF
 #!/bin/sh
 set -eu
+stty onlcr 2>/dev/null || true
 PREFIX="${PREFIX}"
 ETCDIR="${ETCDIR}"
 [ -x "\$PREFIX/run/stop.sh" ] && "\$PREFIX/run/stop.sh" >/dev/null 2>&1 || true

@@ -59,6 +59,12 @@ if ($isModernConsole) {
     $gRailBot  = "+--"
 }
 
+function Write-Line([string]$Text = "", [ConsoleColor]$Color = [ConsoleColor]::White) {
+    try { if ([Console]::CursorLeft -gt 0) { [Console]::CursorLeft = 0 } } catch {}
+    $esc = [char]27
+    Write-Host ("`r$esc[1G" + $Text + "`r") -ForegroundColor $Color
+}
+
 $configPath = Join-Path $env:USERPROFILE ".clouddeck\config.json"
 $distro = ""
 $panelPort = 2083
@@ -95,63 +101,62 @@ $cmd = if ($Arguments -and $Arguments.Count -gt 0) { $Arguments[0].ToLower() } e
 
 switch ($cmd) {
     { $_ -in "help", "--help", "-h" } {
-        Write-Host ""
-        Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Windows Native CLI (WSL 2 Integration) ───────────────${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}WSL 2 Target:${clrReset}      $distro"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}Panel URL:${clrReset}         http://localhost:$panelPort"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}Tech Stack:${clrReset}        Next.js 16 + Go stdlib daemon"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}"
-        Write-Host "  ${tcSky}$gRailDiv Available CLI Commands ───────────────────────────────────────────${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status [--json]${clrReset}     Live stack services, resources & metrics card"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck doctor [--fix]${clrReset}      8-point automated health check with self-healing"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}                Open web panel in default Windows browser"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart [service]${clrReset}   Restart panel, agent, nginx, mariadb, redis"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck logs [service] [-f]${clrReset} Stream live service logs (panel, agent, nginx)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck site <subcommand>${clrReset}    Manage sites (list, create, delete, info)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck app <list|install>${clrReset}   1-Click App Store (WordPress, Next.js 16, etc.)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck db <subcommand>${clrReset}      Databases (list, create, drop, users)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck cache <status|purge>${clrReset}FastCGI microcache & Redis cache control"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck ssl <list|issue>${clrReset}    SSL/TLS certificates & Let's Encrypt issuance"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck backup <list|create>${clrReset}Local and S3 cloud backup archives"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck fleet <list|ping>${clrReset}   Multi-server cluster nodes & latency"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck security <scan>${clrReset}     AI security posture scan & firewall status"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck user <list|add|passwd>${clrReset}Administrator account management"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck wsl${clrReset}                 Open interactive bash terminal inside WSL"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck version [--json]${clrReset}    Display Next.js 16, Go, Node, and CLI version"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck update [version]${clrReset}    Update CloudDeck to the latest release"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}"
-        Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-        Write-Host ""
+        Write-Line ""
+        Write-Line "  +-- CloudDeck Windows Native CLI (WSL 2 Integration)" Cyan
+        Write-Line "  |   WSL 2 Target:      $distro" White
+        Write-Line "  |   Panel URL:         http://localhost:$panelPort" White
+        Write-Line "  |   Tech Stack:        Next.js 16 + Go stdlib daemon" White
+        Write-Line "  |" DarkCyan
+        Write-Line "  +-- Available CLI Commands:" Yellow
+        Write-Line "  |   clouddeck status [--json]     Live stack services, resources & metrics card" Gray
+        Write-Line "  |   clouddeck doctor [--fix]      8-point automated health check with self-healing" Gray
+        Write-Line "  |   clouddeck open                Open web panel in default Windows browser" Gray
+        Write-Line "  |   clouddeck restart [service]   Restart panel, agent, nginx, mariadb, redis" Gray
+        Write-Line "  |   clouddeck logs [service] [-f] Stream live service logs (panel, agent, nginx)" Gray
+        Write-Line "  |   clouddeck site <subcommand>   Manage sites (list, create, delete, info)" Gray
+        Write-Line "  |   clouddeck app <list|install>  1-Click App Store (WordPress, Next.js 16, etc.)" Gray
+        Write-Line "  |   clouddeck db <subcommand>     Databases (list, create, drop, users)" Gray
+        Write-Line "  |   clouddeck cache <status|purge>FastCGI microcache & Redis cache control" Gray
+        Write-Line "  |   clouddeck ssl <list|issue>    SSL/TLS certificates & Let's Encrypt issuance" Gray
+        Write-Line "  |   clouddeck backup <list|create>Local and S3 cloud backup archives" Gray
+        Write-Line "  |   clouddeck fleet <list|ping>   Multi-server cluster nodes & latency" Gray
+        Write-Line "  |   clouddeck security <scan>     AI security posture scan & firewall status" Gray
+        Write-Line "  |   clouddeck user <list|add|passwd> Administrator account management" Gray
+        Write-Line "  |   clouddeck wsl                 Open interactive bash terminal inside WSL" Gray
+        Write-Line "  |   clouddeck version [--json]    Display Next.js 16, Go, Node, and CLI version" Gray
+        Write-Line "  |   clouddeck update [version]    Update CloudDeck to the latest release" Gray
+        Write-Line "  +------------------------------------------------------------------" Cyan
+        Write-Line ""
         exit 0
     }
 
     "open" {
         $url = "http://localhost:$panelPort"
-        Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} Opening CloudDeck Web Panel: ${tcPeach}$url${clrReset}..."
+        Write-Line "  > Opening CloudDeck Web Panel: $url..." Cyan
         Start-Process $url
         exit 0
     }
 
     { $_ -in "wsl", "shell", "bash" } {
-        Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} Entering CloudDeck environment inside WSL ($distro)..."
+        Write-Line "  > Entering CloudDeck environment inside WSL ($distro)..." Cyan
         & wsl.exe -d $distro -u root
         exit $LASTEXITCODE
     }
 
     "config" {
-        Write-Host ""
-        Write-Host "  ${tcSteel}$gRailTop CloudDeck Windows Configuration ────────────────────────────────${clrReset}"
-        Write-Host "  ${tcSteel}$gRailMid${clrReset}  Config File:       $configPath"
-        Write-Host "  ${tcSteel}$gRailMid${clrReset}  WSL Distribution:  $distro"
-        Write-Host "  ${tcSteel}$gRailMid${clrReset}  Web Panel Port:    $panelPort"
-        Write-Host "  ${tcSteel}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-        Write-Host ""
+        Write-Line ""
+        Write-Line "  +-- CloudDeck Windows Configuration" Cyan
+        Write-Line "  |   Config File:       $configPath" White
+        Write-Line "  |   WSL Distribution:  $distro" White
+        Write-Line "  |   Web Panel Port:    $panelPort" White
+        Write-Line "  +------------------------------------------------------------------" Cyan
+        Write-Line ""
         exit 0
     }
 
     default {
         if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
-            Write-Host "  ${clrRed}$gErr wsl.exe was not found. Please install WSL 2: wsl --install${clrReset}"
+            Write-Line "  [X] wsl.exe was not found. Please install WSL 2: wsl --install" Red
             exit 1
         }
 
