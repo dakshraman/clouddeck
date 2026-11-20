@@ -541,25 +541,6 @@ function Prompt-InteractiveOptions {
         AdminPass = $chosenPass
     }
 }
-    }
-
-    $chosenUser = $User
-    $chosenPass = $Pass
-    $adminAns = Read-Host "  $gArrow Configure Initial Admin Account? [y/N]"
-    if ($adminAns -match "^[yY]") {
-        $u = Read-Host "    Admin Username [admin]"
-        $chosenUser = if ($u) { $u } else { "admin" }
-        $p = Read-Host "    Admin Password (leave blank to auto-generate)"
-        $chosenPass = $p
-    }
-
-    return @{
-        Profile   = $chosenProfile
-        PanelPort = $chosenPort
-        AdminUser = $chosenUser
-        AdminPass = $chosenPass
-    }
-}
 
 # --- Execute Unified Installer inside WSL ------------------------------------
 
