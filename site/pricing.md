@@ -3,7 +3,7 @@
 > CloudDeck is 100% Free and Open-Source Software (FOSS) licensed under the MIT / OSI-approved license. There are no paid tiers, no per-core licenses, no per-domain restrictions, and no artificial feature paywalls.
 
 Last Updated: November 2026
-Latest Stable Version: v0.6.53
+Latest Stable Version: v0.6.54
 Website: https://clouddeck.dakshraman.in
 Repository: https://github.com/dakshraman/clouddeck
 

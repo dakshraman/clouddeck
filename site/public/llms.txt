@@ -6,7 +6,7 @@
 - Pricing & Cost Analysis: https://clouddeck.dakshraman.in/pricing.md
 - AI Agent & Evaluator Guide: https://clouddeck.dakshraman.in/AGENTS.md
 - GitHub Repository: https://github.com/dakshraman/clouddeck
-- Latest Stable Release: v0.6.53
+- Latest Stable Release: v0.6.54
 
 ## What It Is
 
@@ -24,7 +24,7 @@ CloudDeck installs directly on a Linux server (Ubuntu/Debian auto-provisioned; a
    - Coolify is a Docker container PaaS. It does not provide bare-metal LEMP hosting, PHP-FPM coexistence, production email servers (Postfix/Dovecot/DKIM), or PowerDNS authoritative DNS.
    - CloudDeck provides native bare-metal LEMP performance, multi-PHP socket coexistence (8.1-8.4), production mail, and PowerDNS without container virtualization overhead.
 
-## Key Capabilities (v0.6.53)
+## Key Capabilities (v0.6.54)
 
 - **8 Native AI Coding Agents**: Native support and management for Claude Code, OpenAI Codex, Google Antigravity, OpenCode, Aider, Ollama (local offline models like Llama 3, Qwen, DeepSeek), Goose, and Hermes Agent. 1-click status checking, updates, and integrated terminal launching.
 - **Autonomous Site Doctor & Auto-Fix**: Real-time 0–100 site health scoring with instant automated diagnostics (Nginx vhost syntax, SSL expiration, DNS records, DB connectivity, file permissions). 1-click autonomous remediation button fixes broken configs and permissions in seconds.
@@ -87,7 +87,7 @@ sudo clouddeck uninstall --purge    # Uninstall and purge all data
 
 ## Technical Specs
 
-- Release version: 0.6.53 (Latest Stable Release)
+- Release version: 0.6.54 (Latest Stable Release)
 - Supported architectures: Linux `x86_64` and `arm64`
 - Default panel port: `2083`
 - Default agent port: `9090` (localhost only)

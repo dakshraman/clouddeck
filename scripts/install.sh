@@ -141,6 +141,8 @@ while [ $# -gt 0 ]; do
     --etcdir)          ETCDIR="$2"; shift 2 ;;
     --agent-port)      AGENT_PORT="$2"; shift 2 ;;
     --panel-port)      PANEL_PORT="$2"; shift 2 ;;
+    --admin-user|--user) PANEL_SEED_ADMIN="$2"; shift 2 ;;
+    --admin-pass|--admin-password|--pass) PANEL_SEED_PASSWORD="$2"; shift 2 ;;
     --gh-token)        GH_TOKEN="$2"; shift 2 ;;
     --profile)         INSTALL_PROFILE="$2"; shift 2 ;;
     --fast|--minimal)  FAST=1; INSTALL_PROFILE="fast"; shift ;;
@@ -281,7 +283,14 @@ fi
 # --- Helper Functions --------------------------------------------------------
 systemd_present() {
   [ "$FORCE_NO_SYSTEMD" = "1" ] && return 1
-  command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]
+  command -v systemctl >/dev/null 2>&1 || return 1
+  [ -d /run/systemd/system ] || return 1
+  local _sr
+  _sr="$(systemctl is-system-running 2>/dev/null || true)"
+  case "$_sr" in
+    running|degraded|starting|initializing) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 random_hex() {
@@ -292,8 +301,12 @@ download_url() {
   _url="$1"; _out="$2"; shift 2
   _tries=0
   while [ $_tries -lt 3 ]; do
-    if curl -fsSL -C - --connect-timeout 15 --retry 2 "$@" -o "$_out" "$_url"; then
-      return 0
+    if curl -fsSL -C - --connect-timeout 15 --retry 2 "$@" -o "$_out" "$_url" 2>/dev/null; then
+      if [ -s "$_out" ]; then return 0; fi
+    fi
+    rm -f "$_out"
+    if curl -fsSL --connect-timeout 15 --retry 2 "$@" -o "$_out" "$_url"; then
+      if [ -s "$_out" ]; then return 0; fi
     fi
     _tries=$((_tries + 1))
     warn "download stalled or failed; retrying ($_tries/3)..."
@@ -312,7 +325,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.53"
+      VERSION="v0.6.54"
     fi
   fi
 }
@@ -401,9 +414,8 @@ is_port_in_use() {
   if command -v lsof >/dev/null 2>&1; then
     lsof -iTCP:"${_p}" -sTCP:LISTEN -P -n >/dev/null 2>&1 && return 0
   fi
-  if (exec 6<>/dev/tcp/127.0.0.1/"$_p") 2>/dev/null; then
-    exec 6<&- 6>&-
-    return 0
+  if command -v fuser >/dev/null 2>&1; then
+    fuser "${_p}/tcp" >/dev/null 2>&1 && return 0
   fi
   return 1
 }
@@ -671,6 +683,12 @@ run_macos_installer() {
   step "Running macOS Local Development Suite Engine..."
 
   ensure_brew() {
+    if [ -x "/opt/homebrew/bin/brew" ]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -x "/usr/local/bin/brew" ]; then
+      eval "$(/usr/local/bin/brew shellenv)"
+    fi
+
     if ! command -v brew >/dev/null 2>&1; then
       step "Homebrew not found. Installing Homebrew..."
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || die "Homebrew installation failed"
@@ -797,12 +815,15 @@ EOF
 
   step "Installing CloudDeck CLI..."
   download_asset "clouddeck-cli" "$TMP/clouddeck-cli" || true
+  if [ ! -s "$TMP/clouddeck-cli" ] && [ -f "scripts/clouddeck" ]; then
+    cp scripts/clouddeck "$TMP/clouddeck-cli"
+  fi
+  if [ ! -s "$TMP/clouddeck-cli" ]; then
+    curl -fsSL "https://raw.githubusercontent.com/$REPO/main/scripts/clouddeck" -o "$TMP/clouddeck-cli" 2>/dev/null || true
+  fi
   if [ -s "$TMP/clouddeck-cli" ]; then
     chmod +x "$TMP/clouddeck-cli"
     mv -f "$TMP/clouddeck-cli" "$PREFIX/bin/clouddeck-cli"
-  elif [ -f "scripts/clouddeck" ]; then
-    cp scripts/clouddeck "$PREFIX/bin/clouddeck-cli"
-    chmod +x "$PREFIX/bin/clouddeck-cli"
   fi
 
   # Wrapper script in PATH
@@ -917,6 +938,7 @@ EOF
 </plist>
 EOF
 
+  MACOS_NODE_BIN="$(command -v node 2>/dev/null || echo "$BREW_PREFIX/bin/node")"
   cat > "$LAUNCH_DIR/in.dakshraman.clouddeck-panel.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -926,7 +948,7 @@ EOF
     <string>in.dakshraman.clouddeck-panel</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$(command -v node)</string>
+        <string>$MACOS_NODE_BIN</string>
         <string>$PREFIX/panel/server.js</string>
     </array>
     <key>EnvironmentVariables</key>
@@ -1019,75 +1041,164 @@ setup_swap() {
 
 provision_linux_packages() {
   [ "$INSTALL_PROFILE" = "minimal" ] && return 0
-  if ! command -v apt-get >/dev/null 2>&1; then
-    warn "apt-get not found: please install web stack packages (nginx, php-fpm, mariadb) manually"
+
+  local _pkg_mgr=""
+  if command -v apt-get >/dev/null 2>&1; then
+    _pkg_mgr="apt"
+  elif command -v dnf >/dev/null 2>&1; then
+    _pkg_mgr="dnf"
+  elif command -v yum >/dev/null 2>&1; then
+    _pkg_mgr="yum"
+  elif command -v pacman >/dev/null 2>&1; then
+    _pkg_mgr="pacman"
+  fi
+
+  if [ -z "$_pkg_mgr" ]; then
+    warn "No supported package manager detected (apt, dnf, yum, pacman); please verify web stack packages manually."
     return 0
   fi
 
-  step "Provisioning Linux server stack packages..."
-  _pkgs="git unzip sqlite3 ufw libatomic1"
-  [ "$DO_NGINX" = "1" ] && _pkgs="$_pkgs nginx"
-  
-  if [ "$DO_PHP" = "1" ]; then
-    _pkgs="$_pkgs php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml php-zip php-intl php-bcmath php-opcache composer"
-    if [ "$DO_PHP_MULTI" = "1" ] && [ "$FAST" = "0" ]; then
-      # If sury repository is present or can be enabled, multi-php packages are available
-      _pkgs="$_pkgs php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm"
+  step "Provisioning Linux server stack packages via $_pkg_mgr..."
+
+  if [ "$_pkg_mgr" = "apt" ]; then
+    # Enable universe repository on Ubuntu if tool is available
+    if command -v add-apt-repository >/dev/null 2>&1; then
+      add-apt-repository -y universe >/dev/null 2>&1 || true
     fi
-  fi
 
-  if [ "$DO_MARIADB" = "1" ]; then
-    if command -v mysqld >/dev/null 2>&1 || dpkg -s mysql-server >/dev/null 2>&1 || dpkg -s mariadb-server >/dev/null 2>&1; then
-      ok "Existing MySQL/MariaDB server detected; leaving it in place."
-      if dpkg -s mysql-server >/dev/null 2>&1 && ! dpkg -s mariadb-server >/dev/null 2>&1; then
-        DB_UNIT="mysql"
-      fi
-    else
-      _pkgs="$_pkgs mariadb-server mariadb-client"
-    fi
-  fi
-
-  if [ "$DO_EMAIL" = "1" ]; then
-    _pkgs="$_pkgs postfix dovecot-imapd dovecot-pop3d"
-  fi
-
-  if [ "$DO_DNS" = "1" ]; then
-    _pkgs="$_pkgs pdns-server pdns-backend-sqlite3 sqlite3"
-  fi
-
-  if [ "$DO_SECURITY" = "1" ]; then
-    _pkgs="$_pkgs libnginx-mod-http-modsecurity modsecurity-crs fail2ban"
-  fi
-
-  # certbot for SSL
-  if ! command -v certbot >/dev/null 2>&1 && ! dpkg -s certbot >/dev/null 2>&1; then
-    _pkgs="$_pkgs certbot"
-  fi
-
-  # Filter missing packages
-  _missing=""
-  for _pkg in $_pkgs; do
-    dpkg -s "$_pkg" >/dev/null 2>&1 || _missing="$_missing $_pkg"
-  done
-
-  if [ -z "$_missing" ]; then
-    ok "All selected hosting packages are already installed."
-  else
-    step "Installing missing packages:$_missing"
+    # Pre-seed debconf so Postfix and man-db never block or prompt interactively
     echo 'man-db man-db/auto-update boolean false' | debconf-set-selections 2>/dev/null || true
+    echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections 2>/dev/null || true
+    echo "postfix postfix/mailname string $(hostname -f 2>/dev/null || echo 'localhost')" | debconf-set-selections 2>/dev/null || true
+
+    # Wait gracefully for background locks (unattended-upgrades / apt-daily)
+    if command -v fuser >/dev/null 2>&1; then
+      if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+        info "Waiting for background package lock (unattended-upgrades)..."
+        local _lock_tries=0
+        while [ $_lock_tries -lt 30 ]; do
+          if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+            break
+          fi
+          sleep 2
+          _lock_tries=$((_lock_tries + 1))
+        done
+      fi
+    fi
+
     DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
-      apt-get update -qq -o DPkg::Lock::Timeout=300 || warn "apt-get update encountered non-critical errors"
-    # shellcheck disable=SC2086
-    DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
-      apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=300 \
-        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
-        $_missing || warn "Some optional packages could not be installed immediately."
+      apt-get update -qq -o DPkg::Lock::Timeout=60 || warn "apt-get update encountered non-critical errors"
+
+    # Core essential packages
+    local _core_pkgs="git unzip sqlite3 ufw libatomic1 certbot"
+    [ "$DO_NGINX" = "1" ] && _core_pkgs="$_core_pkgs nginx"
+    if [ "$DO_MARIADB" = "1" ]; then
+      if command -v mysqld >/dev/null 2>&1 || dpkg -s mysql-server >/dev/null 2>&1 || dpkg -s mariadb-server >/dev/null 2>&1; then
+        ok "Existing MySQL/MariaDB server detected; leaving it in place."
+        if dpkg -s mysql-server >/dev/null 2>&1 && ! dpkg -s mariadb-server >/dev/null 2>&1; then
+          DB_UNIT="mysql"
+        fi
+      else
+        _core_pkgs="$_core_pkgs mariadb-server mariadb-client"
+      fi
+    fi
+    if [ "$DO_PHP" = "1" ]; then
+      _core_pkgs="$_core_pkgs php-fpm php-cli php-mysql php-curl php-gd php-mbstring php-xml php-zip php-intl php-bcmath php-opcache"
+    fi
+
+    # Filter missing core packages
+    local _missing_core=""
+    for _pkg in $_core_pkgs; do
+      dpkg -s "$_pkg" >/dev/null 2>&1 || _missing_core="$_missing_core $_pkg"
+    done
+
+    if [ -n "$_missing_core" ]; then
+      step "Installing core packages:$_missing_core"
+      if ! DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+        apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 \
+          -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+          $_missing_core; then
+        warn "Batch core install had issues; attempting individual package installation..."
+        for _p in $_missing_core; do
+          DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+            apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=30 \
+              -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+              "$_p" >/dev/null 2>&1 || warn "Could not install $_p"
+        done
+      fi
+    fi
+
+    # Multi-PHP coexistence
+    if [ "$DO_PHP" = "1" ] && [ "$DO_PHP_MULTI" = "1" ] && [ "$FAST" = "0" ]; then
+      step "Checking multi-PHP version packages (8.1, 8.2, 8.3, 8.4)..."
+      if command -v add-apt-repository >/dev/null 2>&1 && [ ! -f /etc/apt/sources.list.d/ondrej-ubuntu-php-*.list ]; then
+        add-apt-repository -y ppa:ondrej/php >/dev/null 2>&1 || true
+        DEBIAN_FRONTEND=noninteractive apt-get update -qq -o DPkg::Lock::Timeout=60 || true
+      fi
+      local _multi_php=""
+      for _phpv in php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm; do
+        if apt-cache show "$_phpv" >/dev/null 2>&1 && ! dpkg -s "$_phpv" >/dev/null 2>&1; then
+          _multi_php="$_multi_php $_phpv"
+        fi
+      done
+      if [ -n "$_multi_php" ]; then
+        DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+          apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 \
+            -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+            $_multi_php >/dev/null 2>&1 || true
+      fi
+    fi
+
+    # Optional services (Email, DNS, Security)
+    local _opt_pkgs=""
+    [ "$DO_EMAIL" = "1" ] && _opt_pkgs="$_opt_pkgs postfix dovecot-imapd dovecot-pop3d"
+    [ "$DO_DNS" = "1" ] && _opt_pkgs="$_opt_pkgs pdns-server pdns-backend-sqlite3"
+    [ "$DO_SECURITY" = "1" ] && _opt_pkgs="$_opt_pkgs fail2ban"
+    if [ "$DO_SECURITY" = "1" ]; then
+      apt-cache show libnginx-mod-http-modsecurity >/dev/null 2>&1 && _opt_pkgs="$_opt_pkgs libnginx-mod-http-modsecurity modsecurity-crs"
+    fi
+
+    if [ -n "$_opt_pkgs" ]; then
+      for _op in $_opt_pkgs; do
+        if ! dpkg -s "$_op" >/dev/null 2>&1 && apt-cache show "$_op" >/dev/null 2>&1; then
+          DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+            apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=30 \
+              -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+              "$_op" >/dev/null 2>&1 || warn "Optional package $_op could not be installed"
+        fi
+      done
+    fi
+
     rm -f /var/cache/apt/archives/*.deb 2>/dev/null || true
+
+    # Composer
     if [ "$DO_PHP" = "1" ] && ! command -v composer >/dev/null 2>&1; then
       step "Installing Composer binary to /usr/local/bin/composer..."
       curl -sS https://getcomposer.org/installer 2>/dev/null | php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null || true
     fi
-    ok "Package installation step completed."
+
+  elif [ "$_pkg_mgr" = "dnf" ] || [ "$_pkg_mgr" = "yum" ]; then
+    step "Installing packages via $_pkg_mgr..."
+    $_pkg_mgr install -y -q epel-release 2>/dev/null || true
+    local _rhel_pkgs="git unzip sqlite firewalld libatomic certbot"
+    [ "$DO_NGINX" = "1" ] && _rhel_pkgs="$_rhel_pkgs nginx"
+    [ "$DO_MARIADB" = "1" ] && _rhel_pkgs="$_rhel_pkgs mariadb-server mariadb"
+    [ "$DO_PHP" = "1" ] && _rhel_pkgs="$_rhel_pkgs php-fpm php-cli php-mysqlnd php-gd php-xml php-mbstring php-json php-zip"
+    $_pkg_mgr install -y -q $_rhel_pkgs || warn "Some RHEL packages could not be installed immediately."
+    if [ "$DO_PHP" = "1" ] && ! command -v composer >/dev/null 2>&1; then
+      curl -sS https://getcomposer.org/installer 2>/dev/null | php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null || true
+    fi
+
+  elif [ "$_pkg_mgr" = "pacman" ]; then
+    step "Installing packages via pacman..."
+    local _arch_pkgs="git unzip sqlite certbot"
+    [ "$DO_NGINX" = "1" ] && _arch_pkgs="$_arch_pkgs nginx"
+    [ "$DO_MARIADB" = "1" ] && _arch_pkgs="$_arch_pkgs mariadb"
+    [ "$DO_PHP" = "1" ] && _arch_pkgs="$_arch_pkgs php php-fpm"
+    pacman -Sy --noconfirm $_arch_pkgs 2>/dev/null || warn "pacman package installation completed with warnings."
+    if [ "$DO_MARIADB" = "1" ] && [ ! -d /var/lib/mysql/mysql ]; then
+      mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql >/dev/null 2>&1 || true
+    fi
   fi
 
   mkdir -p /www/wwwroot
@@ -1254,12 +1365,27 @@ run_linux_installer() {
     if [ ! -s "$TMP/clouddeck-cli" ]; then
       download_asset "clouddeck-cli" "$TMP/clouddeck-cli" || true
     fi
+    if [ ! -s "$TMP/clouddeck-cli" ] && [ -f "scripts/clouddeck" ]; then
+      cp scripts/clouddeck "$TMP/clouddeck-cli"
+    fi
+    if [ ! -s "$TMP/clouddeck-cli" ]; then
+      curl -fsSL "https://raw.githubusercontent.com/$REPO/main/scripts/clouddeck" -o "$TMP/clouddeck-cli" 2>/dev/null || true
+    fi
     if [ -s "$TMP/clouddeck-cli" ]; then
       mkdir -p "$PREFIX/bin"
       { printf '#!%s\n' "$PREFIX/node/bin/node"; tail -n +2 "$TMP/clouddeck-cli"; } > "$TMP/clouddeck-cli.inst"
       install -m 0755 "$TMP/clouddeck-cli.inst" "$PREFIX/bin/clouddeck"
       ln -sf "$PREFIX/bin/clouddeck" /usr/local/bin/clouddeck
       ok "CloudDeck CLI installed to /usr/local/bin/clouddeck"
+    else
+      warn "CloudDeck CLI release binary unavailable; installing Node CLI wrapper..."
+      mkdir -p "$PREFIX/bin"
+      cat > "$PREFIX/bin/clouddeck" << EOF
+#!/bin/bash
+exec "$PREFIX/node/bin/node" "$PREFIX/scripts/clouddeck" "\$@" 2>/dev/null || echo "CloudDeck CLI not found; run: sudo clouddeck reinstall"
+EOF
+      chmod +x "$PREFIX/bin/clouddeck"
+      ln -sf "$PREFIX/bin/clouddeck" /usr/local/bin/clouddeck
     fi
   fi
 
@@ -1494,10 +1620,13 @@ EOF
     "$PREFIX/run/start.sh"
   fi
 
-  # Service health verification
+  printf '%s\n' "$VERSION" > "$PREFIX/.clouddeck-version"
+}
+
+verify_service_health() {
   if [ "$DO_AGENT" = "1" ]; then
     step "Verifying CloudDeck Agent health on 127.0.0.1:$AGENT_PORT..."
-    i=0
+    local i=0
     while [ $i -lt 15 ]; do
       if curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health" >/dev/null 2>&1; then break; fi
       i=$((i + 1)); sleep 1
@@ -1505,13 +1634,17 @@ EOF
     if curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health" >/dev/null 2>&1; then
       ok "Agent responsive: $(curl -fsS "http://127.0.0.1:$AGENT_PORT/v1/health")"
     else
-      warn "Agent did not answer immediately on port $AGENT_PORT (check journalctl -u clouddeck-agent)"
+      if [ "$OS_TYPE" = "darwin" ]; then
+        warn "Agent did not answer immediately on port $AGENT_PORT (check: launchctl list in.dakshraman.clouddeck-agent)"
+      else
+        warn "Agent did not answer immediately on port $AGENT_PORT (check journalctl -u clouddeck-agent or $PREFIX/run/agent.log)"
+      fi
     fi
   fi
 
   if [ "$DO_PANEL" = "1" ]; then
     step "Verifying CloudDeck Web Panel health on port $PANEL_PORT..."
-    i=0
+    local i=0
     while [ $i -lt 25 ]; do
       if curl -k -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null || curl -k -fsSL --max-time 2 -o /dev/null "https://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then break; fi
       i=$((i + 1)); sleep 1
@@ -1519,11 +1652,13 @@ EOF
     if curl -k -fsSL --max-time 2 -o /dev/null "http://127.0.0.1:$PANEL_PORT/" 2>/dev/null || curl -k -fsSL --max-time 2 -o /dev/null "https://127.0.0.1:$PANEL_PORT/" 2>/dev/null; then
       ok "Web panel verified active on port $PANEL_PORT"
     else
-      warn "Web panel is still initializing on port $PANEL_PORT (check journalctl -u clouddeck-panel)"
+      if [ "$OS_TYPE" = "darwin" ]; then
+        warn "Web panel is still initializing on port $PANEL_PORT (check: launchctl list in.dakshraman.clouddeck-panel)"
+      else
+        warn "Web panel is still initializing on port $PANEL_PORT (check journalctl -u clouddeck-panel or $PREFIX/run/panel.log)"
+      fi
     fi
   fi
-
-  printf '%s\n' "$VERSION" > "$PREFIX/.clouddeck-version"
 }
 
 # --- Execution Entrypoint ----------------------------------------------------
@@ -1551,6 +1686,8 @@ if [ "$OS_TYPE" = "darwin" ]; then
 else
   run_linux_installer
 fi
+
+verify_service_health
 
 # Determine accessible URL
 if [ "$IS_WSL" = "1" ] || [ "$OS_TYPE" = "darwin" ]; then

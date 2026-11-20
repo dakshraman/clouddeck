@@ -5,7 +5,7 @@
 Website: https://clouddeck.dakshraman.in  
 Documentation: https://clouddeck.dakshraman.in/llms-full.txt  
 Repository: https://github.com/dakshraman/clouddeck  
-Latest Stable Version: v0.6.53  
+Latest Stable Version: v0.6.54  
 
 ---
 

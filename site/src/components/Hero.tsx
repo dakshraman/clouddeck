@@ -60,7 +60,7 @@ export function Hero() {
             className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md transition hover:border-[#38BDF8]/40 hover:bg-white/10"
           >
             <span className="flex h-2 w-2 rounded-full bg-[#10B981] ring-4 ring-[#10B981]/20 animate-pulse" />
-            <span className="font-semibold text-white">v0.6.53 STABLE</span>
+            <span className="font-semibold text-white">v0.6.54 STABLE</span>
             <span className="text-slate-600">•</span>
             <span className="text-slate-400 group-hover:text-white transition-colors">
               The AI-Native cPanel Replacement &bull; 8 AI Agents
@@ -105,7 +105,7 @@ export function Hero() {
             <Bot className="h-4 w-4 text-[#38BDF8]" />
             <span>AI Agents &amp; Doctor</span>
             <span className="rounded-full bg-[#38BDF8]/20 px-2 py-0.5 text-[11px] font-mono font-bold text-[#38BDF8]">
-              v0.6.53
+              v0.6.54
             </span>
           </a>
 
@@ -511,7 +511,7 @@ export function Hero() {
                 </div>
                 <div className="mt-3 text-slate-500">
                   clouddeck@vps-nyc3:~$ claude --version<br />
-                  <span className="text-white">claude-code v0.6.53 (ready to pair-program on your server)</span><br />
+                  <span className="text-white">claude-code v0.6.54 (ready to pair-program on your server)</span><br />
                   clouddeck@vps-nyc3:~$ <span className="animate-pulse text-[#38BDF8]">_</span>
                 </div>
               </div>

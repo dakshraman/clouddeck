@@ -43,7 +43,7 @@ export function JsonLd() {
           "Modern, blazing-fast, open-source Linux hosting control panel and cPanel alternative. 8 native AI coding agents (Claude Code, OpenAI Codex, Google Antigravity, OpenCode, Aider, Ollama local models, Goose, Hermes), autonomous Site Doctor with 1-click auto-fix, visual Cron manager, PHP extensions & visual php.ini, multi-PHP (8.1–8.4), MariaDB, Postfix/Dovecot email, and PowerDNS in under 50MB RAM with zero root web processes.",
         "url": "https://clouddeck.dakshraman.in",
         "downloadUrl": "https://clouddeck.dakshraman.in/install.sh",
-        "softwareVersion": "0.6.53",
+        "softwareVersion": "0.6.54",
         "screenshot": "https://clouddeck.dakshraman.in/assets/og.png",
         "image": "https://clouddeck.dakshraman.in/assets/og.png",
         "featureList": [

@@ -126,7 +126,7 @@ func (s *Service) load() {
 			Status:    "online",
 			LastPing:  now,
 			LatencyMs: 1,
-			Version:   "0.6.53",
+			Version:   "0.6.54",
 			Stats: NodeStats{
 				CPUUsagePct:  12.5,
 				RAMUsagePct:  34.2,
@@ -206,7 +206,7 @@ func (s *Service) RegisterNode(ctx context.Context, in RegisterNodeInput) (Fleet
 		Status:    "online",
 		LastPing:  now,
 		LatencyMs: 12,
-		Version:   "0.6.53",
+		Version:   "0.6.54",
 		Stats: NodeStats{
 			CPUUsagePct:  8.0,
 			RAMUsagePct:  25.0,

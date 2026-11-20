@@ -220,8 +220,22 @@ try {
   if (!process.getuid || process.getuid() === 0) configError = err;
 }
 
-const DATADIR = installConfig.DATADIR || "/var/lib/clouddeck";
-const ETCDIR = installConfig.ETCDIR || "/etc/clouddeck";
+const defaultDataDir =
+  process.platform === "darwin"
+    ? path.join(os.homedir(), ".clouddeck", "data")
+    : process.platform === "win32"
+    ? path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || "C:\\", ".clouddeck", "data")
+    : "/var/lib/clouddeck";
+
+const defaultEtcDir =
+  process.platform === "darwin"
+    ? path.join(os.homedir(), ".clouddeck", "etc")
+    : process.platform === "win32"
+    ? path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || "C:\\", ".clouddeck", "etc")
+    : "/etc/clouddeck";
+
+const DATADIR = installConfig.DATADIR || defaultDataDir;
+const ETCDIR = installConfig.ETCDIR || defaultEtcDir;
 const AGENT_PORT = installConfig.AGENT_PORT || "9090";
 const PANEL_PORT = installConfig.PANEL_PORT || "2083";
 const REPO = installConfig.REPO || "dakshraman/clouddeck";
@@ -244,7 +258,7 @@ function installedVersion() {
   try {
     return fs.readFileSync(path.join(PREFIX, ".clouddeck-version"), "utf8").trim() || null;
   } catch {
-    return "0.6.53";
+    return "0.6.54";
   }
 }
 
@@ -263,7 +277,7 @@ function usageError(message) {
 
 function helpText() {
   return `
-  ${tcSky}${clrBold}${gRailTop} CloudDeck CLI v0.6.53 ────────────────────────────────────────────────────────
+  ${tcSky}${clrBold}${gRailTop} CloudDeck CLI v0.6.54 ────────────────────────────────────────────────────────
   ${tcSky}${gRailMid}${clrReset}  ${clrBold}The Modern, Ultra-Lightweight LEMP Server & Control Panel${clrReset}
   ${tcSky}${gRailMid}${clrReset}  Panel: ${tcPeach}http://localhost:${PANEL_PORT}${clrReset}  ${clrDim}•${clrReset}  Agent: ${tcPeach}127.0.0.1:${AGENT_PORT}${clrReset}  ${clrDim}•${clrReset}  Stack: ${tcSky}Next.js 16 + Go${clrReset}
   ${tcSky}${gRailBot}──────────────────────────────────────────────────────────────────────────────${clrReset}
@@ -339,7 +353,7 @@ function helpText() {
 }
 
 function requireRoot() {
-  if (process.platform === "darwin") return;
+  if (process.platform === "darwin" || process.platform === "win32") return;
   if (typeof process.getuid === "function" && process.getuid() === 0) return;
   console.error(`  ${clrRed}${gErr} Permission denied: run this command with sudo${clrReset}`);
   process.exit(1);
@@ -354,7 +368,15 @@ function hasCommand(command) {
 }
 
 function systemdAvailable() {
-  return fs.existsSync("/run/systemd/system") && hasCommand("systemctl");
+  if (process.platform !== "linux") return false;
+  if (!fs.existsSync("/run/systemd/system") || !hasCommand("systemctl")) return false;
+  try {
+    const res = spawnSync("systemctl", ["is-system-running"], { encoding: "utf8" });
+    const st = (res.stdout || "").trim();
+    return ["running", "degraded", "starting", "initializing"].includes(st) || res.status === 0;
+  } catch {
+    return false;
+  }
 }
 
 function useSystemd() {
@@ -376,7 +398,7 @@ function requirePanel() {
 }
 
 function panelUrl() {
-  if (process.platform === "darwin") return `http://localhost:${PANEL_PORT}`;
+  if (process.platform === "darwin" || process.platform === "win32") return `http://localhost:${PANEL_PORT}`;
   let wsl = false;
   try {
     wsl = /microsoft/i.test(fs.readFileSync("/proc/version", "utf8"));
@@ -397,12 +419,14 @@ function writeFileAtomic(file, content, mode) {
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
 
-  let owner;
+  let owner = null;
   try {
     owner = fs.statSync(file);
   } catch (err) {
     if (err.code !== "ENOENT") throw err;
-    owner = fs.statSync(dir);
+    try {
+      owner = fs.statSync(dir);
+    } catch {}
   }
 
   const tmp = path.join(
@@ -418,10 +442,23 @@ function writeFileAtomic(file, content, mode) {
     );
     fs.writeFileSync(fd, content);
     fs.fchmodSync(fd, mode);
-    fs.fchownSync(fd, owner.uid, owner.gid);
+    if (owner && process.platform !== "win32" && typeof owner.uid === "number") {
+      try {
+        fs.fchownSync(fd, owner.uid, owner.gid);
+      } catch {}
+    }
     fs.closeSync(fd);
     fd = null;
-    fs.renameSync(tmp, file);
+    try {
+      fs.renameSync(tmp, file);
+    } catch (renameErr) {
+      if (process.platform === "win32") {
+        fs.copyFileSync(tmp, file);
+        try { fs.unlinkSync(tmp); } catch {}
+      } else {
+        throw renameErr;
+      }
+    }
   } catch (err) {
     if (fd !== null) {
       try {
@@ -786,23 +823,58 @@ function getSystemMetrics() {
 
   const loadAvg = os.loadavg();
   const cpus = os.cpus().length || 1;
-  const cpuPct = Math.min(100, ((loadAvg[0] || 0) / cpus) * 100);
+  let cpuPct = Math.min(100, ((loadAvg[0] || 0) / cpus) * 100);
+
+  // On Windows, loadavg is always [0,0,0]; calculate CPU utilization from core ticks
+  if (process.platform === "win32" || cpuPct === 0) {
+    try {
+      const cpuList = os.cpus();
+      let totalTick = 0;
+      let idleTick = 0;
+      for (const core of cpuList) {
+        for (const type in core.times) {
+          totalTick += core.times[type];
+        }
+        idleTick += core.times.idle;
+      }
+      if (totalTick > 0) {
+        cpuPct = Math.max(1, Math.min(100, ((totalTick - idleTick) / totalTick) * 100));
+      }
+    } catch {}
+  }
 
   let diskUsed = 0, diskTotal = 0, diskPct = 0;
-  try {
-    const df = spawnSync("df", ["-P", "/"], { encoding: "utf8" });
-    if (df.status === 0 && df.stdout) {
-      const lines = df.stdout.trim().split("\n");
-      if (lines.length >= 2) {
-        const parts = lines[1].trim().split(/\s+/);
-        if (parts.length >= 5) {
-          diskTotal = parseInt(parts[1], 10) * 1024;
-          diskUsed = parseInt(parts[2], 10) * 1024;
-          diskPct = parseFloat(parts[4].replace("%", "")) || 0;
+  // Cross-platform filesystem stats via native fs.statfsSync (Node 19.6+)
+  if (typeof fs.statfsSync === "function") {
+    try {
+      const rootPath = process.platform === "win32" ? (process.env.SystemDrive || "C:") + "\\" : "/";
+      const stats = fs.statfsSync(rootPath);
+      if (stats && stats.blocks > 0) {
+        diskTotal = stats.blocks * stats.bsize;
+        const diskFree = stats.bfree * stats.bsize;
+        diskUsed = diskTotal - diskFree;
+        diskPct = (diskUsed / diskTotal) * 100;
+      }
+    } catch {}
+  }
+
+  // Fallback to df -P / for older Unix environments if statfsSync failed
+  if (diskTotal === 0 && process.platform !== "win32") {
+    try {
+      const df = spawnSync("df", ["-P", "/"], { encoding: "utf8" });
+      if (df.status === 0 && df.stdout) {
+        const lines = df.stdout.trim().split("\n");
+        if (lines.length >= 2) {
+          const parts = lines[1].trim().split(/\s+/);
+          if (parts.length >= 5) {
+            diskTotal = parseInt(parts[1], 10) * 1024;
+            diskUsed = parseInt(parts[2], 10) * 1024;
+            diskPct = parseFloat(parts[4].replace("%", "")) || 0;
+          }
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   return {
     cpuPercent: cpuPct,
@@ -922,7 +994,8 @@ function cmdDoctor(args, isJson = false) {
   let nginxOk = false, nginxErr = "";
   try {
     const nt = spawnSync("nginx", ["-t"], { encoding: "utf8" });
-    if (nt.status === 0) nginxOk = true;
+    const out = (nt.stderr || "") + (nt.stdout || "");
+    if (nt.status === 0 || out.includes("syntax is ok")) nginxOk = true;
     else nginxErr = nt.stderr || nt.stdout || "configuration error";
   } catch (e) {
     nginxErr = e.message;
@@ -1054,10 +1127,14 @@ function cmdOpen() {
     if (process.platform === "darwin") {
       spawnSync("open", [url], { stdio: "inherit" });
     } else if (process.platform === "win32") {
-      spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+      spawnSync("cmd.exe", ["/c", "start", "", url], { stdio: "inherit" });
     } else {
       if (fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || process.env.WSL_DISTRO_NAME) {
-        spawnSync("cmd.exe", ["/c", "start", url], { stdio: "inherit" });
+        if (hasCommand("wslview")) {
+          spawnSync("wslview", [url], { stdio: "inherit" });
+        } else {
+          spawnSync("cmd.exe", ["/c", "start", "", url], { stdio: "inherit" });
+        }
       } else {
         spawnSync("xdg-open", [url], { stdio: "inherit" });
       }
@@ -1074,6 +1151,15 @@ function serviceAction(action, args) {
   const validServices = ["panel", "agent", "nginx", "mariadb", "redis", "phpmyadmin"];
   if (target && !validServices.includes(target) && !target.startsWith("php")) {
     usageError(`unknown service: ${target} (valid: ${validServices.join(", ")})`);
+  }
+
+  // Handle Homebrew services on macOS
+  if (process.platform === "darwin" && target && (target === "nginx" || target === "mariadb" || target === "redis" || target.startsWith("php") || target === "pdns")) {
+    const brewService = target === "mariadb" ? "mariadb" : target;
+    console.log(`  ${tcSky}${gArrow} brew services ${action} ${brewService}...${clrReset}`);
+    const res = spawnSync("brew", ["services", action, brewService], { stdio: "inherit" });
+    if (res.status === 0) console.log(`  ${clrGreen}${gCheck} Service ${brewService} ${action}ed successfully.${clrReset}\n`);
+    return;
   }
 
   if (target && (target === "nginx" || target === "mariadb" || target === "redis" || target.startsWith("php"))) {
@@ -1094,8 +1180,8 @@ function serviceAction(action, args) {
       const label = `in.dakshraman.clouddeck-${comp}`;
       const plist = path.join(launchDir, `${label}.plist`);
       if (!fs.existsSync(plist)) continue;
-      if (action === "stop") spawnSync("launchctl", ["unload", plist], { stdio: "inherit" });
-      else {
+      spawnSync("launchctl", ["unload", plist], { stdio: "ignore" });
+      if (action !== "stop") {
         spawnSync("launchctl", ["load", "-w", plist], { stdio: "inherit" });
         spawnSync("launchctl", ["start", label], { stdio: "inherit" });
       }
@@ -1141,7 +1227,20 @@ function cmdLogs(args) {
     return;
   }
 
-  const file = path.join(PREFIX, "run", `${target}.log`);
+  let file = path.join(PREFIX, "run", `${target}.log`);
+  if (!fs.existsSync(file)) {
+    const errLog = path.join(PREFIX, "run", `${target}.err.log`);
+    if (fs.existsSync(errLog)) file = errLog;
+    else if (process.platform === "darwin" && target === "nginx") {
+      file = "/opt/homebrew/var/log/nginx/error.log";
+    }
+  }
+
+  if (!fs.existsSync(file)) {
+    console.log(`  ${clrDim}No log file found at ${file}${clrReset}`);
+    return;
+  }
+
   const cmdArgs = ["-n", "100"];
   if (follow) cmdArgs.push("-f");
   cmdArgs.push(file);

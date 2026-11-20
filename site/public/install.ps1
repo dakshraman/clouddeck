@@ -1,4 +1,4 @@
-# CloudDeck Windows Local Development Suite Installer
+﻿# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
@@ -423,6 +423,12 @@ function Install-CloudDeckInsideWSL {
     if ($VersionTag -and $VersionTag -ne "latest") {
         $installFlags += " --version $VersionTag"
     }
+    if ($User) {
+        $installFlags += " --admin-user '$User'"
+    }
+    if ($Pass) {
+        $installFlags += " --admin-pass '$Pass'"
+    }
 
     $setupScript = @"
 #!/bin/bash
@@ -550,11 +556,9 @@ function Install-WindowsCLI([string]$DistroName, [int]$Port) {
 
     # Write clouddeck.ps1 (Native Windows PowerShell CLI router for WSL 2)
     $ps1Content = @'
-[CmdletBinding()]
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$Arguments
-)
+# Note: Do not declare [CmdletBinding()] here so PowerShell does NOT intercept
+# command-line flags (e.g. -f, --json, --fix, --version, -v) as unknown script parameters!
+$Arguments = @($args)
 
 $ErrorActionPreference = "Continue"
 
@@ -684,7 +688,19 @@ switch ($cmd) {
     }
 
     default {
-        & wsl.exe -d $distro -u root bash -c "if [ -x /opt/clouddeck/bin/clouddeck ]; then /opt/clouddeck/bin/clouddeck \"\$@\"; elif [ -x /usr/local/bin/clouddeck ]; then /usr/local/bin/clouddeck \"\$@\"; else clouddeck \"\$@\"; fi" -- @Arguments
+        if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+            Write-Host "  ${clrRed}$gErr wsl.exe was not found. Please install WSL 2: wsl --install${clrReset}"
+            exit 1
+        }
+
+        # Format and escape arguments safely for bash -c execution inside WSL
+        $escapedArgs = @()
+        foreach ($a in $Arguments) {
+            $escapedArgs += "'$($a.Replace("'", "'\''"))'"
+        }
+        $argString = $escapedArgs -join " "
+
+        & wsl.exe -d $distro -u root bash -c "if [ -x /opt/clouddeck/bin/clouddeck ]; then /opt/clouddeck/bin/clouddeck $argString; elif [ -x /usr/local/bin/clouddeck ]; then /usr/local/bin/clouddeck $argString; elif command -v clouddeck >/dev/null 2>&1; then clouddeck $argString; else echo 'CloudDeck is not yet installed in WSL distribution ''$distro''. Run: irm https://clouddeck.dakshraman.in/install.ps1 | iex'; exit 127; fi"
         exit $LASTEXITCODE
     }
 }
@@ -741,7 +757,7 @@ switch ($cmd) {
     Write-Host "  ${tcSky}$gRailMid${clrReset}"
     Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
     Write-Host ""
-    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.53" }
+    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.54" }
     Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
 }
 

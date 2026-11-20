@@ -12,7 +12,7 @@ import (
 )
 
 func TestVaultEndpoints(t *testing.T) {
-	cfg := config.Config{DryRun: true, AllowInsecureDev: true}
+	cfg := config.Config{StateDir: t.TempDir(), DryRun: true, AllowInsecureDev: true}
 	s := &Server{
 		cfg:    cfg,
 		agents: agents.New(cfg, nil),

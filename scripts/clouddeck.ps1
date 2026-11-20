@@ -1,19 +1,26 @@
-# CloudDeck Windows Native CLI (WSL 2 Integration)
+﻿# CloudDeck Windows Native CLI (WSL 2 Integration)
 # Automatically forwards commands into CloudDeck running inside WSL 2
 # Usage:
-#   clouddeck status
+#   clouddeck status [--json]
+#   clouddeck doctor [--fix]
 #   clouddeck open
-#   clouddeck restart
-#   clouddeck logs -f
+#   clouddeck restart [service]
+#   clouddeck logs [service] [-f]
 #   clouddeck site ...
+#   clouddeck app ...
+#   clouddeck db ...
+#   clouddeck cache ...
+#   clouddeck ssl ...
+#   clouddeck backup ...
+#   clouddeck fleet ...
+#   clouddeck security ...
 #   clouddeck user ...
 #   clouddeck wsl
+#   clouddeck version [--json]
 
-[CmdletBinding()]
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$Arguments
-)
+# Note: Do not declare [CmdletBinding()] here so PowerShell does NOT intercept
+# command-line flags (e.g. -f, --json, --fix, --version, -v) as unknown script parameters!
+$Arguments = @($args)
 
 $ErrorActionPreference = "Continue"
 
@@ -143,7 +150,19 @@ switch ($cmd) {
     }
 
     default {
-        & wsl.exe -d $distro -u root bash -c "if [ -x /opt/clouddeck/bin/clouddeck ]; then /opt/clouddeck/bin/clouddeck \"\$@\"; elif [ -x /usr/local/bin/clouddeck ]; then /usr/local/bin/clouddeck \"\$@\"; else clouddeck \"\$@\"; fi" -- @Arguments
+        if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+            Write-Host "  ${clrRed}$gErr wsl.exe was not found. Please install WSL 2: wsl --install${clrReset}"
+            exit 1
+        }
+
+        # Format and escape arguments safely for bash -c execution inside WSL
+        $escapedArgs = @()
+        foreach ($a in $Arguments) {
+            $escapedArgs += "'$($a.Replace("'", "'\''"))'"
+        }
+        $argString = $escapedArgs -join " "
+
+        & wsl.exe -d $distro -u root bash -c "if [ -x /opt/clouddeck/bin/clouddeck ]; then /opt/clouddeck/bin/clouddeck $argString; elif [ -x /usr/local/bin/clouddeck ]; then /usr/local/bin/clouddeck $argString; elif command -v clouddeck >/dev/null 2>&1; then clouddeck $argString; else echo 'CloudDeck is not yet installed in WSL distribution ''$distro''. Run: irm https://clouddeck.dakshraman.in/install.ps1 | iex'; exit 127; fi"
         exit $LASTEXITCODE
     }
 }

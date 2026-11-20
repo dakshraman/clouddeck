@@ -35,7 +35,7 @@ export function Navbar() {
             </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-2 py-0.5 text-[10px] font-mono font-medium text-[#10B981]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
-              v0.6.53
+              v0.6.54
             </span>
           </div>
         </a>
@@ -173,7 +173,7 @@ export function Navbar() {
               className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition"
             >
               <Github className="h-4 w-4" />
-              <span>GitHub Repository &bull; v0.6.53</span>
+              <span>GitHub Repository &bull; v0.6.54</span>
             </a>
             <a
               href="#install"

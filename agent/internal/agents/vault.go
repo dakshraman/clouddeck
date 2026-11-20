@@ -41,13 +41,27 @@ type Vault struct {
 
 // NewVault creates a new Vault manager.
 func NewVault(cfg config.Config, auditLog *audit.Log) *Vault {
-	path := "/var/lib/clouddeck/agent_keys.json"
-	if fi, err := os.Stat("/var/lib/clouddeck"); err != nil || fi.IsDir() == false {
-		home, _ := os.UserHomeDir()
-		if home != "" {
-			path = filepath.Join(home, ".clouddeck", "agent_keys.json")
+	path := ""
+	if cfg.StateDir != "" && cfg.StateDir != "/var/lib/clouddeck" {
+		path = filepath.Join(cfg.StateDir, "agent_keys.json")
+	} else {
+		canWrite := false
+		if fi, err := os.Stat("/var/lib/clouddeck"); err == nil && fi.IsDir() {
+			testFile := filepath.Join("/var/lib/clouddeck", ".write_test")
+			if err := os.WriteFile(testFile, []byte(""), 0o600); err == nil {
+				_ = os.Remove(testFile)
+				canWrite = true
+			}
+		}
+		if canWrite {
+			path = "/var/lib/clouddeck/agent_keys.json"
 		} else {
-			path = filepath.Join(os.TempDir(), "clouddeck-agent-keys.json")
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				path = filepath.Join(home, ".clouddeck", "agent_keys.json")
+			} else {
+				path = filepath.Join(os.TempDir(), "clouddeck-agent-keys.json")
+			}
 		}
 	}
 

@@ -36,7 +36,7 @@ export function BentoGrid() {
         <div className="text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-semibold text-[#38BDF8]">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>SYSTEM ARCHITECTURE &bull; v0.6.53</span>
+            <span>SYSTEM ARCHITECTURE &bull; v0.6.54</span>
           </div>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
             Engineered for <span className="text-[#38BDF8]">performance</span>, not bloat.

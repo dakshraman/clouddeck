@@ -21,7 +21,7 @@ export function Footer() {
               </div>
               <span className="text-base font-bold text-white">CloudDeck</span>
               <span className="rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-2 py-0.5 text-[10px] font-mono font-medium text-[#10B981]">
-                v0.6.53
+                v0.6.54
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -147,7 +147,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  GitHub Repository (v0.6.53)
+                  GitHub Repository (v0.6.54)
                 </a>
               </li>
             </ul>
@@ -157,7 +157,7 @@ export function Footer() {
         {/* Bottom Strip */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center text-xs text-slate-500 sm:flex-row sm:text-left">
           <p>© 2026 Raman Daksh. Released under Open Source MIT License.</p>
-          <p className="font-mono text-[11px]">Built with Next.js 16, React 19, Tailwind CSS &amp; Go stdlib &bull; v0.6.53</p>
+          <p className="font-mono text-[11px]">Built with Next.js 16, React 19, Tailwind CSS &amp; Go stdlib &bull; v0.6.54</p>
         </div>
       </div>
     </footer>

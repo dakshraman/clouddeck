@@ -108,7 +108,7 @@ export function Comparison() {
         {/* Section Heading */}
         <div className="text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-semibold text-[#38BDF8]">
-            <span>TRANSPARENT COMPARISON &bull; v0.6.53</span>
+            <span>TRANSPARENT COMPARISON &bull; v0.6.54</span>
           </div>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
             Why switch to <span className="text-[#38BDF8]">CloudDeck</span>?
@@ -130,7 +130,7 @@ export function Comparison() {
                 <tr className="border-b border-white/10 bg-[#080D13]">
                   <th className="py-4 px-4 sm:px-6 font-bold text-slate-300">Feature</th>
                   <th className="py-4 px-4 sm:px-6 font-extrabold text-[#38BDF8] bg-[#38BDF8]/10 border-x border-[#38BDF8]/20">
-                    CloudDeck (v0.6.53)
+                    CloudDeck (v0.6.54)
                   </th>
                   <th className="py-4 px-4 sm:px-6 font-semibold text-slate-400">cPanel / WHM</th>
                   <th className="py-4 px-4 sm:px-6 font-semibold text-slate-400">aaPanel</th>

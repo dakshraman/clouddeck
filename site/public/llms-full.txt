@@ -7,7 +7,7 @@
 - Machine & Agent Guide: https://clouddeck.dakshraman.in/AGENTS.md
 - GitHub Repository: https://github.com/dakshraman/clouddeck
 - License: Open Source (MIT / OSI-approved)
-- Latest Stable Release: 0.6.53
+- Latest Stable Release: 0.6.54
 
 ---
 
@@ -51,7 +51,7 @@ CloudDeck employs a strict two-tier privilege separation architecture:
 
 ## 2. Core Capabilities & Feature Modules
 
-### AI Coding Agents Ecosystem (v0.6.53)
+### AI Coding Agents Ecosystem (v0.6.54)
 - Supported Agents: Claude Code, OpenAI Codex, Google Antigravity, OpenCode, Aider, Ollama (offline local models), Goose, and Hermes Agent.
 - Integrated Capabilities: Binary detection, 1-click installation/updates, web terminal launch with active agent session, and status inspection.
 - Offline Local LLMs: Ollama integration allows downloading, inspecting, and running models (Llama 3, DeepSeek-Coder, Qwen 2.5) locally without external API dependencies.
