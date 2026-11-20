@@ -1,4 +1,4 @@
-﻿# CloudDeck Windows Local Development Suite Installer
+# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
@@ -705,7 +705,8 @@ switch ($cmd) {
     }
 }
 '@
-    Set-Content -Path (Join-Path $cliDir "clouddeck.ps1") -Value $ps1Content -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText((Join-Path $cliDir "clouddeck.ps1"), $ps1Content, $utf8NoBom)
 
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ($userPath -notmatch [regex]::Escape($cliDir)) {

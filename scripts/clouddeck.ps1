@@ -1,4 +1,4 @@
-﻿# CloudDeck Windows Native CLI (WSL 2 Integration)
+# CloudDeck Windows Native CLI (WSL 2 Integration)
 # Automatically forwards commands into CloudDeck running inside WSL 2
 # Usage:
 #   clouddeck status [--json]
