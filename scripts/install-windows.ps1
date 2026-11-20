@@ -71,7 +71,7 @@ $clrYellow = "$esc[38;2;255;204;0m"
 $clrRed = "$esc[38;2;255;59;48m"
 
 # Safe glyph definitions: works across Windows Terminal, VS Code, and legacy PowerShell 5.1
-$isModernConsole = ($env:WT_SESSION -or $env:TERM_PROGRAM -eq "vscode" -or ($Host.UI.RawUI -and [Console]::OutputEncoding.CodePage -eq 65001))
+$isModernConsole = [bool]($env:WT_SESSION -or $env:TERM_PROGRAM -or $env:ALACRITTY_WINDOW_ID -or $env:GHOSTTY_RESOURCES_DIR)
 
 if ($isModernConsole) {
     $gArrow    = [char]0x276F       # ❯
@@ -101,38 +101,55 @@ if ($isModernConsole) {
     $gRailBot  = "+--"
 }
 
+function Reset-ConsoleDiscipline {
+    try {
+        if ([Console]::CursorLeft -ne 0) {
+            [Console]::CursorLeft = 0
+        }
+    } catch {}
+}
+
+function Write-Term([string]$msg = "", [switch]$NoNewline) {
+    Reset-ConsoleDiscipline
+    if ($NoNewline) {
+        Write-Host -NoNewline "`r$msg"
+    } else {
+        Write-Host "`r$msg"
+    }
+}
+
 function Write-Banner {
-    Write-Host ""
-    Write-Host "${tcSky}${clrBold}   ██████╗██╗      ██████╗ ██╗   ██╗██████╗ ██████╗ ███████╗ ██████╗██╗  ██╗"
-    Write-Host "  ██╔════╝██║     ██╔═══██╗██║   ██║██╔══██╗██╔══██╗██╔════╝██╔════╝██║ ██╔╝"
-    Write-Host "  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║█████╗  ██║     █████╔╝ "
-    Write-Host "  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║██╔══╝  ██║     ██╔═██╗ "
-    Write-Host "  ╚██████╗███████╗╚██████╔╝╚██████╔╝██████╔╝██████╔╝███████╗╚██████╗██║  ██╗"
-    Write-Host "   ╚═════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝${clrReset}"
-    Write-Host ""
-    Write-Host "  ${tcBgMarine}${tcSky}${clrBold}  CLOUDDECK  ${clrReset} ${tcPeach}${clrBold}The Modern, Lightweight cPanel Alternative${clrReset}"
-    Write-Host "  ${clrDim}Windows & WSL 2 Local Development Suite • Uni 6-Color Edition${clrReset}"
-    Write-Host ""
+    Write-Term ""
+    Write-Term "${tcSky}${clrBold}   ██████╗██╗      ██████╗ ██╗   ██╗██████╗ ██████╗ ███████╗ ██████╗██╗  ██╗"
+    Write-Term "  ██╔════╝██║     ██╔═══██╗██║   ██║██╔══██╗██╔══██╗██╔════╝██╔════╝██║ ██╔╝"
+    Write-Term "  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║█████╗  ██║     █████╔╝ "
+    Write-Term "  ██║     ██║     ██║   ██║██║   ██║██║  ██║██║  ██║██╔══╝  ██║     ██╔═██╗ "
+    Write-Term "  ╚██████╗███████╗╚██████╔╝╚██████╔╝██████╔╝██████╔╝███████╗╚██████╗██║  ██╗"
+    Write-Term "   ╚═════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝${clrReset}"
+    Write-Term ""
+    Write-Term "  ${tcBgMarine}${tcSky}${clrBold}  CLOUDDECK  ${clrReset} ${tcPeach}${clrBold}The Modern, Lightweight cPanel Alternative${clrReset}"
+    Write-Term "  ${clrDim}Windows & WSL 2 Local Development Suite • Uni 6-Color Edition${clrReset}"
+    Write-Term ""
 }
 
 function Write-Step([string]$msg) {
-    Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} $msg"
+    Write-Term "  ${tcSky}${clrBold}$gArrow${clrReset} $msg"
 }
 
 function Write-Success([string]$msg) {
-    Write-Host "  ${clrGreen}${clrBold}$gCheck${clrReset} $msg"
+    Write-Term "  ${clrGreen}${clrBold}$gCheck${clrReset} $msg"
 }
 
 function Write-Info([string]$msg) {
-    Write-Host "  ${tcSteel}${clrBold}$gInfo${clrReset} $msg"
+    Write-Term "  ${tcSteel}${clrBold}$gInfo${clrReset} $msg"
 }
 
 function Write-Warn([string]$msg) {
-    Write-Host "  ${clrYellow}${clrBold}$gWarn${clrReset} $msg"
+    Write-Term "  ${clrYellow}${clrBold}$gWarn${clrReset} $msg"
 }
 
 function Write-Err([string]$msg) {
-    Write-Host "  ${clrRed}${clrBold}$gErr [ERROR]${clrReset} $msg"
+    Write-Term "  ${clrRed}${clrBold}$gErr [ERROR]${clrReset} $msg"
 }
 
 # --- WSL Detection & Setup ---------------------------------------------------
@@ -412,7 +429,7 @@ function Ensure-PortsAvailable([int]$Port = 2083, [string]$DistroName = "", [has
         Write-Warn "Target Web Panel port $Port is currently in use by $($usage.Description)."
         
         if (-not $Yes) {
-            Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter an alternate port or press Enter for automatic fallback:${clrReset}"
+            Write-Term "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter an alternate port or press Enter for automatic fallback:${clrReset}"
             $pIn = Read-Host "  ${tcMauve}$gBullet Web Panel Port [suggested free: $suggested]${clrReset}"
             if ($pIn -match "^\d+$") {
                 $candidate = [int]$pIn
@@ -456,29 +473,29 @@ function Prompt-InteractiveOptions {
         }
     }
 
-    Write-Host "  ${tcSteel}$gRailTop System Environment ──────────────────────────────────────────────${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Host OS:${clrReset}             Windows 10/11"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $DistroName"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Target Ports:${clrReset}        Web Panel: ${tcPeach}$Port${clrReset}  ${clrDim}$gRailMid${clrReset}  Agent Daemon: ${tcPeach}9090${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}"
-    Write-Host "  ${tcSteel}$gRailDiv Choose Installation Profile ─────────────────────────────────────${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn [1] Recommended Full LEMP Stack${clrReset} ${tcSky}(Default)${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Next.js 16 Panel, Go Agent & Windows CLI${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Nginx Web Server + MariaDB Database${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Multi-PHP Coexistence (8.1, 8.2, 8.3, 8.4)${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Node.js 22 LTS Runtime & npm${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Local Root CA in Windows Store for Green Padlocks (*.local)${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOff [2] Fast Core Development Suite${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Next.js 16 Panel, Go Agent & Windows CLI${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Nginx Web Server + MariaDB + PHP 8.4 + Node.js 22 LTS${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOff [3] Minimal Deck Only${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Panel, Agent and CLI only (Bring your own hosting stack)${clrReset}"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}"
-    Write-Host "  ${tcSteel}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-    Write-Host ""
+    Write-Term "  ${tcSteel}$gRailTop System Environment ───────────────────────────────────${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Host OS:${clrReset}             Windows 10/11"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $DistroName"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Target Ports:${clrReset}        Web: ${tcPeach}$Port${clrReset}  ${clrDim}$gRailMid${clrReset}  Agent: ${tcPeach}9090${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}"
+    Write-Term "  ${tcSteel}$gRailDiv Choose Installation Profile ──────────────────────────${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn [1] Recommended Full LEMP Stack${clrReset} ${tcSky}(Default)${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Next.js 16 Panel, Go Agent & Windows CLI${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Nginx Web Server + MariaDB Database${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Multi-PHP Coexistence (8.1-8.4)${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Node.js 22 LTS Runtime & npm${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Local Root CA in Windows Store (*.local)${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOff [2] Fast Core Development Suite${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Next.js 16 Panel, Go Agent & Windows CLI${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Nginx + MariaDB + PHP 8.4 + Node.js 22 LTS${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOff [3] Minimal Deck Only${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}        ${clrDim}$gBullet Panel, Agent and CLI only (Bring your own stack)${clrReset}"
+    Write-Term "  ${tcSteel}$gRailMid${clrReset}"
+    Write-Term "  ${tcSteel}$gRailBot────────────────────────────────────────────────────────${clrReset}"
+    Write-Term ""
 
     $choice = Read-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter choice [1-3] (default: 1)${clrReset}"
     $chosenProfile = $CurrentProfile
@@ -855,23 +872,23 @@ switch ($cmd) {
 
     $existing = Get-ExistingCloudDeckInstall -DistroName $targetDistro
     if ($existing.IsInstalled) {
-        Write-Host ""
-        Write-Host "  ${tcSky}${clrBold}$gRailTop Existing CloudDeck Installation Detected ───────────────────────${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Installed Version:${clrReset}   $($existing.Version)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Active Panel URL:${clrReset}    http://localhost:$($existing.PanelPort)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Current Profile:${clrReset}    $($existing.Profile)"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}"
-        Write-Host "  ${tcSky}$gRailDiv Select Maintenance Action ────────────────────────────────────────${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[1] Upgrade to $Version (Recommended)${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Updates panel, agent and CLI while preserving sites & databases${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[2] Reinstall / Repair Stack${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Re-provisions LEMP stack and reconfigures service daemons${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[3] Open Web Panel in Browser${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Launches http://localhost:$($existing.PanelPort) in default browser${clrReset}"
-        Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[4] Exit${clrReset}"
-        Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-        Write-Host ""
+        Write-Term ""
+        Write-Term "  ${tcSky}${clrBold}$gRailTop Existing CloudDeck Installation Detected ─────────────────${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Installed Version:${clrReset}   $($existing.Version)"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Active Panel URL:${clrReset}    http://localhost:$($existing.PanelPort)"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Current Profile:${clrReset}    $($existing.Profile)"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}"
+        Write-Term "  ${tcSky}$gRailDiv Select Maintenance Action ──────────────────────────────────${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[1] Upgrade to $Version (Recommended)${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Updates panel, agent & CLI preserving sites & DBs${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[2] Reinstall / Repair Stack${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Re-provisions LEMP stack and daemons${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[3] Open Web Panel in Browser${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}        ${clrDim}$gBullet Launches http://localhost:$($existing.PanelPort)${clrReset}"
+        Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}[4] Exit${clrReset}"
+        Write-Term "  ${tcSky}$gRailBot─────────────────────────────────────────────────────────────${clrReset}"
+        Write-Term ""
 
         $maintChoice = "1"
         if (-not $Yes) {
@@ -909,19 +926,19 @@ switch ($cmd) {
                 Setup-LocalCATrust -DistroName $targetDistro
                 Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
 
-                Write-Host ""
-                Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Upgrade Complete ───────────────────────────────────────${clrReset}"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Upgraded Version:${clrReset}  $Version"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}"
-                Write-Host "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────────────────${clrReset}"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check health & active stack services"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in default Windows browser"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services inside WSL"
-                Write-Host "  ${tcSky}$gRailMid${clrReset}"
-                Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-                Write-Host ""
+                Write-Term ""
+                Write-Term "  ${tcSky}${clrBold}$gRailTop CloudDeck Upgrade Complete ─────────────────────────${clrReset}"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Upgraded Version:${clrReset}  $Version"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}"
+                Write-Term "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────${clrReset}"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check stack services"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in browser"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services"
+                Write-Term "  ${tcSky}$gRailMid${clrReset}"
+                Write-Term "  ${tcSky}$gRailBot───────────────────────────────────────────────────────${clrReset}"
+                Write-Term ""
                 Write-Success "CloudDeck upgraded! Run 'clouddeck open' or 'clouddeck status'."
                 return
             }
@@ -947,20 +964,20 @@ switch ($cmd) {
     Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
 
     # Completion Summary Card (Left-Rail Claude Code / Antigravity CLI layout)
-    Write-Host ""
-    Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Installation Complete ─────────────────────────────────${clrReset}"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Installed Profile:${clrReset}   $Profile"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}"
-    Write-Host "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────────────────${clrReset}"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check health & active stack services"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in default Windows browser"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services inside WSL"
-    Write-Host "  ${tcSky}$gRailMid${clrReset}"
-    Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-    Write-Host ""
+    Write-Term ""
+    Write-Term "  ${tcSky}${clrBold}$gRailTop CloudDeck Installation Complete ────────────────────${clrReset}"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Installed Profile:${clrReset}   $Profile"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}"
+    Write-Term "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────${clrReset}"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check stack services"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in browser"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services"
+    Write-Term "  ${tcSky}$gRailMid${clrReset}"
+    Write-Term "  ${tcSky}$gRailBot───────────────────────────────────────────────────────${clrReset}"
+    Write-Term ""
     $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.55" }
     Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
 }
