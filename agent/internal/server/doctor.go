@@ -118,3 +118,35 @@ func (s *Server) handleFixServerIssue(w http.ResponseWriter, r *http.Request) {
 		"message": message,
 	})
 }
+
+// handleInvestigateSiteLogs reads recent error logs and performs AI root-cause analysis with actionable remediation.
+func (s *Server) handleInvestigateSiteLogs(w http.ResponseWriter, r *http.Request) {
+	if s.doctor == nil {
+		writeError(w, apierr.Internal("doctor service is not initialized"))
+		return
+	}
+	domain := strings.TrimSpace(r.PathValue("domain"))
+	if domain == "" {
+		writeError(w, apierr.BadRequest("missing_domain", "domain is required"))
+		return
+	}
+
+	site, err := s.sites.Get(domain)
+	if err != nil {
+		writeError(w, apierr.NotFound("site_not_found", fmt.Sprintf("site %q not found", domain)))
+		return
+	}
+
+	var req struct {
+		LogContent string `json:"logContent"`
+	}
+	_ = decodeBody(w, r, &req)
+
+	inv, err := s.doctor.InvestigateLogs(r.Context(), site, req.LogContent)
+	if err != nil {
+		writeError(w, apierr.Internal("failed to investigate logs: "+err.Error()))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, inv)
+}

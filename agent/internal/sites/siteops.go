@@ -835,3 +835,130 @@ func (s *Service) UnblockIP(domain, ip string) ([]store.BlockedIP, error) {
 	}
 	return nonNil(updated.BlockedIPs), nil
 }
+
+const (
+	ActionCacheSet   = "site.cache.set"
+	ActionCachePurge = "site.cache.purge"
+)
+
+// CacheSettings describes the FastCGI edge caching configuration for a site.
+type CacheSettings struct {
+	Domain  string `json:"domain"`
+	Enabled bool   `json:"enabled"`
+	TTL     string `json:"ttl"`
+	Status  string `json:"status"`
+}
+
+// ensureGlobalCacheConf ensures the keys_zone CLOUDDECK_CACHE is configured in nginx.
+func (s *Service) ensureGlobalCacheConf() error {
+	dir := s.cfg.NginxSitesDir
+	if s.cfg.DryRun {
+		dir = filepath.Join(s.cfg.StateDir, "dryrun")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	_ = os.MkdirAll("/var/cache/nginx/clouddeck", 0o755)
+	cacheConfPath := filepath.Join(dir, "00-clouddeck-cache.conf")
+	if _, err := os.Stat(cacheConfPath); os.IsNotExist(err) {
+		content := managedMarker + "\n" +
+			"fastcgi_cache_path /var/cache/nginx/clouddeck levels=1:2 keys_zone=CLOUDDECK_CACHE:10m inactive=60m max_size=512m;\n" +
+			"fastcgi_cache_key \"$scheme$request_method$host$request_uri\";\n"
+		return os.WriteFile(cacheConfPath, []byte(content), 0o644)
+	}
+	return nil
+}
+
+// GetCacheConfig returns the current FastCGI edge caching configuration.
+func (s *Service) GetCacheConfig(domain string) (CacheSettings, error) {
+	site, err := s.Get(domain)
+	if err != nil {
+		return CacheSettings{}, err
+	}
+	ttl := site.CacheTTL
+	if ttl == "" {
+		ttl = "10m"
+	}
+	status := "disabled"
+	if site.CacheEnabled {
+		status = "active"
+	}
+	return CacheSettings{
+		Domain:  site.Domain,
+		Enabled: site.CacheEnabled,
+		TTL:     ttl,
+		Status:  status,
+	}, nil
+}
+
+// SetCacheConfig updates FastCGI caching for a site, renders nginx config, and reloads.
+func (s *Service) SetCacheConfig(ctx context.Context, domain string, enabled bool, ttl string) (CacheSettings, error) {
+	site, err := s.Get(domain)
+	if err != nil {
+		return CacheSettings{}, err
+	}
+
+	ttl = strings.TrimSpace(ttl)
+	if ttl == "" {
+		ttl = "10m"
+	}
+
+	previousEnabled := site.CacheEnabled
+	previousTTL := site.CacheTTL
+
+	if err := s.st.UpdateSite(site.Domain, func(current *store.Site) {
+		current.CacheEnabled = enabled
+		current.CacheTTL = ttl
+		current.UpdatedAt = store.Now()
+	}); err != nil {
+		return CacheSettings{}, apierr.Internal(fmt.Sprintf("persist cache settings: %v", err))
+	}
+
+	updated, ok := s.st.GetSite(site.Domain)
+	if !ok {
+		return CacheSettings{}, apierr.Internal(fmt.Sprintf("site %s vanished from state", site.Domain))
+	}
+
+	_ = s.ensureGlobalCacheConf()
+
+	if err := s.ApplyNginx(ctx, logToStd, updated); err != nil {
+		return CacheSettings{}, s.renderFailure(ctx, site.Domain, func(current *store.Site) {
+			current.CacheEnabled = previousEnabled
+			current.CacheTTL = previousTTL
+		}, err)
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Append(audit.Record{
+			Action: ActionCacheSet,
+			Params: map[string]any{"domain": domain, "enabled": enabled, "ttl": ttl},
+			Result: audit.ResultAccepted,
+		})
+	}
+
+	return s.GetCacheConfig(domain)
+}
+
+// PurgeCache flushes the on-disk FastCGI microcache.
+func (s *Service) PurgeCache(ctx context.Context, domain string) error {
+	if _, err := s.Get(domain); err != nil {
+		return err
+	}
+
+	if !s.cfg.DryRun {
+		cacheDir := "/var/cache/nginx/clouddeck"
+		if fi, err := os.Stat(cacheDir); err == nil && fi.IsDir() {
+			_ = os.RemoveAll(cacheDir)
+			_ = os.MkdirAll(cacheDir, 0o755)
+		}
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Append(audit.Record{
+			Action: ActionCachePurge,
+			Params: map[string]any{"domain": domain},
+			Result: audit.ResultAccepted,
+		})
+	}
+	return nil
+}

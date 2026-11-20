@@ -10,6 +10,7 @@ import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/compon
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/components/ui/cn";
+import { AiLogInvestigatorModal } from "@/components/site/ai-log-investigator-modal";
 import {
   Activity,
   AlertCircle,
@@ -90,6 +91,7 @@ export function SiteDoctorCard({ domain }: SiteDoctorCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [fixingIssueId, setFixingIssueId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [investigateOpen, setInvestigateOpen] = useState(false);
 
   const fetchDiagnosis = useCallback(
     async (isManual = false) => {
@@ -179,20 +181,31 @@ export function SiteDoctorCard({ domain }: SiteDoctorCardProps) {
             </CardDescription>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void fetchDiagnosis(true)}
-          disabled={loading || scanning}
-          className="shrink-0"
-        >
-          <RefreshCw
-            size={14}
-            className={cn("mr-1.5", scanning && "animate-spin text-brand")}
-            aria-hidden="true"
-          />
-          {scanning ? "Scanning..." : "Diagnose Now"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setInvestigateOpen(true)}
+            className="gap-1.5"
+          >
+            <Sparkles size={14} className="text-brand" aria-hidden="true" />
+            Diagnose with AI
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchDiagnosis(true)}
+            disabled={loading || scanning}
+          >
+            <RefreshCw
+              size={14}
+              className={cn("mr-1.5", scanning && "animate-spin text-brand")}
+              aria-hidden="true"
+            />
+            {scanning ? "Scanning..." : "Diagnose Now"}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardBody className="grid gap-5">
@@ -362,6 +375,12 @@ export function SiteDoctorCard({ domain }: SiteDoctorCardProps) {
             </div>
           </>
         )}
+
+        <AiLogInvestigatorModal
+          domain={domain}
+          open={investigateOpen}
+          onOpenChange={setInvestigateOpen}
+        />
       </CardBody>
     </Card>
   );

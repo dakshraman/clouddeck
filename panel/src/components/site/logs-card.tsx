@@ -9,7 +9,8 @@ import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/compon
 import { Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, ScrollText } from "lucide-react";
+import { AiLogInvestigatorModal } from "@/components/site/ai-log-investigator-modal";
+import { RefreshCw, ScrollText, Sparkles } from "lucide-react";
 
 const KIND_OPTIONS = ["access", "error"] as const;
 const LINE_OPTIONS = [200, 500, 1000] as const;
@@ -23,6 +24,7 @@ export function LogsCard({ domain }: { domain: string }) {
   const [data, setData] = useState<SiteLogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [investigateOpen, setInvestigateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,16 @@ export function LogsCard({ domain }: { domain: string }) {
             <RefreshCw size={14} aria-hidden="true" />
             Refresh
           </Button>
+
+          <Button
+            variant="primary"
+            onClick={() => setInvestigateOpen(true)}
+            className="gap-1.5"
+          >
+            <Sparkles size={14} className="text-brand-foreground" />
+            Diagnose with AI
+          </Button>
+
           {data !== null && !loading ? (
             <span className="pb-2 text-xs text-muted-foreground">
               {data.lines.length.toLocaleString()} {data.lines.length === 1 ? "line" : "lines"}
@@ -121,6 +133,12 @@ export function LogsCard({ domain }: { domain: string }) {
             {data.lines.join("\n")}
           </pre>
         )}
+
+        <AiLogInvestigatorModal
+          domain={domain}
+          open={investigateOpen}
+          onOpenChange={setInvestigateOpen}
+        />
       </CardBody>
     </Card>
   );

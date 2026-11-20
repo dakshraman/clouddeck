@@ -20,20 +20,22 @@ type nginxRedirect struct {
 }
 
 type nginxData struct {
-	Domain     string
-	Root       string
-	SiteRoot   string
-	PHP        string // empty for static sites
-	LogDir     string
-	FpmSock    string // resolved php-fpm socket (PHP sites only)
-	Denies     []string
-	Redirects  []nginxRedirect
-	Subdomains []string
-	WAF        bool   // emit the CloudDeck WAF block (v0.5)
-	WAFModSec  bool   // emit the modsecurity variant of the WAF block
-	ModsecConf string // modsecurity_rules_file target (modsecurity variant only)
-	Proxies    ProxyTargets
-	RootProxy  int // port of the primary app when it owns "/"
+	Domain       string
+	Root         string
+	SiteRoot     string
+	PHP          string // empty for static sites
+	LogDir       string
+	FpmSock      string // resolved php-fpm socket (PHP sites only)
+	Denies       []string
+	Redirects    []nginxRedirect
+	Subdomains   []string
+	WAF          bool   // emit the CloudDeck WAF block (v0.5)
+	WAFModSec    bool   // emit the modsecurity variant of the WAF block
+	ModsecConf   string // modsecurity_rules_file target (modsecurity variant only)
+	CacheEnabled bool   // emit FastCGI microcaching directives
+	CacheTTL     string // cache TTL e.g. "10m", "1h"
+	Proxies      ProxyTargets
+	RootProxy    int // port of the primary app when it owns "/"
 }
 
 // RenderNginxConfig renders the site's nginx config. With SSL enabled it emits
@@ -95,6 +97,13 @@ func renderNginxConfigWithApps(site store.Site, logDir, fpmSock, wafEngine, mods
 			data.ModsecConf = modsecConf
 		}
 	}
+	if site.CacheEnabled {
+		data.CacheEnabled = true
+		data.CacheTTL = site.CacheTTL
+		if data.CacheTTL == "" {
+			data.CacheTTL = "10m"
+		}
+	}
 	tpl := nginxTemplate
 	if site.SSL.Enabled {
 		tpl = nginxSSLTemplate
@@ -119,10 +128,23 @@ const wafBlock = `{{define "waf"}}{{if .WAF}}{{if .WAFModSec}}
     if ($request_uri ~* "(\.env|\.git/|\.svn/|\.htaccess|\.htpasswd|\.user\.ini|wp-config\.php\.(bak|old|save|txt))") { return 403; }
     if ($query_string ~* "(<script|%3Cscript|union[ ]+select|%20union|concat\(|base64_|%2e%2e%2f|\.\./\.\.)") { return 403; }{{end}}{{end}}{{end}}`
 
-var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\n" + wafBlock + proxyBlock + `server {
+const cacheBlock = `{{define "cache_rules"}}{{if .CacheEnabled}}
+    # clouddeck fastcgi microcaching
+    set $skip_cache 0;
+    if ($request_method = POST) { set $skip_cache 1; }
+    if ($query_string != "") { set $skip_cache 1; }
+    if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_no_cache|wordpress_logged_in|laravel_session|PHPSESSID") {
+        set $skip_cache 1;
+    }
+    if ($request_uri ~* "/wp-admin/|/xmlrpc.php|wp-.*.php|/feed/|index.php|sitemap(_index)?.xml") {
+        set $skip_cache 1;
+    }
+{{end}}{{end}}`
+
+var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\n" + wafBlock + cacheBlock + proxyBlock + `server {
     listen 80;
     listen [::]:80;
-    server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
+    server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}{{template "cache_rules" .}}
     root {{.Root}};
     index index.php index.html index.htm;
 
@@ -140,7 +162,13 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_pass unix:{{.FpmSock}};
+        fastcgi_pass unix:{{.FpmSock}};{{if .CacheEnabled}}
+        fastcgi_cache CLOUDDECK_CACHE;
+        fastcgi_cache_valid 200 301 302 {{if .CacheTTL}}{{.CacheTTL}}{{else}}10m{{end}};
+        fastcgi_cache_use_stale error timeout updating invalid_header http_500;
+        fastcgi_cache_bypass $skip_cache;
+        fastcgi_no_cache $skip_cache;
+        add_header X-FastCGI-Cache $upstream_cache_status;{{end}}
     }
 {{end}}}
 {{range .Subdomains}}
@@ -170,7 +198,7 @@ server {
 {{end}}}
 {{end}}`))
 
-var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMarker + "\n" + wafBlock + proxyBlock + `server {
+var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMarker + "\n" + wafBlock + cacheBlock + proxyBlock + `server {
     listen 80;
     listen [::]:80;
     server_name {{.Domain}} www.{{.Domain}};
@@ -182,7 +210,7 @@ var nginxSSLTemplate = template.Must(template.New("nginx-ssl").Parse(managedMark
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}
+    server_name {{.Domain}} www.{{.Domain}};{{template "waf" .}}{{template "cache_rules" .}}
     root {{.Root}};
     index index.php index.html index.htm;
 
@@ -203,7 +231,13 @@ server {
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_pass unix:{{.FpmSock}};
+        fastcgi_pass unix:{{.FpmSock}};{{if .CacheEnabled}}
+        fastcgi_cache CLOUDDECK_CACHE;
+        fastcgi_cache_valid 200 301 302 {{if .CacheTTL}}{{.CacheTTL}}{{else}}10m{{end}};
+        fastcgi_cache_use_stale error timeout updating invalid_header http_500;
+        fastcgi_cache_bypass $skip_cache;
+        fastcgi_no_cache $skip_cache;
+        add_header X-FastCGI-Cache $upstream_cache_status;{{end}}
     }
 {{end}}}
 {{range .Subdomains}}

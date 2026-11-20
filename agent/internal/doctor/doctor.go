@@ -1,15 +1,20 @@
 package doctor
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"clouddeck/agent/internal/agents"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/runtimes"
@@ -49,17 +54,37 @@ type ServerDiagnosis struct {
 	Metrics     map[string]any `json:"metrics"`
 }
 
+// LogInvestigation holds the diagnosis and recommended fix from analyzing error logs.
+type LogInvestigation struct {
+	Domain         string    `json:"domain"`
+	LogFile        string    `json:"logFile"`
+	LinesRead      int       `json:"linesRead"`
+	Analysis       string    `json:"analysis"`
+	RootCause      string    `json:"rootCause"`
+	SuggestedFix   string    `json:"suggestedFix"`
+	ExecutableFix  string    `json:"executableFix,omitempty"`
+	FixType        string    `json:"fixType,omitempty"`
+	Provider       string    `json:"provider"`
+	InvestigatedAt time.Time `json:"investigatedAt"`
+}
+
 // Service provides autonomous diagnostics and remediation.
 type Service struct {
 	cfg   config.Config
 	audit *audit.Log
+	vault *agents.Vault
 }
 
 // New creates a new doctor Service.
-func New(cfg config.Config, auditLog *audit.Log) *Service {
+func New(cfg config.Config, auditLog *audit.Log, vault ...*agents.Vault) *Service {
+	var v *agents.Vault
+	if len(vault) > 0 {
+		v = vault[0]
+	}
 	return &Service{
 		cfg:   cfg,
 		audit: auditLog,
+		vault: v,
 	}
 }
 
@@ -407,4 +432,265 @@ func (s *Service) FixServerIssue(ctx context.Context, fixType string) (string, e
 	default:
 		return "", fmt.Errorf("unknown server fix type: %s", fixType)
 	}
+}
+
+// InvestigateLogs reads the last ~100 error log lines and consults AI providers (or heuristic analyzer) for root cause and fix.
+func (s *Service) InvestigateLogs(ctx context.Context, site store.Site, customContent string) (LogInvestigation, error) {
+	logPath := ""
+	var lines []string
+
+	if strings.TrimSpace(customContent) != "" {
+		logPath = "(custom input / stream)"
+		scanner := bufio.NewScanner(strings.NewReader(customContent))
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+	} else {
+		// Discover active error log
+		candidates := []string{
+			filepath.Join(s.cfg.LogDir, site.Domain+".error.log"),
+			filepath.Join("/var/log/nginx", site.Domain+".error.log"),
+			filepath.Join(site.Root, "storage", "logs", "laravel.log"),
+			filepath.Join(site.Root, "wp-content", "debug.log"),
+			filepath.Join(s.cfg.LogDir, "error.log"),
+			"/var/log/nginx/error.log",
+		}
+		for _, p := range candidates {
+			if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Size() > 0 {
+				logPath = p
+				break
+			}
+		}
+
+		if logPath != "" {
+			fileLines, err := readTailLines(logPath, 100)
+			if err == nil {
+				lines = fileLines
+			}
+		}
+	}
+
+	totalLines := len(lines)
+	if totalLines > 100 {
+		lines = lines[totalLines-100:]
+	}
+
+	joined := strings.Join(lines, "\n")
+	inv := LogInvestigation{
+		Domain:         site.Domain,
+		LogFile:        logPath,
+		LinesRead:      len(lines),
+		InvestigatedAt: time.Now(),
+		Provider:       "clouddeck-heuristics",
+	}
+
+	if len(lines) == 0 {
+		inv.Analysis = "No recent error logs found for this domain."
+		inv.RootCause = "Web server error log is clean or currently empty."
+		inv.SuggestedFix = "No action required. Site is serving requests normally."
+		return inv, nil
+	}
+
+	// 1. Try AI provider if Key Vault is available
+	var aiSuccess bool
+	if s.vault != nil && !s.cfg.DryRun {
+		if key := s.vault.GetRawKey("ANTHROPIC_API_KEY"); key != "" {
+			if res, err := queryClaudeForLogs(ctx, key, site.Domain, joined); err == nil && res.Analysis != "" {
+				inv.Analysis = res.Analysis
+				inv.RootCause = res.RootCause
+				inv.SuggestedFix = res.SuggestedFix
+				inv.ExecutableFix = res.ExecutableFix
+				inv.FixType = res.FixType
+				inv.Provider = "anthropic"
+				aiSuccess = true
+			}
+		}
+		if !aiSuccess {
+			if key := s.vault.GetRawKey("OPENAI_API_KEY"); key != "" {
+				if res, err := queryOpenAIForLogs(ctx, key, site.Domain, joined); err == nil && res.Analysis != "" {
+					inv.Analysis = res.Analysis
+					inv.RootCause = res.RootCause
+					inv.SuggestedFix = res.SuggestedFix
+					inv.ExecutableFix = res.ExecutableFix
+					inv.FixType = res.FixType
+					inv.Provider = "openai"
+					aiSuccess = true
+				}
+			}
+		}
+	}
+
+	// 2. Intelligent Heuristic Rule Analyzer (fallback / offline / dry-run)
+	if !aiSuccess {
+		inv = analyzeLogsHeuristic(site, logPath, lines, inv)
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Append(audit.Record{
+			Action: "doctor.site.investigate_logs",
+			Params: map[string]any{"domain": site.Domain, "provider": inv.Provider, "fixType": inv.FixType},
+			Result: audit.ResultAccepted,
+		})
+	}
+
+	return inv, nil
+}
+
+func readTailLines(filePath string, maxLines int) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		if len(lines) > 500 {
+			lines = lines[len(lines)-maxLines:]
+		}
+	}
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+	return lines, scanner.Err()
+}
+
+func analyzeLogsHeuristic(site store.Site, logPath string, lines []string, inv LogInvestigation) LogInvestigation {
+	fullText := strings.ToLower(strings.Join(lines, "\n"))
+
+	switch {
+	case strings.Contains(fullText, "permission denied") || strings.Contains(fullText, "eacces") || strings.Contains(fullText, "open() failed (13"):
+		inv.Analysis = "The web server or PHP runtime was denied permission when accessing application files."
+		inv.RootCause = "Directory permissions or file ownership restrictions in document root or storage folder."
+		inv.SuggestedFix = "Reset permissions to 0755 for webroot and 0777 for storage/uploads directories."
+		inv.ExecutableFix = "chmod -R 755 " + site.Root
+		inv.FixType = "fix_permissions"
+
+	case strings.Contains(fullText, "connection refused") && (strings.Contains(fullText, "php") || strings.Contains(fullText, "sock") || strings.Contains(fullText, "fastcgi") || strings.Contains(fullText, "502")):
+		phpVer := site.PHPVersion
+		if phpVer == "" || phpVer == "static" {
+			phpVer = "8.2"
+		}
+		inv.Analysis = "FastCGI gateway failure: Nginx is unable to connect to the upstream PHP-FPM process."
+		inv.RootCause = fmt.Sprintf("PHP-FPM %s daemon is stopped, unresponsive, or its unix socket was removed.", phpVer)
+		inv.SuggestedFix = fmt.Sprintf("Restart the php%s-fpm service to recreate the socket and restore handling.", phpVer)
+		inv.ExecutableFix = fmt.Sprintf("systemctl restart php%s-fpm", phpVer)
+		inv.FixType = "restart_php"
+
+	case strings.Contains(fullText, "class 'pdo' not found") || strings.Contains(fullText, "call to undefined function") || strings.Contains(fullText, "pdo_mysql") || strings.Contains(fullText, "mbstring"):
+		inv.Analysis = "PHP encountered a fatal runtime error due to missing native extension modules."
+		inv.RootCause = "Required PHP extension is not installed or enabled in the PHP-FPM configuration."
+		inv.SuggestedFix = "Install required PHP extension and restart PHP-FPM."
+		inv.ExecutableFix = "apt-get install -y php-mysql"
+		inv.FixType = "install_extension"
+
+	case strings.Contains(fullText, "access denied for user") || strings.Contains(fullText, "unknown database") || strings.Contains(fullText, "can't connect to local mysql server") || strings.Contains(fullText, "sqlstate[hy000]"):
+		inv.Analysis = "Application failed to authenticate or connect to MariaDB/MySQL database service."
+		inv.RootCause = "Invalid database credentials or host socket mismatch in configuration (wp-config.php or .env)."
+		inv.SuggestedFix = "Adjust DB_HOST to 127.0.0.1 or active unix socket /var/run/mysqld/mysqld.sock."
+		inv.ExecutableFix = "update database host configuration to 127.0.0.1"
+		inv.FixType = "fix_db_socket"
+
+	default:
+		inv.Analysis = fmt.Sprintf("Analyzed %d lines from %s. Found server notices or application warnings.", len(lines), logPath)
+		inv.RootCause = "Application runtime warning or client error."
+		inv.SuggestedFix = "Review application stack trace and verify database/API connectivity."
+	}
+
+	return inv
+}
+
+func queryClaudeForLogs(ctx context.Context, apiKey, domain, logs string) (LogInvestigation, error) {
+	prompt := fmt.Sprintf("Domain: %s\nError Logs:\n%s\n\nProvide JSON response only with schema: {\"analysis\": \"...\", \"rootCause\": \"...\", \"suggestedFix\": \"...\", \"executableFix\": \"...\", \"fixType\": \"fix_permissions|restart_php|install_extension|fix_db_socket|\"}", domain, logs)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	bodyData, _ := json.Marshal(map[string]any{
+		"model":      "claude-3-5-sonnet-20241022",
+		"max_tokens": 512,
+		"system":     "You are CloudDeck DevOps Log Doctor. Return only valid JSON with root cause analysis and actionable fixes.",
+		"messages":   []map[string]string{{"role": "user", "content": prompt}},
+	})
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(bodyData))
+	if err != nil {
+		return LogInvestigation{}, err
+	}
+	req.Header.Set("x-api-key", apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return LogInvestigation{}, err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Content []struct {
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || len(result.Content) == 0 {
+		return LogInvestigation{}, fmt.Errorf("decode claude: %w", err)
+	}
+
+	var inv LogInvestigation
+	rawJSON := result.Content[0].Text
+	if start := strings.Index(rawJSON, "{"); start != -1 {
+		if end := strings.LastIndex(rawJSON, "}"); end != -1 && end > start {
+			rawJSON = rawJSON[start : end+1]
+		}
+	}
+	_ = json.Unmarshal([]byte(rawJSON), &inv)
+	return inv, nil
+}
+
+func queryOpenAIForLogs(ctx context.Context, apiKey, domain, logs string) (LogInvestigation, error) {
+	prompt := fmt.Sprintf("Domain: %s\nError Logs:\n%s\n\nProvide JSON response only with schema: {\"analysis\": \"...\", \"rootCause\": \"...\", \"suggestedFix\": \"...\", \"executableFix\": \"...\", \"fixType\": \"fix_permissions|restart_php|install_extension|fix_db_socket|\"}", domain, logs)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	bodyData, _ := json.Marshal(map[string]any{
+		"model":      "gpt-4o-mini",
+		"max_tokens": 512,
+		"messages": []map[string]string{
+			{"role": "system", "content": "You are CloudDeck DevOps Log Doctor. Return only valid JSON with root cause analysis and actionable fixes."},
+			{"role": "user", "content": prompt},
+		},
+	})
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", bytes.NewReader(bodyData))
+	if err != nil {
+		return LogInvestigation{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return LogInvestigation{}, err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || len(result.Choices) == 0 {
+		return LogInvestigation{}, fmt.Errorf("decode openai: %w", err)
+	}
+
+	var inv LogInvestigation
+	rawJSON := result.Choices[0].Message.Content
+	if start := strings.Index(rawJSON, "{"); start != -1 {
+		if end := strings.LastIndex(rawJSON, "}"); end != -1 && end > start {
+			rawJSON = rawJSON[start : end+1]
+		}
+	}
+	_ = json.Unmarshal([]byte(rawJSON), &inv)
+	return inv, nil
 }

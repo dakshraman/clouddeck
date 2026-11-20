@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { PhpExtensionsCard } from "@/components/runtimes/php-extensions-card";
+import { CachingCard } from "@/components/runtimes/caching-card";
 import { Boxes, RefreshCw, Trash2 } from "lucide-react";
 
 const MANAGED_KINDS = ["node", "php", "python", "java", "docker"] as const;
@@ -364,6 +365,8 @@ export default function RuntimesPage() {
             </CardBody>
           </Card>
         ) : null}
+
+        <CachingCard />
       </div>
     </>
   );

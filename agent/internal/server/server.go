@@ -16,10 +16,12 @@ import (
 	"time"
 
 	"clouddeck/agent/internal/agents"
+	"clouddeck/agent/internal/alerts"
 	"clouddeck/agent/internal/apierr"
 	"clouddeck/agent/internal/apps"
 	"clouddeck/agent/internal/audit"
 	"clouddeck/agent/internal/backup"
+	"clouddeck/agent/internal/caching"
 	"clouddeck/agent/internal/config"
 	"clouddeck/agent/internal/cron"
 	"clouddeck/agent/internal/dns"
@@ -77,11 +79,42 @@ type Server struct {
 	agents   *agents.Manager
 	cron     *cron.Service
 	doctor   *doctor.Service
+	caching  *caching.Service
+	alerts   *alerts.Service
 }
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, gitSvc *git.Service, auditLog *audit.Log) http.Handler {
-	s := &Server{cfg: cfg, eng: eng, sites: siteSvc, ssl: sslIssuer, panelSSL: ssl.NewPanelSSL(cfg), files: fileSvc, mysql: mysqlSvc, services: svcMgr, dns: dnsMgr, tunnel: tunnel.New(cfg), backups: backupSvc, mail: mailSvc, siteinfo: siteInfoSvc, ftp: ftpSvc, term: termSvc, ssh: sshSvc, pma: pmaSvc, apps: appSvc, firewall: fwSvc, security: secSvc, git: gitSvc, audit: auditLog, agents: agents.New(cfg, auditLog), cron: cron.New(cfg, auditLog), doctor: doctor.New(cfg, auditLog)}
+	agentMgr := agents.New(cfg, auditLog)
+	s := &Server{
+		cfg:      cfg,
+		eng:      eng,
+		sites:    siteSvc,
+		ssl:      sslIssuer,
+		panelSSL: ssl.NewPanelSSL(cfg),
+		files:    fileSvc,
+		mysql:    mysqlSvc,
+		services: svcMgr,
+		dns:      dnsMgr,
+		tunnel:   tunnel.New(cfg),
+		backups:  backupSvc,
+		mail:     mailSvc,
+		siteinfo: siteInfoSvc,
+		ftp:      ftpSvc,
+		term:     termSvc,
+		ssh:      sshSvc,
+		pma:      pmaSvc,
+		apps:     appSvc,
+		firewall: fwSvc,
+		security: secSvc,
+		git:      gitSvc,
+		audit:    auditLog,
+		agents:   agentMgr,
+		cron:     cron.New(cfg, auditLog),
+		doctor:   doctor.New(cfg, auditLog, agentMgr.Vault),
+		caching:  caching.New(cfg, auditLog),
+		alerts:   alerts.New(cfg, auditLog),
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -318,6 +351,36 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /api/system/doctor", s.handleDiagnoseServer)
 	mux.HandleFunc("POST /v1/system/doctor/fix", s.handleFixServerIssue)
 	mux.HandleFunc("POST /api/system/doctor/fix", s.handleFixServerIssue)
+	mux.HandleFunc("POST /v1/sites/{domain}/doctor/investigate-logs", s.handleInvestigateSiteLogs)
+	mux.HandleFunc("POST /api/sites/{domain}/doctor/investigate-logs", s.handleInvestigateSiteLogs)
+
+	// In-Memory Caching & Redis
+	mux.HandleFunc("GET /v1/caching/status", s.handleCachingStatus)
+	mux.HandleFunc("GET /api/caching/status", s.handleCachingStatus)
+	mux.HandleFunc("POST /v1/caching/redis/toggle", s.handleRedisToggle)
+	mux.HandleFunc("POST /api/caching/redis/toggle", s.handleRedisToggle)
+	mux.HandleFunc("POST /v1/caching/redis/flush", s.handleRedisFlush)
+	mux.HandleFunc("POST /api/caching/redis/flush", s.handleRedisFlush)
+
+	// Multi-Channel Alerts
+	mux.HandleFunc("GET /v1/alerts/config", s.handleGetAlertsConfig)
+	mux.HandleFunc("GET /api/alerts/config", s.handleGetAlertsConfig)
+	mux.HandleFunc("PUT /v1/alerts/config", s.handleUpdateAlertsConfig)
+	mux.HandleFunc("PUT /api/alerts/config", s.handleUpdateAlertsConfig)
+	mux.HandleFunc("POST /v1/alerts/config", s.handleUpdateAlertsConfig)
+	mux.HandleFunc("POST /api/alerts/config", s.handleUpdateAlertsConfig)
+	mux.HandleFunc("POST /v1/alerts/test", s.handleTestAlerts)
+	mux.HandleFunc("POST /api/alerts/test", s.handleTestAlerts)
+
+	// Site FastCGI Microcaching
+	mux.HandleFunc("GET /v1/sites/{domain}/cache", s.handleGetSiteCache)
+	mux.HandleFunc("GET /api/sites/{domain}/cache", s.handleGetSiteCache)
+	mux.HandleFunc("PUT /v1/sites/{domain}/cache", s.handleSetSiteCache)
+	mux.HandleFunc("PUT /api/sites/{domain}/cache", s.handleSetSiteCache)
+	mux.HandleFunc("POST /v1/sites/{domain}/cache", s.handleSetSiteCache)
+	mux.HandleFunc("POST /api/sites/{domain}/cache", s.handleSetSiteCache)
+	mux.HandleFunc("POST /v1/sites/{domain}/cache/purge", s.handlePurgeSiteCache)
+	mux.HandleFunc("POST /api/sites/{domain}/cache/purge", s.handlePurgeSiteCache)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

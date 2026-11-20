@@ -100,6 +100,10 @@ type Site struct {
 	// WAFEnabled turns on the per-site WAF rules block in the vhost (v0.5).
 	WAFEnabled bool `json:"wafEnabled,omitempty"`
 
+	// FastCGI microcaching
+	CacheEnabled bool   `json:"cacheEnabled,omitempty"`
+	CacheTTL     string `json:"cacheTtl,omitempty"`
+
 	// Application template installed on this site (e.g. wordpress, laravel, nextjs, django, flask, docker)
 	AppTemplate string            `json:"appTemplate,omitempty"`
 	AppMeta     map[string]string `json:"appMeta,omitempty"`

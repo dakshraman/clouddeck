@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { useRouter } from "next/navigation";
 import {
   ArrowUpCircle,
+  BellRing,
   CheckCircle2,
   Copy,
   ExternalLink,
@@ -32,6 +33,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TwoFactorCard } from "@/components/two-factor-card";
 import { PanelSSLDialog } from "@/components/settings/panel-ssl-dialog";
+import { AlertsSettingsCard } from "@/components/settings/alerts-settings-card";
 
 interface Profile {
   username: string;
@@ -81,6 +83,7 @@ const sections = [
   { id: "account", label: "Account", icon: UserRound },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "two-factor", label: "Two-Factor Auth", icon: KeyRound },
+  { id: "alerts", label: "Alerts & Notifications", icon: BellRing },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "server", label: "Server", icon: Server },
   { id: "updates", label: "Updates", icon: ArrowUpCircle },
@@ -753,6 +756,10 @@ export default function SettingsPage() {
               }
             }}
           />
+
+          <div id="alerts">
+            <AlertsSettingsCard />
+          </div>
 
           <SectionCard
             id="appearance"

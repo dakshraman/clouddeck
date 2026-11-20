@@ -478,7 +478,45 @@ Audit actions: `agent.install`, `agent.uninstall`, `agent.vault.update`.
 | `POST /v1/system/doctor` | — | `200 {healthScore,issues:[{id,severity,title,description,fixable,fixType?}],checkedAt,metrics:{diskFreePercent}}` | — |
 | `POST /v1/system/doctor/fix` | `{"fixType": "restart_mysql" \| "clean_apt_cache"}` | `200 {success:true,fixType,message}` | `400 missing_fix_type`, `500` |
 
-Audit actions: `doctor.site.fix_permissions`, `doctor.site.restart_php`.
+Audit actions: `doctor.site.fix_permissions`, `doctor.site.restart_php`, `doctor.site.investigate_logs`.
+
+#### In-Memory Caching (Redis / Valkey / Memcached)
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/caching/status` | — | `200 {redis:{installed,running,daemonName,version,socketPath,port,usedMemory,peakMemory,maxMemory,totalKeys,connectedClients,uptimeDays},memcached:{installed,running,port,version}}` | `500` |
+| `POST /v1/caching/redis/toggle` | `{"action": "start" \| "stop" \| "restart"}` | `200 {success:true,action,status}` | `400 missing_action`, `500` |
+| `POST /v1/caching/redis/flush` | — | `200 {success:true,message}` | `500` |
+
+Audit actions: `caching.redis.toggle`, `caching.redis.flush`.
+
+#### Multi-Channel Alerting
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/alerts/config` | — | `200 {enabled,cooldownMinutes,thresholds:{cpuPercent,ramPercent,diskPercent,serviceDown},channels:{telegram:{enabled,botToken,chatId},discord:{enabled,webhookUrl},slack:{enabled,webhookUrl},webhook:{enabled,url,secret}},updatedAt}` | `500` |
+| `PUT /v1/alerts/config` | `{enabled?,cooldownMinutes?,thresholds?,channels?}` | `200 {success:true,config}` | `400`, `500` |
+| `POST /v1/alerts/test` | `{"channel"?: "telegram" \| "discord" \| "slack" \| "webhook"}` | `200 {success:true,results:{...}}` | `500` |
+
+Audit actions: `alerts.config.update`, `alerts.test`.
+
+#### FastCGI Edge Microcaching
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/sites/{domain}/cache` | — | `200 {domain,enabled,ttl,status}` | `400 missing_domain`, `404 site_not_found` |
+| `PUT /v1/sites/{domain}/cache` | `{"enabled": bool, "ttl": "5m" \| "10m" \| "1h" \| ...}` | `200 {success:true,cache:{domain,enabled,ttl,status}}` | `400`, `404 site_not_found`, `500` |
+| `POST /v1/sites/{domain}/cache/purge` | — | `200 {success:true,domain,message}` | `400`, `404 site_not_found`, `500` |
+
+Audit actions: `site.cache.set`, `site.cache.purge`.
+
+#### AI Error Log Investigator
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `POST /v1/sites/{domain}/doctor/investigate-logs` | `{"logContent"?: string}` | `200 {domain,logFile,linesRead,analysis,rootCause,suggestedFix,executableFix,fixType,provider,investigatedAt}` | `400 missing_domain`, `404 site_not_found`, `500` |
+
+Audit actions: `doctor.site.investigate_logs`.
 
 `modsec` is `{moduleInstalled,modulePath?,crsInstalled,crsPath?,engine,note?}` where `engine` is `modsecurity` when the nginx module is loaded, otherwise `nginx-rules` (the built-in per-site rules). `fail2ban` is `{installed,active,jails:[{name,banned,total,ips,enabled}],note?}`. `ssh` reports the effective `port`, `permitRootLogin`, `passwordAuthentication` and `pubkeyAuthentication` read from `sshd_config` and its drop-ins. `checks` is the hardening checklist: `[{id,label,status,detail,hint?}]` with `status` `pass`, `warn`, `fail` or `info`.
 
@@ -624,6 +662,14 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | POST | `/api/agents/chat` | `{messages,context?}` AI assistant devops conversation |
 | GET | `/api/agents/ollama/models` | list local ollama models |
 | POST | `/api/agents/ollama/pull` | `{model}` pull ollama model |
+| GET | `/api/caching/status` | redis & in-memory cache status passthrough `/v1/caching/status` |
+| POST | `/api/caching/redis/toggle` | `{action}` toggle redis daemon passthrough `/v1/caching/redis/toggle` |
+| POST | `/api/caching/redis/flush` | flush redis cache (FLUSHALL) passthrough `/v1/caching/redis/flush` |
+| GET/PUT/POST | `/api/alerts/config` | read / update multi-channel alert thresholds and notifications |
+| POST | `/api/alerts/test` | `{channel?}` dispatch test alert |
+| GET/PUT/POST | `/api/sites/{domain}/cache` | read / set FastCGI edge microcaching and TTL |
+| POST | `/api/sites/{domain}/cache/purge` | flush FastCGI microcache files |
+| POST | `/api/sites/{domain}/doctor/investigate-logs` | `{logContent?}` AI root cause analysis of recent site error logs |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 

@@ -996,6 +996,98 @@ export interface OllamaModelsResponse {
   error?: string;
 }
 
+// ---- Wave 1: In-Memory Caching (Redis/Valkey & Memcached) ----
+export interface RedisInfo {
+  installed: boolean;
+  running: boolean;
+  version?: string;
+  daemon?: string;
+  socketPath: string;
+  port: number;
+  memoryUsedHuman?: string;
+  memoryPeakHuman?: string;
+  totalKeys: number;
+  uptimeSeconds: number;
+  connectedClients: number;
+}
+
+export interface MemcachedInfo {
+  installed: boolean;
+  running: boolean;
+  port: number;
+}
+
+export interface CachingStatusResponse {
+  redis: RedisInfo;
+  memcached?: MemcachedInfo;
+}
+
+export interface CachingToggleResponse {
+  success: boolean;
+  running: boolean;
+  message?: string;
+}
+
+export interface CachingFlushResponse {
+  success: boolean;
+  message: string;
+}
+
+// ---- Wave 1: Multi-Channel Alerting ----
+export interface AlertChannelConfig {
+  enabled: boolean;
+  webhookUrl?: string;
+  botToken?: string;
+  chatId?: string;
+}
+
+export interface AlertThresholds {
+  cpuPercent: number;
+  ramPercent: number;
+  diskPercent: number;
+  serviceDown: boolean;
+  cooldownMinutes: number;
+}
+
+export interface AlertsConfig {
+  telegram: AlertChannelConfig;
+  discord: AlertChannelConfig;
+  slack: AlertChannelConfig;
+  genericWebhook?: AlertChannelConfig;
+  thresholds: AlertThresholds;
+}
+
+export interface AlertTestResponse {
+  success: boolean;
+  message: string;
+}
+
+// ---- Wave 1: AI Log Investigator ----
+export interface LogInvestigationResult {
+  domain: string;
+  rootCause: string;
+  explanation: string;
+  fixSuggestions: string[];
+  remediationCommand?: string;
+  severity: "critical" | "warning" | "info";
+  analyzedLines: number;
+  timestamp: string;
+}
+
+// ---- Wave 1: FastCGI Microcaching ----
+export interface FastCgiCacheConfig {
+  enabled: boolean;
+  durationMinutes: number;
+  bypassCookies: string[];
+  status?: "active" | "disabled";
+}
+
+export interface FastCgiCachePurgeResponse {
+  success: boolean;
+  message: string;
+}
+
+
 
 
 

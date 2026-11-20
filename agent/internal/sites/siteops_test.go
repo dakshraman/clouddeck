@@ -767,3 +767,54 @@ func TestDeprovisionRemovesCronFragment(t *testing.T) {
 		t.Errorf("site still in state after delete")
 	}
 }
+
+func TestSiteFastCGICache(t *testing.T) {
+	h := newHarness(t, nil)
+	h.addSite("example.com", "8.3")
+	ctx := context.Background()
+
+	// 1. Initial cache status is disabled
+	settings, err := h.svc.GetCacheConfig("example.com")
+	if err != nil {
+		t.Fatalf("GetCacheConfig: %v", err)
+	}
+	if settings.Enabled || settings.Status != "disabled" {
+		t.Fatalf("expected disabled cache, got: %+v", settings)
+	}
+
+	// 2. Enable FastCGI caching
+	updated, err := h.svc.SetCacheConfig(ctx, "example.com", true, "15m")
+	if err != nil {
+		t.Fatalf("SetCacheConfig: %v", err)
+	}
+	if !updated.Enabled || updated.Status != "active" || updated.TTL != "15m" {
+		t.Fatalf("expected enabled 15m cache, got: %+v", updated)
+	}
+
+	// Verify rendered config contains fastcgi_cache and bypass rules
+	data, err := os.ReadFile(filepath.Join(h.cfg.NginxSitesDir, "example.com.conf"))
+	if err != nil {
+		t.Fatalf("read conf: %v", err)
+	}
+	conf := string(data)
+	if !strings.Contains(conf, "fastcgi_cache CLOUDDECK_CACHE;") {
+		t.Errorf("nginx conf missing fastcgi_cache directive:\n%s", conf)
+	}
+	if !strings.Contains(conf, "fastcgi_cache_bypass $skip_cache;") {
+		t.Errorf("nginx conf missing fastcgi_cache_bypass directive:\n%s", conf)
+	}
+
+	// 3. Purge cache
+	if err := h.svc.PurgeCache(ctx, "example.com"); err != nil {
+		t.Fatalf("PurgeCache: %v", err)
+	}
+
+	// 4. Disable FastCGI caching
+	disabled, err := h.svc.SetCacheConfig(ctx, "example.com", false, "10m")
+	if err != nil {
+		t.Fatalf("SetCacheConfig disable: %v", err)
+	}
+	if disabled.Enabled || disabled.Status != "disabled" {
+		t.Fatalf("expected disabled cache, got: %+v", disabled)
+	}
+}
