@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserRound,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { PanelSSLStatus, SystemInfo } from "@/lib/types";
@@ -34,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TwoFactorCard } from "@/components/two-factor-card";
 import { PanelSSLDialog } from "@/components/settings/panel-ssl-dialog";
 import { AlertsSettingsCard } from "@/components/settings/alerts-settings-card";
+import { UsersRbacCard } from "@/components/settings/users-rbac-card";
 
 interface Profile {
   username: string;
@@ -81,6 +83,7 @@ const INSTALL_COMMAND =
 
 const sections = [
   { id: "account", label: "Account", icon: UserRound },
+  { id: "rbac", label: "Users & Sub-Accounts", icon: Users },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "two-factor", label: "Two-Factor Auth", icon: KeyRound },
   { id: "alerts", label: "Alerts & Notifications", icon: BellRing },
@@ -540,6 +543,10 @@ export default function SettingsPage() {
               </div>
             ) : null}
           </SectionCard>
+
+          <div id="rbac">
+            <UsersRbacCard />
+          </div>
 
           <SectionCard
             id="security"

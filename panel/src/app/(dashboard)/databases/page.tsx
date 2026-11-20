@@ -18,12 +18,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { DatabasesCard } from "@/components/databases/databases-card";
 import { UsersCard } from "@/components/databases/users-card";
+import { PostgresCard } from "@/components/databases/postgres-card";
+import { Database } from "lucide-react";
 import { PmaCard } from "./pma-card";
 import { RemoteMysqlCard } from "./remote-mysql-card";
 
 type LoadState = "loading" | "ready" | "error";
 
 export default function DatabasesPage() {
+  const [engine, setEngine] = useState<"mysql" | "postgres">("mysql");
   const [status, setStatus] = useState<MySQLStatus | null>(null);
   const [databases, setDatabases] = useState<MySQLDatabase[] | null>(null);
   const [users, setUsers] = useState<MySQLUser[] | null>(null);
@@ -97,13 +100,45 @@ export default function DatabasesPage() {
     <>
       <PageHeader
         title="Databases"
-        description="MariaDB/MySQL databases and users on this server."
+        description="MariaDB/MySQL and PostgreSQL relational databases and users on this server."
         actions={
           status?.available ? (
             <Badge variant="green">{status.version ? status.version : "Connected"}</Badge>
           ) : undefined
         }
       />
+
+      <div className="mb-6 flex gap-2 border-b border-border pb-3">
+        <button
+          type="button"
+          onClick={() => setEngine("mysql")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+            engine === "mysql"
+              ? "bg-[#235361] text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          }`}
+        >
+          <Database size={15} />
+          MariaDB / MySQL
+        </button>
+        <button
+          type="button"
+          onClick={() => setEngine("postgres")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+            engine === "postgres"
+              ? "bg-[#235361] text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          }`}
+        >
+          <Database size={15} className="text-sky-400" />
+          PostgreSQL Engine
+        </button>
+      </div>
+
+      {engine === "postgres" ? (
+        <PostgresCard />
+      ) : (
+        <>
 
       {state === "error" ? (
         <Alert variant="error" className="mb-6">
@@ -185,6 +220,8 @@ export default function DatabasesPage() {
           </div>
         </>
       ) : null}
+      </>
+      )}
     </>
   );
 }

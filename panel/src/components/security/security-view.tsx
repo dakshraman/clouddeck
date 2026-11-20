@@ -15,6 +15,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
+import { AiSecurityPostureCard } from "@/components/security/ai-security-posture-card";
 import { cn } from "@/components/ui/cn";
 import {
   Ban,
@@ -181,6 +182,8 @@ export function SecurityView() {
       ) : null}
 
       <div className="grid gap-6">
+        <AiSecurityPostureCard />
+
         <Card>
           <CardHeader>
             <div>

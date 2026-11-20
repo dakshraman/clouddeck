@@ -518,6 +518,91 @@ Audit actions: `site.cache.set`, `site.cache.purge`.
 
 Audit actions: `doctor.site.investigate_logs`.
 
+#### WordPress & Staging Engine
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/sites/{domain}/wordpress/status` | — | `200 {installed,domain,version,siteUrl,adminUrl,dbName,dbHost,dbUser,plugins:[{name,status,version,update}],themes:[{name,status,version,update}],cliInstalled,cliVersion}` | `400 missing_domain`, `404 site_not_found` |
+| `POST /v1/sites/{domain}/wordpress/install` | `{"siteTitle"?, "adminUser"?, "adminPassword"?, "adminEmail"?, "dbName"?}` | `200 {success:true,domain,version,adminUrl,adminUser,adminPassword,adminEmail,dbName,message}` | `400`, `404 site_not_found`, `500` |
+| `POST /v1/sites/{domain}/wordpress/stage` | — | `200 {success:true,sourceDomain,stagingDomain,stagingUrl,stagingAdminUrl,stagingDb,message}` | `400`, `404 site_not_found`, `500` |
+| `POST /v1/sites/{domain}/wordpress/login` | — | `200 {success:true,loginUrl,expiresAt,message}` | `400`, `404 site_not_found`, `500` |
+| `POST /v1/sites/{domain}/wordpress/update` | `{"target": "core" \| "plugins" \| "themes" \| "all"}` | `200 {success:true,domain,target,updated:[...],message}` | `400`, `404 site_not_found`, `500` |
+
+Audit actions: `wordpress.install`, `wordpress.stage`, `wordpress.login`, `wordpress.update`.
+
+#### S3-Compatible Cloud Backup Presets & Destinations
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/backups/destinations` | — | `200 {destinations:[{id,name,provider,bucket,region,endpoint,accessKey,secretKey,prefix,createdAt,updatedAt}]}` | `500` |
+| `POST /v1/backups/destinations` | `{"name","provider","bucket","region"?,"endpoint"?,"accessKey","secretKey"?,"prefix"?}` | `200 {success:true,destination:{...}}` | `400 missing_fields`, `500` |
+| `DELETE /v1/backups/destinations/{id}` | — | `200 {success:true,id}` | `400 missing_id`, `404 destination_not_found`, `500` |
+| `POST /v1/backups/destinations/test` | `{"bucket","provider","region"?,"endpoint"?,"accessKey","secretKey"}` | `200 {success:bool,message,latency?}` | `400`, `500` |
+
+Audit actions: `backup.destination.save`, `backup.destination.delete`.
+
+#### cPanel `cpmove` Migration Importer
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `POST /v1/migrations/cpanel/upload` | multipart archive or raw bytes (`?filename=`) | `200 {success:true,archivePath}` | `400`, `500` |
+| `POST /v1/migrations/cpanel/import` | `{"archivePath": string, "overwrite"?: bool}` | `200 {success:true,migration:{id,username,archiveName,domains,databases,mailboxes,status,filesCount,duration,importedAt},message}` | `400 missing_archive`, `404 archive_not_found`, `500` |
+| `GET /v1/migrations/history` | — | `200 {migrations:[{id,username,archiveName,domains,databases,mailboxes,status,filesCount,duration,importedAt}]}` | `500` |
+
+Audit actions: `migration.cpanel.import`.
+
+#### Integrated Webmail Client (Roundcube / SnappyMail)
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/mail/webmail/status` | — | `200 {installed,running,client,version,url}` | `500` |
+| `POST /v1/mail/webmail/install` | — | `200 {success:true,message,status}` | `500` |
+| `POST /v1/mail/webmail/sso` | `{"email": string}` | `200 {success:true,email,redirectUrl,token,expiresAt}` | `400 missing_email`, `500` |
+
+Audit actions: `mail.webmail.install`, `mail.webmail.sso`.
+
+#### Anti-Spam Filter & Reputation Management (Rspamd / SpamAssassin)
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/mail/spam/status` | — | `200 {installed,running,engine,config:{enabled,rejectScore,tagScore,greylisting,autoLearn,whitelistDomains,blacklistDomains,updatedAt}}` | `500` |
+| `PUT /v1/mail/spam/config` | `{"enabled":bool,"rejectScore":float,"tagScore":float,"greylisting":bool,...}` | `200 {success:true,config:{...}}` | `400`, `500` |
+
+Audit actions: `mail.spam.update`.
+
+#### Multi-Tenant Sub-Accounts & RBAC
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/users` | — | `200 {users:[{username,email,role,domains,quotas:{diskMb,maxDatabases,maxMailboxes},createdAt,updatedAt}]}` | `500` |
+| `POST /v1/users` | `{"username","email"?,"role","domains"?,"quotas"?,"password"}` | `201 {success:true,user:{...}}` | `400 invalid_username`, `409 user_exists`, `500` |
+| `PUT /v1/users/{username}` | `{"email"?,"role"?,"domains"?,"quotas"?,"password"?}` | `200 {success:true,user:{...}}` | `404 user_not_found`, `500` |
+| `DELETE /v1/users/{username}` | — | `200 {success:true,username}` | `404 user_not_found`, `500` |
+
+Audit actions: `rbac.user.create`, `rbac.user.update`, `rbac.user.delete`.
+
+#### PostgreSQL Database Engine
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/postgres/status` | — | `200 {installed,running,version,port,socketPath,databasesCount,usersCount}` | `500` |
+| `GET /v1/postgres/databases` | — | `200 {databases:[{name,owner,encoding,collate,sizeBytes,createdAt}]}` | `500` |
+| `POST /v1/postgres/databases` | `{"name": string, "owner"?: string}` | `201 {success:true,database:{...}}` | `400 invalid_name`, `409 database_exists`, `500` |
+| `DELETE /v1/postgres/databases/{name}` | — | `200 {success:true,name}` | `400 protected_database`, `404 database_not_found`, `500` |
+| `GET /v1/postgres/users` | — | `200 {users:[{username,superuser,canLogin,connectionUri,createdAt}]}` | `500` |
+| `POST /v1/postgres/users` | `{"username": string, "password"?: string, "superuser"?: bool}` | `201 {success:true,user:{...}}` | `400 invalid_username`, `409 user_exists`, `500` |
+| `DELETE /v1/postgres/users/{name}` | — | `200 {success:true,username}` | `400 protected_user`, `404 user_not_found`, `500` |
+
+Audit actions: `postgres.database.create`, `postgres.database.delete`, `postgres.user.create`, `postgres.user.delete`.
+
+#### AI Security Posture & Hardening Scanner
+
+| Endpoint | Body/query | Success | Errors |
+|---|---|---|---|
+| `GET /v1/security/posture` | — | `200 {score,grade,scannedAt,findings:[{id,category,severity,title,description,remediation,passed,autoFixable}],remediationPlan,metrics}` | `500` |
+| `POST /v1/security/scan` | — | `200 {score,grade,scannedAt,findings,remediationPlan,metrics}` | `500` |
+| `POST /v1/security/harden` | — | `200 {success:true,actionsApplied:[...],newScore,message}` | `500` |
+
 `modsec` is `{moduleInstalled,modulePath?,crsInstalled,crsPath?,engine,note?}` where `engine` is `modsecurity` when the nginx module is loaded, otherwise `nginx-rules` (the built-in per-site rules). `fail2ban` is `{installed,active,jails:[{name,banned,total,ips,enabled}],note?}`. `ssh` reports the effective `port`, `permitRootLogin`, `passwordAuthentication` and `pubkeyAuthentication` read from `sshd_config` and its drop-ins. `checks` is the hardening checklist: `[{id,label,status,detail,hint?}]` with `status` `pass`, `warn`, `fail` or `info`.
 
 Audit action: `security.unban`.
@@ -670,6 +755,33 @@ Same-origin, prefix `/api`. Session cookie `cd_session` (HttpOnly, SameSite=Lax,
 | GET/PUT/POST | `/api/sites/{domain}/cache` | read / set FastCGI edge microcaching and TTL |
 | POST | `/api/sites/{domain}/cache/purge` | flush FastCGI microcache files |
 | POST | `/api/sites/{domain}/doctor/investigate-logs` | `{logContent?}` AI root cause analysis of recent site error logs |
+| GET | `/api/sites/{domain}/wordpress/status` | detect WordPress installation, version, plugins & themes |
+| POST | `/api/sites/{domain}/wordpress/install` | 1-click install WordPress with database & salts |
+| POST | `/api/sites/{domain}/wordpress/stage` | 1-click staging clone to staging.<domain> with isolated DB |
+| POST | `/api/sites/{domain}/wordpress/login` | 1-click passwordless admin magic login URL |
+| POST | `/api/sites/{domain}/wordpress/update` | `{target}` update core, plugins, or themes |
+| GET | `/api/backups/destinations` | list registered cloud storage destinations |
+| POST | `/api/backups/destinations` | `{name,provider,bucket,...}` create or update destination |
+| DELETE | `/api/backups/destinations/{id}` | delete destination by ID |
+| POST | `/api/backups/destinations/test` | test cloud storage connectivity |
+| POST | `/api/migrations/cpanel/upload` | upload `cpmove-*.tar.gz` archive |
+| POST | `/api/migrations/cpanel/import` | `{archivePath}` automated restoration of cPanel user |
+| GET | `/api/migrations/history` | migration history and restore logs |
+| GET | `/api/mail/webmail/status` | webmail installation and portal URL |
+| POST | `/api/mail/webmail/install` | provision webmail interface |
+| POST | `/api/mail/webmail/sso` | `{email}` generate passwordless SSO webmail access token |
+| GET | `/api/mail/spam/status` | Rspamd / SpamAssassin status and policies |
+| GET/PUT/POST | `/api/mail/spam/config` | read / update anti-spam score thresholds and greylisting |
+| GET/POST | `/api/users` | list client sub-accounts / create scoped user |
+| PUT/DELETE | `/api/users/{username}` | update user quotas & domains / delete account |
+| GET | `/api/postgres/status` | PostgreSQL service health and status |
+| GET/POST | `/api/postgres/databases` | list / create PostgreSQL databases |
+| DELETE | `/api/postgres/databases/{name}` | drop PostgreSQL database |
+| GET/POST | `/api/postgres/users` | list / create PostgreSQL roles |
+| DELETE | `/api/postgres/users/{name}` | drop PostgreSQL role |
+| GET | `/api/security/posture` | host security posture evaluation and 0-100 score |
+| POST | `/api/security/scan` | trigger deep security scan across SSH, ports, permissions |
+| POST | `/api/security/harden` | 1-click automated security hardening |
 
 The panel validates input again (same domain regex, same path/identifier rules) → `400` with a clear message. Agent errors pass through with their original HTTP status and JSON body wherever sensible (the file/MySQL proxies forward status + body unchanged; downloads stream `Content-Disposition` through).
 

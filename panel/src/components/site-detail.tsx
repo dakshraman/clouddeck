@@ -30,6 +30,7 @@ import { DnsMailCard } from "@/components/site/dns-mail-card";
 import { TunnelCard } from "@/components/site/tunnel-card";
 import { SiteDoctorCard } from "@/components/site/site-doctor-card";
 import { FastCgiCacheCard } from "@/components/site/fastcgi-cache-card";
+import { WordPressCard } from "@/components/site/wordpress-card";
 import { cn } from "@/components/ui/cn";
 import { phpVersionLabel, shortDateTime, siteStatusVariant, titleCase } from "@/components/format";
 import { ArrowLeft, ExternalLink, Eye, FolderOpen, Globe, HelpCircle, ShieldCheck, Trash2 } from "lucide-react";
@@ -48,6 +49,7 @@ type LoadState = "loading" | "ready" | "notfound" | "error";
 
 type SiteTabId =
   | "overview"
+  | "wordpress"
   | "subdomains"
   | "redirects"
   | "cron"
@@ -60,6 +62,7 @@ type SiteTabId =
 
 const SITE_TABS: { id: SiteTabId; label: string }[] = [
   { id: "overview", label: "Overview" },
+  { id: "wordpress", label: "WordPress" },
   { id: "subdomains", label: "Subdomains" },
   { id: "redirects", label: "Redirects" },
   { id: "cron", label: "Cron jobs" },
@@ -464,6 +467,10 @@ export function SiteDetail({ domain }: { domain: string }) {
             )}
           </CardBody>
         </Card>
+      </TabPanel>
+
+      <TabPanel id="wordpress" active={tab === "wordpress"}>
+        <WordPressCard domain={site.domain} />
       </TabPanel>
 
       <TabPanel id="subdomains" active={tab === "subdomains"}>

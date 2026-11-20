@@ -19,7 +19,7 @@ import {
   buildEmail,
   quotaLabel,
 } from "@/components/mail/mail-utils";
-import { AtSign, Eye, EyeOff, Inbox, KeyRound, Plus, Trash2 } from "lucide-react";
+import { AtSign, ExternalLink, Eye, EyeOff, Inbox, KeyRound, Plus, Trash2 } from "lucide-react";
 
 interface AccountsCardProps {
   domains: string[] | null;
@@ -278,6 +278,15 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
       }));
     } finally {
       setDeletingEmail(null);
+    }
+  }
+
+  async function handleOpenWebmail(email: string) {
+    try {
+      const res = await apiPost<{ url: string }>("/api/mail/webmail/sso", { email });
+      window.open(res.url || `/webmail?user=${encodeURIComponent(email)}`, "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(`/webmail?user=${encodeURIComponent(email)}`, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -541,6 +550,15 @@ export function AccountsCard({ domains, onRefresh }: AccountsCardProps) {
                                 </>
                               ) : (
                                 <>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => void handleOpenWebmail(account.email)}
+                                    title={`Open Webmail for ${account.email}`}
+                                  >
+                                    <ExternalLink size={14} aria-hidden="true" />
+                                    Webmail
+                                  </Button>
                                   <Button
                                     variant="secondary"
                                     size="sm"

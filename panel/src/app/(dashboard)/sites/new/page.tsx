@@ -14,8 +14,9 @@ import { PageHeader } from "@/components/page-header";
 import { TaskLog } from "@/components/task-log";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/components/ui/cn";
-import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink, Eye, Zap, Copy } from "lucide-react";
+import { Globe, Server, Sparkles, Layers, CheckCircle2, ExternalLink, Eye, Zap, Copy, DownloadCloud } from "lucide-react";
 import { INDUSTRIAL_APPS, type IndustrialAppTemplate } from "@/lib/templates";
+import { CpanelImporterCard } from "@/components/migration/cpanel-importer-card";
 
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
@@ -46,7 +47,7 @@ const DEFAULT_COMMANDS: Record<string, string> = {
 };
 
 export default function NewSitePage() {
-  const [mode, setMode] = useState<"preset" | "custom">("preset");
+  const [mode, setMode] = useState<"preset" | "custom" | "cpanel">("preset");
   const [selectedTemplate, setSelectedTemplate] = useState<IndustrialAppTemplate | null>(INDUSTRIAL_APPS[0]);
   const [autoCreateDb, setAutoCreateDb] = useState(true);
   const [setupDns, setSetupDns] = useState(true);
@@ -612,9 +613,27 @@ export default function NewSitePage() {
           <Layers size={16} className="text-[#74B8CC]" />
           Custom / Manual Stack
         </button>
+        <button
+          type="button"
+          onClick={() => setMode("cpanel")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+            mode === "cpanel"
+              ? "bg-[#235361] text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          )}
+        >
+          <DownloadCloud size={16} className="text-orange-400" />
+          Import from cPanel
+        </button>
       </div>
 
-      <Card className="max-w-3xl">
+      {mode === "cpanel" ? (
+        <div className="max-w-3xl">
+          <CpanelImporterCard />
+        </div>
+      ) : (
+        <Card className="max-w-3xl">
         <CardBody>
           <form onSubmit={onSubmit} className="grid gap-6">
             <div className="grid gap-1.5">
@@ -880,6 +899,7 @@ export default function NewSitePage() {
           </form>
         </CardBody>
       </Card>
+      )}
     </>
   );
 }

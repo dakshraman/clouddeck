@@ -1087,6 +1087,276 @@ export interface FastCgiCachePurgeResponse {
   message: string;
 }
 
+// ---- Wave 2: WordPress & Staging Engine ----
+export interface WordPressPlugin {
+  name: string;
+  title: string;
+  version: string;
+  status: "active" | "inactive" | string;
+  updateAvailable?: boolean;
+}
+
+export interface WordPressTheme {
+  name: string;
+  title: string;
+  version: string;
+  status: "active" | "inactive" | string;
+  updateAvailable?: boolean;
+}
+
+export interface WordPressStatus {
+  installed: boolean;
+  version?: string;
+  siteTitle?: string;
+  adminEmail?: string;
+  plugins: WordPressPlugin[];
+  themes: WordPressTheme[];
+  updatesAvailable: number;
+}
+
+export interface WordPressInstallRequest {
+  title: string;
+  adminUser: string;
+  adminPassword?: string;
+  adminEmail: string;
+}
+
+export interface WordPressLoginResponse {
+  loginUrl: string;
+  expiresAt?: string;
+}
+
+export interface WordPressStageRequest {
+  targetSubdomain?: string;
+}
+
+export interface WordPressStageResponse {
+  success: boolean;
+  stagingDomain: string;
+  message: string;
+}
+
+export interface WordPressUpdateRequest {
+  type: "core" | "plugins" | "themes" | "all";
+}
+
+export interface WordPressUpdateResponse {
+  success: boolean;
+  message: string;
+}
+
+// ---- Wave 2: S3-Compatible Cloud Backup Destinations ----
+export type CloudStorageProvider =
+  | "cloudflare-r2"
+  | "aws-s3"
+  | "backblaze-b2"
+  | "wasabi"
+  | "minio"
+  | "custom";
+
+export interface BackupDestination {
+  id: string;
+  name: string;
+  provider: CloudStorageProvider;
+  endpoint?: string;
+  bucket: string;
+  region?: string;
+  accessKey: string;
+  secretKey?: string;
+  prefix?: string;
+  isDefault?: boolean;
+  createdAt: string;
+}
+
+export interface BackupDestinationListResponse {
+  destinations: BackupDestination[];
+}
+
+export interface BackupDestinationTestRequest {
+  provider: CloudStorageProvider | string;
+  endpoint?: string;
+  bucket: string;
+  region?: string;
+  accessKey: string;
+  secretKey: string;
+  prefix?: string;
+}
+
+export interface BackupDestinationTestResponse {
+  success: boolean;
+  message: string;
+}
+
+// ---- Wave 3: cPanel Parity & Migration ----
+export interface CpanelImportRequest {
+  path?: string;
+  archiveName?: string;
+  overwrite?: boolean;
+}
+
+export interface CpanelImportResult {
+  success: boolean;
+  username: string;
+  domainsRestored: string[];
+  databasesRestored: string[];
+  mailboxesRestored: string[];
+  errors?: string[];
+}
+
+export interface MigrationRecord {
+  id: string;
+  source: "cpanel" | string;
+  user: string;
+  domains: string[];
+  status: "completed" | "failed" | "in_progress" | string;
+  createdAt: string;
+  error?: string;
+}
+
+export interface MigrationHistoryResponse {
+  migrations: MigrationRecord[];
+}
+
+// ---- Wave 3: Integrated Webmail ----
+export interface WebmailStatus {
+  installed: boolean;
+  client: "roundcube" | "snappymail" | string;
+  version?: string;
+  url?: string;
+}
+
+export interface WebmailSsoRequest {
+  email?: string;
+}
+
+export interface WebmailSsoResponse {
+  url: string;
+  expiresAt?: string;
+}
+
+// ---- Wave 3: Anti-Spam & Reputation ----
+export interface SpamConfig {
+  enabled: boolean;
+  engine: "rspamd" | "spamassassin" | string;
+  spamScoreThreshold: number;
+  rejectScoreThreshold: number;
+  greylistingEnabled: boolean;
+}
+
+export interface SpamStatusResponse {
+  config: SpamConfig;
+  running: boolean;
+}
+
+// ---- Wave 4: Multi-Tenant RBAC & Users ----
+export type UserRole = "admin" | "client";
+
+export interface UserQuota {
+  diskMb?: number;
+  maxDatabases?: number;
+  maxMailboxes?: number;
+}
+
+export interface PanelUser {
+  username: string;
+  email?: string;
+  role: UserRole;
+  assignedDomains: string[];
+  quota?: UserQuota;
+  createdAt: string;
+}
+
+export interface UserListResponse {
+  users: PanelUser[];
+}
+
+export interface CreateUserRequest {
+  username: string;
+  password?: string;
+  email?: string;
+  role: UserRole;
+  assignedDomains?: string[];
+  quota?: UserQuota;
+}
+
+export interface UpdateUserRequest {
+  password?: string;
+  email?: string;
+  role?: UserRole;
+  assignedDomains?: string[];
+  quota?: UserQuota;
+}
+
+// ---- Wave 4: PostgreSQL Engine ----
+export interface PostgresStatus {
+  installed: boolean;
+  running: boolean;
+  version?: string;
+  port: number;
+  socketPath?: string;
+}
+
+export interface PostgresDatabase {
+  name: string;
+  owner: string;
+  encoding: string;
+  sizeBytes?: number;
+  sizeHuman?: string;
+}
+
+export interface PostgresDatabasesResponse {
+  databases: PostgresDatabase[];
+}
+
+export interface PostgresUser {
+  username: string;
+  superuser: boolean;
+  canCreateDb: boolean;
+  connectionUri?: string;
+}
+
+export interface PostgresUsersResponse {
+  users: PostgresUser[];
+}
+
+export interface CreatePostgresDatabaseRequest {
+  name: string;
+  owner?: string;
+  encoding?: string;
+}
+
+export interface CreatePostgresUserRequest {
+  username: string;
+  password?: string;
+  superuser?: boolean;
+}
+
+// ---- Wave 4: AI Security Posture & Hardening ----
+export interface SecurityFinding {
+  id: string;
+  severity: "critical" | "warning" | "info" | "pass";
+  title: string;
+  description: string;
+  remediation?: string;
+  autoFixable: boolean;
+}
+
+export interface SecurityPosture {
+  score: number;
+  findings: SecurityFinding[];
+  scannedAt: string;
+  summary: string;
+}
+
+export interface HardenResponse {
+  success: boolean;
+  appliedFixes: string[];
+  message: string;
+}
+
+
+
+
 
 
 

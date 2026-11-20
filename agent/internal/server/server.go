@@ -31,10 +31,13 @@ import (
 	"clouddeck/agent/internal/ftp"
 	"clouddeck/agent/internal/git"
 	"clouddeck/agent/internal/mail"
+	"clouddeck/agent/internal/migration"
 	"clouddeck/agent/internal/mysql"
 	"clouddeck/agent/internal/php"
 	"clouddeck/agent/internal/phpmyadmin"
+	"clouddeck/agent/internal/postgres"
 	"clouddeck/agent/internal/processinfo"
+	"clouddeck/agent/internal/rbac"
 	"clouddeck/agent/internal/security"
 	"clouddeck/agent/internal/services"
 	"clouddeck/agent/internal/siteinfo"
@@ -45,6 +48,7 @@ import (
 	"clouddeck/agent/internal/tasks"
 	"clouddeck/agent/internal/term"
 	"clouddeck/agent/internal/tunnel"
+	"clouddeck/agent/internal/wordpress"
 )
 
 // Version is the agent version reported by /v1/health.
@@ -54,66 +58,74 @@ const maxBodyBytes = 1 << 20
 
 // Server wires the HTTP routes to the agent services.
 type Server struct {
-	cfg      config.Config
-	eng      *tasks.Engine
-	sites    *sites.Service
-	ssl      *ssl.Issuer
-	files    *files.Service
-	mysql    *mysql.Service
-	services *services.Manager
-	dns      *dns.Manager
-	tunnel   *tunnel.Service
-	backups  *backup.Service
-	mail     *mail.Service
-	siteinfo *siteinfo.Service
-	ftp      *ftp.Service
-	term     *term.Service
-	ssh      *sshkeys.Service
-	pma      *phpmyadmin.Service
-	apps     *apps.Service
-	firewall *firewall.Service
-	security *security.Service
-	panelSSL *ssl.PanelSSL
-	audit    *audit.Log
-	git      *git.Service
-	agents   *agents.Manager
-	cron     *cron.Service
-	doctor   *doctor.Service
-	caching  *caching.Service
-	alerts   *alerts.Service
+	cfg       config.Config
+	eng       *tasks.Engine
+	sites     *sites.Service
+	ssl       *ssl.Issuer
+	files     *files.Service
+	mysql     *mysql.Service
+	services  *services.Manager
+	dns       *dns.Manager
+	tunnel    *tunnel.Service
+	backups   *backup.Service
+	mail      *mail.Service
+	siteinfo  *siteinfo.Service
+	ftp       *ftp.Service
+	term      *term.Service
+	ssh       *sshkeys.Service
+	pma       *phpmyadmin.Service
+	apps      *apps.Service
+	firewall  *firewall.Service
+	security  *security.Service
+	panelSSL  *ssl.PanelSSL
+	audit     *audit.Log
+	git       *git.Service
+	agents    *agents.Manager
+	cron      *cron.Service
+	doctor    *doctor.Service
+	caching   *caching.Service
+	alerts    *alerts.Service
+	wordpress *wordpress.Service
+	migration *migration.Service
+	postgres  *postgres.Service
+	rbac      *rbac.Service
 }
 
 // New builds the HTTP handler.
 func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer *ssl.Issuer, fileSvc *files.Service, mysqlSvc *mysql.Service, svcMgr *services.Manager, dnsMgr *dns.Manager, backupSvc *backup.Service, mailSvc *mail.Service, siteInfoSvc *siteinfo.Service, ftpSvc *ftp.Service, termSvc *term.Service, sshSvc *sshkeys.Service, pmaSvc *phpmyadmin.Service, appSvc *apps.Service, fwSvc *firewall.Service, secSvc *security.Service, gitSvc *git.Service, auditLog *audit.Log) http.Handler {
 	agentMgr := agents.New(cfg, auditLog)
 	s := &Server{
-		cfg:      cfg,
-		eng:      eng,
-		sites:    siteSvc,
-		ssl:      sslIssuer,
-		panelSSL: ssl.NewPanelSSL(cfg),
-		files:    fileSvc,
-		mysql:    mysqlSvc,
-		services: svcMgr,
-		dns:      dnsMgr,
-		tunnel:   tunnel.New(cfg),
-		backups:  backupSvc,
-		mail:     mailSvc,
-		siteinfo: siteInfoSvc,
-		ftp:      ftpSvc,
-		term:     termSvc,
-		ssh:      sshSvc,
-		pma:      pmaSvc,
-		apps:     appSvc,
-		firewall: fwSvc,
-		security: secSvc,
-		git:      gitSvc,
-		audit:    auditLog,
-		agents:   agentMgr,
-		cron:     cron.New(cfg, auditLog),
-		doctor:   doctor.New(cfg, auditLog, agentMgr.Vault),
-		caching:  caching.New(cfg, auditLog),
-		alerts:   alerts.New(cfg, auditLog),
+		cfg:       cfg,
+		eng:       eng,
+		sites:     siteSvc,
+		ssl:       sslIssuer,
+		panelSSL:  ssl.NewPanelSSL(cfg),
+		files:     fileSvc,
+		mysql:     mysqlSvc,
+		services:  svcMgr,
+		dns:       dnsMgr,
+		tunnel:    tunnel.New(cfg),
+		backups:   backupSvc,
+		mail:      mailSvc,
+		siteinfo:  siteInfoSvc,
+		ftp:       ftpSvc,
+		term:      termSvc,
+		ssh:       sshSvc,
+		pma:       pmaSvc,
+		apps:      appSvc,
+		firewall:  fwSvc,
+		security:  secSvc,
+		git:       gitSvc,
+		audit:     auditLog,
+		agents:    agentMgr,
+		cron:      cron.New(cfg, auditLog),
+		doctor:    doctor.New(cfg, auditLog, agentMgr.Vault),
+		caching:   caching.New(cfg, auditLog),
+		alerts:    alerts.New(cfg, auditLog),
+		wordpress: wordpress.New(cfg, siteSvc, mysqlSvc, auditLog, eng),
+		migration: migration.New(cfg, siteSvc, mysqlSvc, mailSvc, auditLog, eng),
+		postgres:  postgres.New(cfg, auditLog),
+		rbac:      rbac.New(cfg, auditLog),
 	}
 
 	mux := http.NewServeMux()
@@ -381,6 +393,86 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /api/sites/{domain}/cache", s.handleSetSiteCache)
 	mux.HandleFunc("POST /v1/sites/{domain}/cache/purge", s.handlePurgeSiteCache)
 	mux.HandleFunc("POST /api/sites/{domain}/cache/purge", s.handlePurgeSiteCache)
+
+	// WordPress Engine
+	mux.HandleFunc("GET /v1/sites/{domain}/wordpress/status", s.handleGetWordPressStatus)
+	mux.HandleFunc("GET /api/sites/{domain}/wordpress/status", s.handleGetWordPressStatus)
+	mux.HandleFunc("POST /v1/sites/{domain}/wordpress/install", s.handleInstallWordPress)
+	mux.HandleFunc("POST /api/sites/{domain}/wordpress/install", s.handleInstallWordPress)
+	mux.HandleFunc("POST /v1/sites/{domain}/wordpress/stage", s.handleStageWordPress)
+	mux.HandleFunc("POST /api/sites/{domain}/wordpress/stage", s.handleStageWordPress)
+	mux.HandleFunc("POST /v1/sites/{domain}/wordpress/login", s.handleLoginWordPress)
+	mux.HandleFunc("POST /api/sites/{domain}/wordpress/login", s.handleLoginWordPress)
+	mux.HandleFunc("POST /v1/sites/{domain}/wordpress/update", s.handleUpdateWordPress)
+	mux.HandleFunc("POST /api/sites/{domain}/wordpress/update", s.handleUpdateWordPress)
+
+	// Backup Cloud Storage Destinations
+	mux.HandleFunc("GET /v1/backups/destinations", s.handleListBackupDestinations)
+	mux.HandleFunc("GET /api/backups/destinations", s.handleListBackupDestinations)
+	mux.HandleFunc("POST /v1/backups/destinations", s.handleSaveBackupDestination)
+	mux.HandleFunc("POST /api/backups/destinations", s.handleSaveBackupDestination)
+	mux.HandleFunc("DELETE /v1/backups/destinations/{id}", s.handleDeleteBackupDestination)
+	mux.HandleFunc("DELETE /api/backups/destinations/{id}", s.handleDeleteBackupDestination)
+	mux.HandleFunc("POST /v1/backups/destinations/test", s.handleTestBackupDestination)
+	mux.HandleFunc("POST /api/backups/destinations/test", s.handleTestBackupDestination)
+
+	// cPanel Migration Importer
+	mux.HandleFunc("POST /v1/migrations/cpanel/upload", s.handleUploadMigration)
+	mux.HandleFunc("POST /api/migrations/cpanel/upload", s.handleUploadMigration)
+	mux.HandleFunc("POST /v1/migrations/cpanel/import", s.handleImportMigration)
+	mux.HandleFunc("POST /api/migrations/cpanel/import", s.handleImportMigration)
+	mux.HandleFunc("GET /v1/migrations/history", s.handleListMigrationHistory)
+	mux.HandleFunc("GET /api/migrations/history", s.handleListMigrationHistory)
+
+	// Integrated Webmail
+	mux.HandleFunc("GET /v1/mail/webmail/status", s.handleGetWebmailStatus)
+	mux.HandleFunc("GET /api/mail/webmail/status", s.handleGetWebmailStatus)
+	mux.HandleFunc("POST /v1/mail/webmail/install", s.handleInstallWebmail)
+	mux.HandleFunc("POST /api/mail/webmail/install", s.handleInstallWebmail)
+	mux.HandleFunc("POST /v1/mail/webmail/sso", s.handleWebmailSSO)
+	mux.HandleFunc("POST /api/mail/webmail/sso", s.handleWebmailSSO)
+
+	// Anti-Spam Filter & Reputation Management
+	mux.HandleFunc("GET /v1/mail/spam/status", s.handleGetSpamStatus)
+	mux.HandleFunc("GET /api/mail/spam/status", s.handleGetSpamStatus)
+	mux.HandleFunc("PUT /v1/mail/spam/config", s.handleUpdateSpamConfig)
+	mux.HandleFunc("PUT /api/mail/spam/config", s.handleUpdateSpamConfig)
+	mux.HandleFunc("POST /v1/mail/spam/config", s.handleUpdateSpamConfig)
+	mux.HandleFunc("POST /api/mail/spam/config", s.handleUpdateSpamConfig)
+
+	// Multi-Tenant Sub-Accounts / RBAC
+	mux.HandleFunc("GET /v1/users", s.handleListUsers)
+	mux.HandleFunc("GET /api/users", s.handleListUsers)
+	mux.HandleFunc("POST /v1/users", s.handleCreateUser)
+	mux.HandleFunc("POST /api/users", s.handleCreateUser)
+	mux.HandleFunc("PUT /v1/users/{username}", s.handleUpdateUser)
+	mux.HandleFunc("PUT /api/users/{username}", s.handleUpdateUser)
+	mux.HandleFunc("DELETE /v1/users/{username}", s.handleDeleteUser)
+	mux.HandleFunc("DELETE /api/users/{username}", s.handleDeleteUser)
+
+	// PostgreSQL Database Engine
+	mux.HandleFunc("GET /v1/postgres/status", s.handlePostgresStatus)
+	mux.HandleFunc("GET /api/postgres/status", s.handlePostgresStatus)
+	mux.HandleFunc("GET /v1/postgres/databases", s.handlePostgresListDatabases)
+	mux.HandleFunc("GET /api/postgres/databases", s.handlePostgresListDatabases)
+	mux.HandleFunc("POST /v1/postgres/databases", s.handlePostgresCreateDatabase)
+	mux.HandleFunc("POST /api/postgres/databases", s.handlePostgresCreateDatabase)
+	mux.HandleFunc("DELETE /v1/postgres/databases/{name}", s.handlePostgresDeleteDatabase)
+	mux.HandleFunc("DELETE /api/postgres/databases/{name}", s.handlePostgresDeleteDatabase)
+	mux.HandleFunc("GET /v1/postgres/users", s.handlePostgresListUsers)
+	mux.HandleFunc("GET /api/postgres/users", s.handlePostgresListUsers)
+	mux.HandleFunc("POST /v1/postgres/users", s.handlePostgresCreateUser)
+	mux.HandleFunc("POST /api/postgres/users", s.handlePostgresCreateUser)
+	mux.HandleFunc("DELETE /v1/postgres/users/{name}", s.handlePostgresDeleteUser)
+	mux.HandleFunc("DELETE /api/postgres/users/{name}", s.handlePostgresDeleteUser)
+
+	// AI Security Posture & Hardening Scanner
+	mux.HandleFunc("GET /v1/security/posture", s.handleGetSecurityPosture)
+	mux.HandleFunc("GET /api/security/posture", s.handleGetSecurityPosture)
+	mux.HandleFunc("POST /v1/security/scan", s.handleScanSecurityPosture)
+	mux.HandleFunc("POST /api/security/scan", s.handleScanSecurityPosture)
+	mux.HandleFunc("POST /v1/security/harden", s.handleHardenSecurity)
+	mux.HandleFunc("POST /api/security/harden", s.handleHardenSecurity)
 
 	mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	mux.HandleFunc("GET /v1/tasks/{id}", s.handleGetTask)

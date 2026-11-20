@@ -14,6 +14,8 @@ import { AutorespondersCard } from "@/components/mail/autoresponders-card";
 import { DomainsCard } from "@/components/mail/domains-card";
 import { EmailDnsCard } from "@/components/mail/email-dns-card";
 import { ForwardersCard } from "@/components/mail/forwarders-card";
+import { WebmailCard } from "@/components/mail/webmail-card";
+import { SpamCard } from "@/components/mail/spam-card";
 import { FolderOpen, Globe, Inbox, KeyRound, Server } from "lucide-react";
 
 type LoadState = "loading" | "ready" | "error";
@@ -156,6 +158,10 @@ export function MailPage() {
           </div>
 
           <div className="mt-6">
+            <WebmailCard />
+          </div>
+
+          <div className="mt-6">
             <AccountsCard domains={domains} onRefresh={refresh} />
           </div>
 
@@ -165,6 +171,10 @@ export function MailPage() {
 
           <div className="mt-6">
             <AutorespondersCard domains={domains} />
+          </div>
+
+          <div className="mt-6">
+            <SpamCard />
           </div>
 
           <div className="mt-6">
