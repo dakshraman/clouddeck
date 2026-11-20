@@ -235,7 +235,8 @@ generateResolvConf=true
 "@
 
     $tempConf = [System.IO.Path]::GetTempFileName()
-    Set-Content -Path $tempConf -Value $wslConfContent -Encoding Ascii
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempConf, ($wslConfContent -replace "`r`n", "`n"), $utf8NoBom)
 
     try {
         $tempConfLinux = (wsl.exe -d $DistroName wslpath -u ($tempConf.Replace('\', '/'))).Trim()
@@ -435,25 +436,28 @@ function Install-CloudDeckInsideWSL {
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo '==> Updating package repository and installing prerequisites...'
-apt-get update -qq >/dev/null 2>&1 || true
-apt-get install -y -qq curl ca-certificates openssl libatomic1 >/dev/null 2>&1 || true
-
-echo '==> Fetching and running Unified CloudDeck Installer...'
-INSTALLER_URL='https://clouddeck.dakshraman.in/install.sh'
-if ! curl -fsSL -I "`$INSTALLER_URL" >/dev/null 2>&1; then
-  INSTALLER_URL='https://raw.githubusercontent.com/dakshraman/clouddeck/main/scripts/install.sh'
+if ! command -v curl >/dev/null 2>&1 || ! command -v ca-certificates >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
+  echo "  >> Synchronizing package manager inside WSL ($DistroName)..."
+  apt-get update -o Acquire::Retries=3
+  echo "  >> Installing base dependencies: curl, ca-certificates, openssl..."
+  apt-get install -y --no-install-recommends curl ca-certificates openssl libatomic1
 fi
 
-curl -fsSL "`$INSTALLER_URL" | bash -s -- $installFlags
+echo "  >> Launching CloudDeck Unified Installer inside WSL ($DistroName)..."
+INSTALLER_URL='https://clouddeck.dakshraman.in/install.sh'
+if ! curl -fsSL "`$INSTALLER_URL" | bash -s -- $installFlags; then
+  echo "  >> Primary CDN mirror unavailable, fetching from GitHub repository..."
+  curl -fsSL "https://raw.githubusercontent.com/dakshraman/clouddeck/main/scripts/install.sh" | bash -s -- $installFlags
+fi
 "@
 
     $tempScript = [System.IO.Path]::GetTempFileName()
-    Set-Content -Path $tempScript -Value ($setupScript -replace "`r`n", "`n") -Encoding Ascii -NoNewline
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempScript, ($setupScript -replace "`r`n", "`n"), $utf8NoBom)
 
     try {
         $tempScriptLinux = (wsl.exe -d $DistroName wslpath -u ($tempScript.Replace('\', '/'))).Trim()
-        wsl.exe -d $DistroName -u root bash -c "chmod +x '$tempScriptLinux' && '$tempScriptLinux'"
+        wsl.exe -d $DistroName -u root bash -c "cat '$tempScriptLinux' > /tmp/clouddeck-setup.sh && chmod +x /tmp/clouddeck-setup.sh && /tmp/clouddeck-setup.sh"
         if ($LASTEXITCODE -ne 0) {
             Write-Err "CloudDeck LEMP stack installation failed inside WSL (exit code $LASTEXITCODE)."
             return $false
@@ -506,11 +510,12 @@ fi
 "@
 
     $tempScript = [System.IO.Path]::GetTempFileName()
-    Set-Content -Path $tempScript -Value ($caScript -replace "`r`n", "`n") -Encoding Ascii -NoNewline
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempScript, ($caScript -replace "`r`n", "`n"), $utf8NoBom)
 
     try {
         $tempScriptLinux = (wsl.exe -d $DistroName wslpath -u ($tempScript.Replace('\', '/'))).Trim()
-        wsl.exe -d $DistroName -u root bash -c "chmod +x '$tempScriptLinux' && '$tempScriptLinux'"
+        wsl.exe -d $DistroName -u root bash -c "cat '$tempScriptLinux' > /tmp/clouddeck-ca.sh && chmod +x /tmp/clouddeck-ca.sh && /tmp/clouddeck-ca.sh"
         
         $winTempCA = Join-Path $env:TEMP "clouddeck-ca.crt"
         wsl.exe -d $DistroName -u root cat /etc/clouddeck/ssl/clouddeck-ca.crt > $winTempCA
@@ -549,7 +554,8 @@ function Install-WindowsCLI([string]$DistroName, [int]$Port) {
         InstalledAt = (Get-Date).ToString("o")
     }
     $configPath = Join-Path $env:USERPROFILE ".clouddeck\config.json"
-    $config | ConvertTo-Json | Set-Content -Path $configPath -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json), $utf8NoBom)
 
     $cmdContent = "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0clouddeck.ps1`" %*"
     Set-Content -Path (Join-Path $cliDir "clouddeck.cmd") -Value $cmdContent -Encoding Ascii
@@ -758,7 +764,7 @@ switch ($cmd) {
     Write-Host "  ${tcSky}$gRailMid${clrReset}"
     Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
     Write-Host ""
-    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.54" }
+    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.55" }
     Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
 }
 
