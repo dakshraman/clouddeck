@@ -1,4 +1,4 @@
-﻿# CloudDeck Windows Local Development Suite Installer
+# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
@@ -6,20 +6,21 @@
 # Zero Apache rewrite bugs, multi-PHP (8.1-8.4) coexistence, Nginx production parity,
 # interactive component selector, and native Windows CLI with automatic Local Root CA trust.
 
-[CmdletBinding()]
-param(
-    [string]$Distro = "",
-    [string]$Version = "latest",
-    [int]$PanelPort = 2083,
-    [string]$Profile = "recommended",
-    [switch]$Fast = $false,
-    [switch]$SkipTrust = $false,
-    [string]$ProjectsDir = "",
-    [string]$AdminUser = "",
-    [string]$AdminPass = "",
-    [switch]$Yes = $false,
-    [switch]$Help
-)
+function Invoke-CloudDeckInstaller {
+    [CmdletBinding()]
+    param(
+        [string]$Distro = $(if ($env:CLOUDDECK_DISTRO) { $env:CLOUDDECK_DISTRO } else { "" }),
+        [string]$Version = $(if ($env:CLOUDDECK_VERSION) { $env:CLOUDDECK_VERSION } else { "latest" }),
+        [int]$PanelPort = $(if ($env:CLOUDDECK_PANEL_PORT) { [int]$env:CLOUDDECK_PANEL_PORT } else { 2083 }),
+        [string]$Profile = $(if ($env:CLOUDDECK_PROFILE) { $env:CLOUDDECK_PROFILE } else { "recommended" }),
+        [switch]$Fast = $(if ($env:CLOUDDECK_FAST -eq "1" -or $env:CLOUDDECK_FAST -eq "true") { $true } else { $false }),
+        [switch]$SkipTrust = $(if ($env:CLOUDDECK_SKIP_TRUST -eq "1" -or $env:CLOUDDECK_SKIP_TRUST -eq "true") { $true } else { $false }),
+        [string]$ProjectsDir = $(if ($env:CLOUDDECK_PROJECTS_DIR) { $env:CLOUDDECK_PROJECTS_DIR } else { "" }),
+        [string]$AdminUser = $(if ($env:CLOUDDECK_ADMIN_USER) { $env:CLOUDDECK_ADMIN_USER } else { "" }),
+        [string]$AdminPass = $(if ($env:CLOUDDECK_ADMIN_PASS) { $env:CLOUDDECK_ADMIN_PASS } else { "" }),
+        [switch]$Yes = $(if ($env:CLOUDDECK_YES -eq "1" -or $env:CLOUDDECK_YES -eq "true") { $true } else { $false }),
+        [switch]$Help
+    )
 
 $ErrorActionPreference = "Stop"
 
@@ -44,7 +45,7 @@ Parameters:
   -Yes                   Non-interactive mode (accept recommended defaults)
   -Help                  Show this help message
 "@
-    exit 0
+    return
 }
 
 # --- Uni 6-Color Palette ANSI Styling & Terminal Capabilities ----------------
@@ -177,7 +178,7 @@ function Select-TargetDistro {
             $distros = Get-WSLDistros
         } catch {
             Write-Err "Failed to run 'wsl --install'. Please enable WSL 2 manually by running: wsl --install"
-            exit 1
+            return $null
         }
     }
 
@@ -186,7 +187,7 @@ function Select-TargetDistro {
         if (-not $matched) {
             Write-Err "Requested WSL distribution '$RequestedDistro' not found."
             Write-Host "Available distributions: $(($distros.Name) -join ', ')" -ForegroundColor Yellow
-            exit 1
+            return $null
         }
         return $matched[0].Name
     }
@@ -210,7 +211,10 @@ function Select-TargetDistro {
         return $defaultDistro.Name
     }
 
-    return $distros[0].Name
+    if ($distros.Count -gt 0) {
+        return $distros[0].Name
+    }
+    return $null
 }
 
 function Configure-WSLDistro([string]$DistroName) {
@@ -280,45 +284,59 @@ function Find-NextFreePort([int]$StartPort) {
     return $StartPort
 }
 
-function Ensure-PortsAvailable {
-    if (Test-PortInUse $script:PanelPort) {
-        $suggested = Find-NextFreePort ($script:PanelPort + 1)
-        Write-Warn "Target Web Panel port $script:PanelPort is currently in use by another application."
+function Ensure-PortsAvailable([int]$Port = 2083) {
+    if (Test-PortInUse $Port) {
+        $suggested = Find-NextFreePort ($Port + 1)
+        Write-Warn "Target Web Panel port $Port is currently in use by another application."
         
         if (-not $Yes) {
             Write-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter an alternate port or press Enter for automatic fallback:${clrReset}"
             $pIn = Read-Host "  ${tcMauve}$gBullet Web Panel Port [suggested free: $suggested]${clrReset}"
             if ($pIn -match "^\d+$") {
                 $candidate = [int]$pIn
-                if (Test-PortInUse $candidate -and $candidate -ne $script:PanelPort) {
+                if (Test-PortInUse $candidate -and $candidate -ne $Port) {
                     $nextFree = Find-NextFreePort ($candidate + 1)
                     Write-Warn "Port $candidate is also busy! Automatically falling back to $nextFree."
-                    $script:PanelPort = $nextFree
+                    $Port = $nextFree
                 } else {
-                    $script:PanelPort = $candidate
+                    $Port = $candidate
                 }
             } else {
-                $script:PanelPort = $suggested
+                $Port = $suggested
             }
         } else {
-            Write-Info "Automatically falling back to free port: $script:PanelPort -> $suggested"
-            $script:PanelPort = $suggested
+            Write-Info "Automatically falling back to free port: $Port -> $suggested"
+            $Port = $suggested
         }
-        Write-Success "Web Panel will listen on port: ${tcPeach}$script:PanelPort${clrReset}"
+        Write-Success "Web Panel will listen on port: ${tcPeach}$Port${clrReset}"
     }
+    return $Port
 }
 
 # --- Interactive Profile Selection -------------------------------------------
 
-function Prompt-InteractiveOptions([string]$DistroName = "Ubuntu") {
-    if ($Yes) {
-        return
+function Prompt-InteractiveOptions {
+    param(
+        [string]$DistroName = "Ubuntu",
+        [int]$Port = 2083,
+        [string]$CurrentProfile = "recommended",
+        [string]$User = "",
+        [string]$Pass = ""
+    )
+
+    if ($Yes -or $Fast) {
+        return @{
+            Profile   = if ($Fast) { "fast" } else { $CurrentProfile }
+            PanelPort = $Port
+            AdminUser = $User
+            AdminPass = $Pass
+        }
     }
 
     Write-Host "  ${tcSteel}$gRailTop System Environment ──────────────────────────────────────────────${clrReset}"
     Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Host OS:${clrReset}             Windows 10/11"
     Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn WSL 2 Distribution:${clrReset}  $DistroName"
-    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Target Ports:${clrReset}        Web Panel: ${tcPeach}$PanelPort${clrReset}  ${clrDim}$gRailMid${clrReset}  Agent Daemon: ${tcPeach}9090${clrReset}"
+    Write-Host "  ${tcSteel}$gRailMid${clrReset}  ${tcSky}${clrBold}$gRadioOn Target Ports:${clrReset}        Web Panel: ${tcPeach}$Port${clrReset}  ${clrDim}$gRailMid${clrReset}  Agent Daemon: ${tcPeach}9090${clrReset}"
     Write-Host "  ${tcSteel}$gRailMid${clrReset}"
     Write-Host "  ${tcSteel}$gRailDiv Choose Installation Profile ─────────────────────────────────────${clrReset}"
     Write-Host "  ${tcSteel}$gRailMid${clrReset}"
@@ -340,40 +358,50 @@ function Prompt-InteractiveOptions([string]$DistroName = "Ubuntu") {
     Write-Host ""
 
     $choice = Read-Host "  ${tcSky}${clrBold}$gArrow${clrReset} ${clrBold}Enter choice [1-3] (default: 1)${clrReset}"
+    $chosenProfile = $CurrentProfile
     switch ($choice.Trim()) {
         "2" {
-            $script:Profile = "fast"
-            $script:Fast = $true
+            $chosenProfile = "fast"
             Write-Success "Selected: ${tcPeach}${clrBold}Fast Core Development Suite${clrReset}"
         }
         "3" {
-            $script:Profile = "minimal"
+            $chosenProfile = "minimal"
             Write-Success "Selected: ${tcPeach}${clrBold}Minimal Deck Only${clrReset}"
         }
         default {
-            $script:Profile = "recommended"
+            $chosenProfile = "recommended"
             Write-Success "Selected: ${tcPeach}${clrBold}Recommended Full LEMP Stack${clrReset}"
         }
     }
 
-    $portIn = Read-Host "  ${tcMauve}$gBullet CloudDeck Web Panel Port [$PanelPort]${clrReset}"
+    $chosenPort = $Port
+    $portIn = Read-Host "  ${tcMauve}$gBullet CloudDeck Web Panel Port [$Port]${clrReset}"
     if ($portIn -match "^\d+$") {
         $candidate = [int]$portIn
-        if (Test-PortInUse $candidate -and $candidate -ne $script:PanelPort) {
+        if (Test-PortInUse $candidate -and $candidate -ne $chosenPort) {
             $nextFree = Find-NextFreePort ($candidate + 1)
             Write-Warn "Port $candidate is busy! Automatically falling back to free port $nextFree."
-            $script:PanelPort = $nextFree
+            $chosenPort = $nextFree
         } else {
-            $script:PanelPort = $candidate
+            $chosenPort = $candidate
         }
     }
 
+    $chosenUser = $User
+    $chosenPass = $Pass
     $adminAns = Read-Host "  ${tcSky}${clrBold}$gBullet Configure Initial Admin Account? [y/N]${clrReset}"
     if ($adminAns -match "^[yY]") {
         $u = Read-Host "    ${tcMauve}$gBullet Admin Username [admin]${clrReset}"
-        $script:AdminUser = if ($u) { $u } else { "admin" }
+        $chosenUser = if ($u) { $u } else { "admin" }
         $p = Read-Host "    ${tcMauve}$gBullet Admin Password (leave blank to auto-generate)${clrReset}"
-        $script:AdminPass = $p
+        $chosenPass = $p
+    }
+
+    return @{
+        Profile   = $chosenProfile
+        PanelPort = $chosenPort
+        AdminUser = $chosenUser
+        AdminPass = $chosenPass
     }
 }
 
@@ -420,10 +448,14 @@ curl -fsSL "`$INSTALLER_URL" | bash -s -- $installFlags
     try {
         $tempScriptLinux = (wsl.exe -d $DistroName wslpath -u ($tempScript.Replace('\', '/'))).Trim()
         wsl.exe -d $DistroName -u root bash -c "chmod +x '$tempScriptLinux' && '$tempScriptLinux'"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "CloudDeck LEMP stack installation failed inside WSL (exit code $LASTEXITCODE)."
+            return $false
+        }
         Write-Success "CloudDeck LEMP stack provisioned inside WSL!"
     } catch {
         Write-Err "Failed executing installer inside WSL: $_"
-        exit 1
+        return $false
     } finally {
         Remove-Item -Path $tempScript -Force -ErrorAction SilentlyContinue
     }
@@ -433,6 +465,7 @@ curl -fsSL "`$INSTALLER_URL" | bash -s -- $installFlags
         wsl.exe -d $DistroName -u root bash -c "CLOUDDECK_NEW_PASSWORD='$Pass' /opt/clouddeck/bin/clouddeck-cli passwd '$User' 2>/dev/null || /opt/clouddeck/bin/clouddeck user add '$User' 2>/dev/null || true"
         Write-Success "Admin credentials configured."
     }
+    return $true
 }
 
 # --- Local CA Trust in Windows Store -----------------------------------------
@@ -661,32 +694,48 @@ switch ($cmd) {
 
 # --- Main Flow ---------------------------------------------------------------
 
-Write-Banner
-$targetDistro = Select-TargetDistro -RequestedDistro $Distro
-Write-Success "Selected WSL 2 distribution: $targetDistro"
+    Write-Banner
+    $targetDistro = Select-TargetDistro -RequestedDistro $Distro
+    if (-not $targetDistro) {
+        return
+    }
+    Write-Success "Selected WSL 2 distribution: $targetDistro"
 
-Ensure-PortsAvailable
-Prompt-InteractiveOptions -DistroName $targetDistro
-Configure-WSLDistro -DistroName $targetDistro
+    $PanelPort = Ensure-PortsAvailable -Port $PanelPort
 
-Install-CloudDeckInsideWSL -DistroName $targetDistro -VersionTag $Version -Port $PanelPort -SelectedProfile $Profile -User $AdminUser -Pass $AdminPass
-Setup-LocalCATrust -DistroName $targetDistro
-Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
+    $opts = Prompt-InteractiveOptions -DistroName $targetDistro -Port $PanelPort -CurrentProfile $Profile -User $AdminUser -Pass $AdminPass
+    $Profile = $opts.Profile
+    $PanelPort = $opts.PanelPort
+    $AdminUser = $opts.AdminUser
+    $AdminPass = $opts.AdminPass
 
-# Completion Summary Card (Left-Rail Claude Code / Antigravity CLI layout)
-Write-Host ""
-Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Installation Complete ─────────────────────────────────${clrReset}"
-Write-Host "  ${tcSky}$gRailMid${clrReset}"
-Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
-Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Installed Profile:${clrReset}   $Profile"
-Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
-Write-Host "  ${tcSky}$gRailMid${clrReset}"
-Write-Host "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────────────────${clrReset}"
-Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check health & active stack services"
-Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in default Windows browser"
-Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services inside WSL"
-Write-Host "  ${tcSky}$gRailMid${clrReset}"
-Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
-Write-Host ""
-$cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.53" }
-Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
+    Configure-WSLDistro -DistroName $targetDistro
+
+    $installed = Install-CloudDeckInsideWSL -DistroName $targetDistro -VersionTag $Version -Port $PanelPort -SelectedProfile $Profile -User $AdminUser -Pass $AdminPass
+    if (-not $installed) {
+        return
+    }
+
+    Setup-LocalCATrust -DistroName $targetDistro
+    Install-WindowsCLI -DistroName $targetDistro -Port $PanelPort
+
+    # Completion Summary Card (Left-Rail Claude Code / Antigravity CLI layout)
+    Write-Host ""
+    Write-Host "  ${tcSky}${clrBold}$gRailTop CloudDeck Installation Complete ─────────────────────────────────${clrReset}"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}${clrBold}$gRadioOn Control Panel URL:${clrReset}   ${clrBold}http://localhost:$PanelPort${clrReset}"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn Installed Profile:${clrReset}   $Profile"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}  ${tcPeach}$gRadioOn WSL 2 Distribution:${clrReset}  $targetDistro"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}"
+    Write-Host "  ${tcSky}$gRailDiv Quick Windows CLI Commands ───────────────────────────────────────${clrReset}"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck status${clrReset}          Check health & active stack services"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck open${clrReset}            Open panel in default Windows browser"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}    ${tcSteel}clouddeck restart${clrReset}         Restart all services inside WSL"
+    Write-Host "  ${tcSky}$gRailMid${clrReset}"
+    Write-Host "  ${tcSky}$gRailBot───────────────────────────────────────────────────────────────────${clrReset}"
+    Write-Host ""
+    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.53" }
+    Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
+}
+
+Invoke-CloudDeckInstaller @args
