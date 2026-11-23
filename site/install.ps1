@@ -236,7 +236,7 @@ generateResolvConf=true
 
     try {
         $tempConfLinux = (wsl.exe -d $DistroName wslpath -u ($tempConf.Replace('\', '/'))).Trim()
-        wsl.exe -d $DistroName -u root bash -c "cp '$tempConfLinux' /etc/wsl.conf && chmod 0644 /etc/wsl.conf"
+        $null = & wsl.exe -d $DistroName -u root bash -c "cp '$tempConfLinux' /etc/wsl.conf && chmod 0644 /etc/wsl.conf" 2>$null
         Write-Success "Optimized /etc/wsl.conf (systemd enabled, Windows drive permissions tuned)."
 
         # Check if systemd is running as PID 1; if not, restart WSL distro to boot systemd
@@ -250,7 +250,7 @@ generateResolvConf=true
             Write-Step "Restarting WSL distro '$DistroName' to activate systemd as PID 1..."
             & wsl.exe -t $DistroName 2>$null
             Start-Sleep -Seconds 2
-            & wsl.exe -d $DistroName -u root bash -c "true" 2>$null
+            $null = & wsl.exe -d $DistroName -u root bash -c "true" 2>$null
             Start-Sleep -Seconds 1
         }
     } catch {
@@ -571,18 +571,19 @@ function Install-CloudDeckInsideWSL {
 #!/bin/bash
 set -e
 export DEBIAN_FRONTEND=noninteractive
+stty onlcr 2>/dev/null || true
 
 if ! command -v curl >/dev/null 2>&1 || ! command -v ca-certificates >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
-  echo "  >> Synchronizing package manager inside WSL ($DistroName)..."
-  apt-get update -o Acquire::Retries=3
-  echo "  >> Installing base dependencies: curl, ca-certificates, openssl..."
-  apt-get install -y --no-install-recommends curl ca-certificates openssl libatomic1
+  echo "  • Synchronizing package manager inside WSL ($DistroName)..."
+  apt-get update -o Acquire::Retries=3 -o DPkg::Lock::Timeout=60
+  echo "  • Installing base prerequisites (curl, ca-certificates, openssl)..."
+  apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 curl ca-certificates openssl libatomic1
 fi
 
-echo "  >> Launching CloudDeck Unified Installer inside WSL ($DistroName)..."
+echo "  • Launching CloudDeck Universal Installer inside WSL ($DistroName)..."
 INSTALLER_URL='https://clouddeck.dakshraman.in/install.sh'
 if ! curl -fsSL "`$INSTALLER_URL" | bash -s -- $installFlags; then
-  echo "  >> Primary CDN mirror unavailable, fetching from GitHub repository..."
+  echo "  • Primary CDN mirror unavailable, fetching from GitHub repository..."
   curl -fsSL "https://raw.githubusercontent.com/dakshraman/clouddeck/main/scripts/install.sh" | bash -s -- $installFlags
 fi
 "@
@@ -593,9 +594,19 @@ fi
 
     try {
         $tempScriptLinux = (wsl.exe -d $DistroName wslpath -u ($tempScript.Replace('\', '/'))).Trim()
-        wsl.exe -d $DistroName -u root bash -c "cat '$tempScriptLinux' > /tmp/clouddeck-setup.sh && chmod +x /tmp/clouddeck-setup.sh && /tmp/clouddeck-setup.sh"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "CloudDeck LEMP stack installation failed inside WSL (exit code $LASTEXITCODE)."
+        $wslSetupCmd = "stty onlcr 2>/dev/null || true; cat '$tempScriptLinux' > /tmp/clouddeck-setup.sh && chmod +x /tmp/clouddeck-setup.sh && /tmp/clouddeck-setup.sh"
+        
+        # Stream live output from WSL into console in real time without capturing into pipeline
+        & wsl.exe -d $DistroName -u root bash -c $wslSetupCmd 2>&1 | ForEach-Object {
+            $line = $_.ToString().TrimEnd("`r`n")
+            if ($line.Trim()) {
+                Write-OpenLine "  $line"
+            }
+        }
+
+        $wslExit = $LASTEXITCODE
+        if ($wslExit -ne 0) {
+            Write-Err "CloudDeck LEMP stack installation failed inside WSL (exit code $wslExit)."
             return $false
         }
         Write-Success "CloudDeck LEMP stack provisioned inside WSL!"
@@ -608,7 +619,8 @@ fi
 
     if ($User -and $Pass) {
         Write-Step "Configuring initial administrator account '$User'..."
-        wsl.exe -d $DistroName -u root bash -c "CLOUDDECK_NEW_PASSWORD='$Pass' /opt/clouddeck/bin/clouddeck-cli passwd '$User' 2>/dev/null || /opt/clouddeck/bin/clouddeck user add '$User' 2>/dev/null || true"
+        $adminCmd = "CLOUDDECK_NEW_PASSWORD='$Pass' /opt/clouddeck/bin/clouddeck-cli passwd '$User' 2>/dev/null || /opt/clouddeck/bin/clouddeck user add '$User' 2>/dev/null || true"
+        $null = & wsl.exe -d $DistroName -u root bash -c $adminCmd 2>$null
         Write-Success "Admin credentials configured."
     }
     return $true
@@ -651,10 +663,10 @@ fi
 
     try {
         $tempScriptLinux = (wsl.exe -d $DistroName wslpath -u ($tempScript.Replace('\', '/'))).Trim()
-        wsl.exe -d $DistroName -u root bash -c "cat '$tempScriptLinux' > /tmp/clouddeck-ca.sh && chmod +x /tmp/clouddeck-ca.sh && /tmp/clouddeck-ca.sh"
+        $null = & wsl.exe -d $DistroName -u root bash -c "cat '$tempScriptLinux' > /tmp/clouddeck-ca.sh && chmod +x /tmp/clouddeck-ca.sh && /tmp/clouddeck-ca.sh" 2>$null
         
         $winTempCA = Join-Path $env:TEMP "clouddeck-ca.crt"
-        wsl.exe -d $DistroName -u root cat /etc/clouddeck/ssl/clouddeck-ca.crt > $winTempCA
+        $null = & wsl.exe -d $DistroName -u root cat /etc/clouddeck/ssl/clouddeck-ca.crt > $winTempCA 2>$null
 
         if (Test-Path $winTempCA) {
             Write-Step "Importing CloudDeck Local CA into Windows Trusted Root store..."
