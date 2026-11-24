@@ -103,6 +103,7 @@ export interface TaskListResponse {
 export interface CreateSiteRequest {
   domain: string;
   phpVersion: string;
+  appTemplate?: string;
 }
 
 export interface IssueSslRequest {

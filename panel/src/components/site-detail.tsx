@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Site, Task } from "@/lib/types";
+import type { AppInfo, AppsResponse, InstalledAppInfo, Site, Task } from "@/lib/types";
 import { apiFetch, apiPost, HttpError } from "@/components/api";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import { TunnelCard } from "@/components/site/tunnel-card";
 import { SiteDoctorCard } from "@/components/site/site-doctor-card";
 import { FastCgiCacheCard } from "@/components/site/fastcgi-cache-card";
 import { WordPressCard } from "@/components/site/wordpress-card";
+import { StaticSpaCard } from "@/components/site/static-spa-card";
 import { TrafficAnalyticsCard } from "@/components/site/traffic-analytics-card";
 import { WildcardSslModal } from "@/components/site/wildcard-ssl-modal";
 import { cn } from "@/components/ui/cn";
@@ -57,6 +58,7 @@ type SiteTabId =
   | "cron"
   | "php"
   | "apps"
+  | "static"
   | "git"
   | "security"
   | "usage"
@@ -70,6 +72,7 @@ const SITE_TABS: { id: SiteTabId; label: string }[] = [
   { id: "cron", label: "Cron jobs" },
   { id: "php", label: "PHP" },
   { id: "apps", label: "Applications" },
+  { id: "static", label: "Static & SPA" },
   { id: "git", label: "Git & CI/CD" },
   { id: "security", label: "Security" },
   { id: "usage", label: "Usage & stats" },
@@ -126,6 +129,8 @@ export function SiteDetail({
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [tab, setTab] = useState<SiteTabId>(initialTab);
   const [appsRefreshTrigger, setAppsRefreshTrigger] = useState(0);
+  const [installedApp, setInstalledApp] = useState<InstalledAppInfo | null>(null);
+  const [siteApps, setSiteApps] = useState<AppInfo[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -138,15 +143,39 @@ export function SiteDetail({
 
   const load = useCallback(async () => {
     try {
-      const data = await apiFetch<Site>(`/api/sites/${encodeURIComponent(domain)}`);
-      setSite(data);
-      setState("ready");
-      setErrorMessage(null);
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 404) {
-        setState("notfound");
+      const [siteData, appInfoData, appsData] = await Promise.allSettled([
+        apiFetch<Site>(`/api/sites/${encodeURIComponent(domain)}`),
+        apiFetch<InstalledAppInfo>(`/api/sites/${encodeURIComponent(domain)}/installed-app`),
+        apiFetch<AppsResponse>("/api/apps"),
+      ]);
+
+      if (siteData.status === "fulfilled") {
+        setSite(siteData.value);
+        setState("ready");
+        setErrorMessage(null);
+      } else {
+        const error = siteData.reason;
+        if (error instanceof HttpError && error.status === 404) {
+          setState("notfound");
+          return;
+        }
+        setState("error");
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load site");
         return;
       }
+
+      if (appInfoData.status === "fulfilled") {
+        setInstalledApp(appInfoData.value);
+      } else {
+        setInstalledApp(null);
+      }
+
+      if (appsData.status === "fulfilled") {
+        setSiteApps(appsData.value.apps.filter((a) => a.site === domain));
+      } else {
+        setSiteApps([]);
+      }
+    } catch (error) {
       setState("error");
       setErrorMessage(error instanceof Error ? error.message : "Failed to load site");
     }
@@ -252,6 +281,79 @@ export function SiteDetail({
     );
   }
 
+  const isPHP = Boolean(site && site.phpVersion && site.phpVersion !== "none");
+  const isWordPress = Boolean(
+    site && (site.appTemplate === "wordpress" || installedApp?.template === "wordpress" || installedApp?.name?.toLowerCase() === "wordpress")
+  );
+  const hasAppProcess = siteApps.length > 0;
+  const isNode = Boolean(
+    site?.appTemplate === "nextjs" ||
+    site?.appTemplate === "express" ||
+    installedApp?.runtime === "node" ||
+    siteApps.some((a) => a.kind === "node")
+  );
+  const isPython = Boolean(
+    site?.appTemplate === "django" ||
+    site?.appTemplate === "flask" ||
+    site?.appTemplate === "fastapi" ||
+    installedApp?.runtime === "python" ||
+    siteApps.some((a) => a.kind === "python")
+  );
+  const isGo = Boolean(
+    site?.appTemplate === "go" ||
+    installedApp?.runtime === "go" ||
+    siteApps.some((a) => a.kind === "go")
+  );
+  const isDocker = Boolean(
+    site?.appTemplate === "docker" ||
+    installedApp?.runtime === "docker" ||
+    siteApps.some((a) => a.kind === "docker")
+  );
+  const isStatic = !isPHP && !hasAppProcess && (!installedApp || installedApp.runtime === "static" || site?.appTemplate === "static");
+
+  const dynamicTabs = useMemo(() => {
+    const list: { id: SiteTabId; label: string }[] = [{ id: "overview", label: "Overview" }];
+
+    if (isWordPress) {
+      list.push({ id: "wordpress", label: "WordPress" });
+    }
+
+    list.push({ id: "subdomains", label: "Subdomains" });
+    list.push({ id: "redirects", label: "Redirects" });
+    list.push({ id: "cron", label: "Cron jobs" });
+
+    if (isPHP) {
+      list.push({ id: "php", label: "PHP" });
+    }
+
+    if (isStatic) {
+      list.push({ id: "static", label: "Static & SPA" });
+    }
+
+    let appsLabel = "Applications";
+    if (isNode) appsLabel = "Node.js Process";
+    else if (isPython) appsLabel = "Python Process";
+    else if (isGo) appsLabel = "Go Process";
+    else if (isDocker) appsLabel = "Docker Service";
+
+    if (!isStatic || hasAppProcess) {
+      list.push({ id: "apps", label: appsLabel });
+    }
+
+    list.push({ id: "git", label: "Git & CI/CD" });
+    list.push({ id: "security", label: "Security" });
+    list.push({ id: "usage", label: "Usage & stats" });
+    list.push({ id: "logs", label: "Logs" });
+
+    return list;
+  }, [isWordPress, isPHP, isStatic, isNode, isPython, isGo, isDocker, hasAppProcess]);
+
+  useEffect(() => {
+    if (dynamicTabs.length > 0 && !dynamicTabs.some((t) => t.id === tab)) {
+      setTab(dynamicTabs[0].id);
+    }
+  }, [dynamicTabs, tab]);
+
   return (
     <>
       <div className="mb-6">
@@ -322,7 +424,7 @@ export function SiteDetail({
 
       <div className="mb-6 overflow-x-auto border-b border-border">
         <div role="tablist" aria-label="Site tools" className="flex min-w-max gap-1">
-          {SITE_TABS.map((entry) => (
+          {dynamicTabs.map((entry) => (
             <button
               key={entry.id}
               type="button"
@@ -347,7 +449,11 @@ export function SiteDetail({
       <TabPanel id="overview" active={tab === "overview"}>
         <SiteDoctorCard domain={site.domain} />
 
-        <FastCgiCacheCard domain={site.domain} />
+        {isPHP ? <FastCgiCacheCard domain={site.domain} /> : null}
+
+        {isStatic ? (
+          <StaticSpaCard domain={site.domain} onOpenGitTab={() => setTab("git")} />
+        ) : null}
 
         <TunnelCard domain={site.domain} />
 
@@ -369,7 +475,23 @@ export function SiteDetail({
               <DetailRow label="Root">
                 <span className="break-all font-mono">{site.root}</span>
               </DetailRow>
-              <DetailRow label="PHP version">{phpVersionLabel(site.phpVersion)}</DetailRow>
+              <DetailRow label="Runtime">
+                {isWordPress ? (
+                  <Badge variant="indigo">WordPress • PHP {site.phpVersion}</Badge>
+                ) : isPHP ? (
+                  <Badge variant="indigo">PHP {site.phpVersion} (PHP-FPM)</Badge>
+                ) : isNode ? (
+                  <Badge variant="indigo">Node.js (Supervised Process)</Badge>
+                ) : isPython ? (
+                  <Badge variant="indigo">Python (ASGI / WSGI)</Badge>
+                ) : isGo ? (
+                  <Badge variant="indigo">Go (Native Binary)</Badge>
+                ) : isDocker ? (
+                  <Badge variant="indigo">Docker Container</Badge>
+                ) : (
+                  <Badge variant="indigo">Static &amp; SPA (Nginx)</Badge>
+                )}
+              </DetailRow>
               <DetailRow label="Status">
                 <Badge variant={siteStatusVariant(site.status)}>{titleCase(site.status)}</Badge>
               </DetailRow>
@@ -509,6 +631,10 @@ export function SiteDetail({
 
       <TabPanel id="php" active={tab === "php"}>
         <PhpCard domain={site.domain} currentVersion={site.phpVersion} onUpdated={setSite} />
+      </TabPanel>
+
+      <TabPanel id="static" active={tab === "static"}>
+        <StaticSpaCard domain={site.domain} onOpenGitTab={() => setTab("git")} />
       </TabPanel>
 
       <TabPanel id="apps" active={tab === "apps"}>

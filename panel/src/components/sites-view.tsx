@@ -349,12 +349,39 @@ export function SitesView() {
                               </Link>
                             ))}
                           </div>
+                        ) : site.appTemplate ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="indigo">
+                              {site.appTemplate === "static"
+                                ? "Static SPA"
+                                : site.appTemplate === "wordpress"
+                                ? "WordPress"
+                                : site.appTemplate === "nextjs"
+                                ? "Next.js"
+                                : site.appTemplate === "fastapi"
+                                ? "FastAPI"
+                                : site.appTemplate === "express"
+                                ? "Express"
+                                : site.appTemplate === "django"
+                                ? "Django"
+                                : site.appTemplate === "flask"
+                                ? "Flask"
+                                : site.appTemplate === "go"
+                                ? "Go"
+                                : site.appTemplate === "springboot"
+                                ? "Spring Boot"
+                                : site.appTemplate.toUpperCase()}
+                            </Badge>
+                            {site.phpVersion !== "none" && site.appTemplate !== "wordpress" ? (
+                              <Badge variant="neutral">PHP {site.phpVersion}</Badge>
+                            ) : null}
+                          </div>
                         ) : site.phpVersion !== "none" ? (
                           <div className="flex flex-wrap items-center gap-1.5">
                             <Badge variant="indigo">PHP {site.phpVersion}</Badge>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Static</span>
+                          <Badge variant="neutral">Static SPA</Badge>
                         )}
                       </td>
                       <td className="px-5 py-3">

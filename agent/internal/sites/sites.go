@@ -96,6 +96,11 @@ func (s *Service) Get(rawDomain string) (store.Site, error) {
 
 // Create persists a provisioning site and starts its async task.
 func (s *Service) Create(rawDomain, phpVersion string) (store.Task, error) {
+	return s.CreateWithTemplate(rawDomain, phpVersion, "")
+}
+
+// CreateWithTemplate starts the async task that provisions a new site with an optional app template.
+func (s *Service) CreateWithTemplate(rawDomain, phpVersion, appTemplate string) (store.Task, error) {
 	domain, err := ValidateDomain(rawDomain)
 	if err != nil {
 		return store.Task{}, err
@@ -108,6 +113,9 @@ func (s *Service) Create(rawDomain, phpVersion string) (store.Task, error) {
 		return store.Task{}, apierr.BadRequest("invalid_php_version", fmt.Sprintf("PHP version %q is not offered by this server", phpVersion))
 	}
 	params := map[string]any{"domain": domain, "phpVersion": phpVersion}
+	if appTemplate != "" {
+		params["appTemplate"] = appTemplate
+	}
 	if _, exists := s.st.GetSite(domain); exists {
 		return store.Task{}, s.reject(TaskCreate, params, apierr.Conflict("site_exists", fmt.Sprintf("site %q already exists", domain)))
 	}
@@ -117,13 +125,14 @@ func (s *Service) Create(rawDomain, phpVersion string) (store.Task, error) {
 
 	now := store.Now()
 	site := store.Site{
-		Domain:     domain,
-		Root:       s.rootFor(domain),
-		PHPVersion: phpVersion,
-		SSL:        store.SSL{Enabled: false},
-		Status:     store.SiteProvisioning,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		Domain:      domain,
+		Root:        s.rootFor(domain),
+		PHPVersion:  phpVersion,
+		SSL:         store.SSL{Enabled: false},
+		Status:      store.SiteProvisioning,
+		AppTemplate: appTemplate,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	if err := s.st.CreateSite(site); err != nil {
 		if errors.Is(err, store.ErrExists) {

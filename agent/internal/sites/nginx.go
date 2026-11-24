@@ -155,7 +155,7 @@ var nginxTemplate = template.Must(template.New("nginx").Parse(managedMarker + "\
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ =404;{{end}}
+{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ /index.html =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}
@@ -186,7 +186,7 @@ server {
 {{range $.Denies}}    deny {{.}};
 {{end}}
     location / {
-        try_files $uri $uri/ =404;
+{{if $.PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ /index.html =404;{{end}}
     }
 {{range $.Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{if $.PHP}}
@@ -224,7 +224,7 @@ server {
 {{range .Denies}}    deny {{.}};
 {{end}}
 {{if eq .RootProxy 0}}    location / {
-{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ =404;{{end}}
+{{if .PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ /index.html =404;{{end}}
     }
 {{end}}{{range .Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{template "proxy" .}}{{if .PHP}}
@@ -255,7 +255,7 @@ server {
 {{range $.Denies}}    deny {{.}};
 {{end}}
     location / {
-        try_files $uri $uri/ =404;
+{{if $.PHP}}        try_files $uri $uri/ /index.php?$query_string /index.html =404;{{else}}        try_files $uri $uri/ /index.html =404;{{end}}
     }
 {{range $.Redirects}}    location {{.From}} { return {{.Code}} {{.To}}; }
 {{end}}{{if $.PHP}}

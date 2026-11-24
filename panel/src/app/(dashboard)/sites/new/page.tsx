@@ -56,7 +56,7 @@ export default function NewSitePage() {
 
   const [domain, setDomain] = useState("");
   const [phpVersion, setPhpVersion] = useState("none");
-  const [runtime, setRuntime] = useState<RuntimeChoice>("php");
+  const [runtime, setRuntime] = useState<RuntimeChoice>("static");
   const [runtimeVersion, setRuntimeVersion] = useState("");
   const [startCommand, setStartCommand] = useState(DEFAULT_COMMANDS.node);
   const [appPort, setAppPort] = useState("");
@@ -113,13 +113,10 @@ export default function NewSitePage() {
       const data = await apiFetch<PhpVersionsResponse>("/api/php-versions");
       const filtered = data.versions.filter((version) => version !== "none");
       setVersions(filtered);
-      if (filtered.length > 0 && phpVersion === "none") {
-        setPhpVersion(filtered[filtered.length - 1]);
-      }
     } catch (error) {
       setVersionsError(error instanceof Error ? error.message : "Failed to load PHP versions");
     }
-  }, [phpVersion]);
+  }, []);
 
   const loadRuntimes = useCallback(async () => {
     try {
@@ -178,6 +175,7 @@ export default function NewSitePage() {
       const data = await apiPost<{ taskId: string }>("/api/sites", {
         domain: normalized,
         phpVersion: chosenPhp,
+        appTemplate: mode === "preset" && selectedTemplate ? selectedTemplate.id : undefined,
       });
 
       pendingApp.current = {

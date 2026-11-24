@@ -55,7 +55,7 @@ import (
 )
 
 // Version is the agent version reported by /v1/health.
-const Version = "0.6.57"
+const Version = "0.6.58"
 
 const maxBodyBytes = 1 << 20
 
@@ -683,14 +683,15 @@ func (s *Server) handleListSites(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateSite(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Domain     string `json:"domain"`
-		PHPVersion string `json:"phpVersion"`
+		Domain      string `json:"domain"`
+		PHPVersion  string `json:"phpVersion"`
+		AppTemplate string `json:"appTemplate"`
 	}
 	if err := decodeBody(w, r, &req); err != nil {
 		writeError(w, err)
 		return
 	}
-	task, err := s.sites.Create(req.Domain, req.PHPVersion)
+	task, err := s.sites.CreateWithTemplate(req.Domain, req.PHPVersion, req.AppTemplate)
 	if err != nil {
 		writeError(w, err)
 		return

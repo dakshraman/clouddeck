@@ -26,7 +26,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await requireAuth();
 
     const body = await parseJsonBody(req);
-    const { domain, phpVersion } = body;
+    const { domain, phpVersion, appTemplate } = body;
     if (typeof domain !== "string" || typeof phpVersion !== "string") {
       throw new HttpError(400, "invalid request body");
     }
@@ -39,7 +39,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       throw new HttpError(400, "invalid PHP version");
     }
 
-    const { taskId } = await createSite({ domain: normalizedDomain, phpVersion });
+    const { taskId } = await createSite({
+      domain: normalizedDomain,
+      phpVersion,
+      appTemplate: typeof appTemplate === "string" ? appTemplate : undefined,
+    });
     return json({ taskId }, 202);
   });
 }
