@@ -243,12 +243,14 @@ export function SiteDetail({
   );
   const hasAppProcess = siteApps.length > 0;
   const isNode = Boolean(
+    site?.appTemplate === "node" ||
     site?.appTemplate === "nextjs" ||
     site?.appTemplate === "express" ||
     installedApp?.runtime === "node" ||
     siteApps.some((a) => a.kind === "node")
   );
   const isPython = Boolean(
+    site?.appTemplate === "python" ||
     site?.appTemplate === "django" ||
     site?.appTemplate === "flask" ||
     site?.appTemplate === "fastapi" ||
@@ -265,7 +267,14 @@ export function SiteDetail({
     installedApp?.runtime === "docker" ||
     siteApps.some((a) => a.kind === "docker")
   );
-  const isStatic = !isPHP && !hasAppProcess && (!installedApp || installedApp.runtime === "static" || site?.appTemplate === "static");
+  const isStatic =
+    !isPHP &&
+    !hasAppProcess &&
+    !isNode &&
+    !isPython &&
+    !isGo &&
+    !isDocker &&
+    (!installedApp || installedApp.runtime === "static" || site?.appTemplate === "static");
 
   const dynamicTabs = useMemo(() => {
     const list: { id: SiteTabId; label: string }[] = [{ id: "overview", label: "Overview" }];

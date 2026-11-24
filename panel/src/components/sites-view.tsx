@@ -354,6 +354,8 @@ export function SitesView() {
                             <Badge variant="indigo">
                               {site.appTemplate === "static"
                                 ? "Static SPA"
+                                : site.appTemplate === "node"
+                                ? "Node.js"
                                 : site.appTemplate === "wordpress"
                                 ? "WordPress"
                                 : site.appTemplate === "nextjs"

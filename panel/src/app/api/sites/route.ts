@@ -26,8 +26,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await requireAuth();
 
     const body = await parseJsonBody(req);
-    const { domain, phpVersion, appTemplate } = body;
-    if (typeof domain !== "string" || typeof phpVersion !== "string") {
+    const { domain, appTemplate } = body;
+    const phpVersion = typeof body.phpVersion === "string" && body.phpVersion.trim() !== "" ? body.phpVersion.trim() : "none";
+    if (typeof domain !== "string") {
       throw new HttpError(400, "invalid request body");
     }
 
