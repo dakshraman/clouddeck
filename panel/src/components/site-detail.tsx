@@ -237,50 +237,6 @@ export function SiteDetail({
     }
   }
 
-  if (state === "loading") {
-    return (
-      <div className="grid gap-6">
-        <Skeleton className="h-9 w-72" />
-        <Skeleton className="h-56" />
-        <Skeleton className="h-40" />
-      </div>
-    );
-  }
-
-  if (state === "notfound") {
-    return (
-      <EmptyState
-        icon={Globe}
-        title="Site not found"
-        description={`The site ${domain} does not exist or has been deleted.`}
-        action={
-          <Link href="/sites" className={buttonClass("secondary", "md")}>
-            Back to sites
-          </Link>
-        }
-      />
-    );
-  }
-
-  if (state === "error" || !site) {
-    return (
-      <>
-        <Alert variant="error" className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>{errorMessage ?? "Failed to load site"}</span>
-            <Button variant="secondary" size="sm" onClick={() => void load()}>
-              Retry
-            </Button>
-          </div>
-        </Alert>
-        <Link href="/sites" className={buttonClass("ghost", "sm")}>
-          <ArrowLeft size={14} aria-hidden="true" />
-          All sites
-        </Link>
-      </>
-    );
-  }
-
   const isPHP = Boolean(site && site.phpVersion && site.phpVersion !== "none");
   const isWordPress = Boolean(
     site && (site.appTemplate === "wordpress" || installedApp?.template === "wordpress" || installedApp?.name?.toLowerCase() === "wordpress")
@@ -349,10 +305,54 @@ export function SiteDetail({
   }, [isWordPress, isPHP, isStatic, isNode, isPython, isGo, isDocker, hasAppProcess]);
 
   useEffect(() => {
-    if (dynamicTabs.length > 0 && !dynamicTabs.some((t) => t.id === tab)) {
+    if (state === "ready" && dynamicTabs.length > 0 && !dynamicTabs.some((t) => t.id === tab)) {
       setTab(dynamicTabs[0].id);
     }
-  }, [dynamicTabs, tab]);
+  }, [state, dynamicTabs, tab]);
+
+  if (state === "loading") {
+    return (
+      <div className="grid gap-6">
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-56" />
+        <Skeleton className="h-40" />
+      </div>
+    );
+  }
+
+  if (state === "notfound") {
+    return (
+      <EmptyState
+        icon={Globe}
+        title="Site not found"
+        description={`The site ${domain} does not exist or has been deleted.`}
+        action={
+          <Link href="/sites" className={buttonClass("secondary", "md")}>
+            Back to sites
+          </Link>
+        }
+      />
+    );
+  }
+
+  if (state === "error" || !site) {
+    return (
+      <>
+        <Alert variant="error" className="mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{errorMessage ?? "Failed to load site"}</span>
+            <Button variant="secondary" size="sm" onClick={() => void load()}>
+              Retry
+            </Button>
+          </div>
+        </Alert>
+        <Link href="/sites" className={buttonClass("ghost", "sm")}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          All sites
+        </Link>
+      </>
+    );
+  }
 
   return (
     <>
