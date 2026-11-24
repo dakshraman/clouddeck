@@ -1,58 +1,48 @@
 export function Footer() {
   return (
-    <footer className="border-t border-white/5 bg-[#06090D] py-12 sm:py-16 text-slate-400">
+    <footer className="border-t border-white/5 bg-[#080C10] py-12 sm:py-16 text-[#8FA6B5]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand Column */}
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#38BDF8] to-[#0284C7] text-[#080C10] shadow-md shadow-[#38BDF8]/20">
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                >
-                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                  <polyline points="2 17 12 22 22 17" />
-                  <polyline points="2 12 12 17 22 12" />
-                </svg>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#74B8CC] text-[#0A0E13] font-mono font-bold text-xs">
+                CD
               </div>
-              <span className="text-base font-bold text-white">CloudDeck</span>
-              <span className="rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-2 py-0.5 text-[10px] font-mono font-medium text-[#10B981]">
-                v0.6.54
+              <span className="text-base font-semibold text-[#F4F8FA]">CloudDeck</span>
+              <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5]">
+                v0.6.55
               </span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              The modern, blazing-fast, open-source Linux hosting control panel and local development suite.
-              Orchestrates 8 native AI coding agents, autonomous Site Doctor, Cron manager, and multi-PHP in &lt;50MB RAM.
+            <p className="text-xs text-[#8FA6B5] leading-relaxed">
+              Lightweight, open-source Linux hosting control panel and local development suite.
+              Multi-PHP (8.1–8.4), MariaDB, Postfix/Dovecot, and PowerDNS in under 50MB RAM.
             </p>
           </div>
 
           {/* Product Links */}
           <div>
-            <h4 className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">Product</h4>
-            <ul className="mt-3.5 space-y-2.5 text-xs text-slate-400">
-              <li><a href="#features" className="hover:text-white transition-colors">Core Features</a></li>
-              <li><a href="#ai-agents" className="hover:text-[#38BDF8] transition-colors">AI Agents &amp; Doctor</a></li>
-              <li><a href="#under-the-hood" className="hover:text-white transition-colors">Under the Hood</a></li>
-              <li><a href="#comparison" className="hover:text-white transition-colors">cPanel Comparison Matrix</a></li>
-              <li><a href="#local-dev" className="hover:text-white transition-colors">Local Dev Suite (WSL / Mac)</a></li>
-              <li><a href="#install" className="hover:text-white transition-colors">Installation Guide</a></li>
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Product</h4>
+            <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
+              <li><a href="#architecture" className="hover:text-[#F4F8FA] transition-colors">System Architecture</a></li>
+              <li><a href="#comparison" className="hover:text-[#F4F8FA] transition-colors">Platform Comparison</a></li>
+              <li><a href="#local-dev" className="hover:text-[#F4F8FA] transition-colors">Local Dev Suite (WSL / Mac)</a></li>
+              <li><a href="#features" className="hover:text-[#F4F8FA] transition-colors">Core Features</a></li>
+              <li><a href="#install" className="hover:text-[#F4F8FA] transition-colors">Installation Guide</a></li>
+              <li><a href="#faq" className="hover:text-[#F4F8FA] transition-colors">FAQ</a></li>
             </ul>
           </div>
 
           {/* Documentation Links */}
           <div>
-            <h4 className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">Documentation</h4>
-            <ul className="mt-3.5 space-y-2.5 text-xs text-slate-400">
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Documentation</h4>
+            <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
               <li>
                 <a
                   href="https://github.com/dakshraman/clouddeck/blob/main/docs/architecture.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
                   Architecture Overview
                 </a>
@@ -62,9 +52,9 @@ export function Footer() {
                   href="https://github.com/dakshraman/clouddeck/blob/main/docs/api.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
-                  API Contracts
+                  Agent API Contracts
                 </a>
               </li>
               <li>
@@ -72,7 +62,7 @@ export function Footer() {
                   href="https://github.com/dakshraman/clouddeck/blob/main/docs/local-development.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
                   Local Dev Guide
                 </a>
@@ -82,9 +72,9 @@ export function Footer() {
                   href="https://github.com/dakshraman/clouddeck/blob/main/docs/deployment.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
-                  Production VPS Deployment
+                  VPS Deployment
                 </a>
               </li>
               <li>
@@ -92,7 +82,7 @@ export function Footer() {
                   href="https://github.com/dakshraman/clouddeck/blob/main/SECURITY.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
                   Security Policy
                 </a>
@@ -100,15 +90,15 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* AI & Open Source */}
+          {/* Developer Resources */}
           <div>
-            <h4 className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">AI &amp; Machine Context</h4>
-            <ul className="mt-3.5 space-y-2.5 text-xs text-slate-400">
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Resources</h4>
+            <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
               <li>
                 <a
                   href="/llms.txt"
                   target="_blank"
-                  className="hover:text-[#38BDF8] transition-colors font-mono text-[#38BDF8]"
+                  className="hover:text-[#74B8CC] transition-colors font-mono"
                 >
                   llms.txt Context
                 </a>
@@ -117,27 +107,27 @@ export function Footer() {
                 <a
                   href="/llms-full.txt"
                   target="_blank"
-                  className="hover:text-white transition-colors font-mono"
+                  className="hover:text-[#F4F8FA] transition-colors font-mono"
                 >
-                  llms-full.txt Deep Dive
+                  llms-full.txt Spec
                 </a>
               </li>
               <li>
                 <a
                   href="/pricing.md"
                   target="_blank"
-                  className="hover:text-white transition-colors font-mono"
+                  className="hover:text-[#F4F8FA] transition-colors font-mono"
                 >
-                  pricing.md ($0 Free FOSS)
+                  pricing.md (Free FOSS)
                 </a>
               </li>
               <li>
                 <a
                   href="/AGENTS.md"
                   target="_blank"
-                  className="hover:text-white transition-colors font-mono"
+                  className="hover:text-[#F4F8FA] transition-colors font-mono"
                 >
-                  AGENTS.md Machine Guide
+                  AGENTS.md Guide
                 </a>
               </li>
               <li>
@@ -145,9 +135,9 @@ export function Footer() {
                   href="https://github.com/dakshraman/clouddeck"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#F4F8FA] transition-colors"
                 >
-                  GitHub Repository (v0.6.54)
+                  GitHub Repository
                 </a>
               </li>
             </ul>
@@ -155,9 +145,9 @@ export function Footer() {
         </div>
 
         {/* Bottom Strip */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center text-xs text-slate-500 sm:flex-row sm:text-left">
-          <p>© 2026 Raman Daksh. Released under Open Source MIT License.</p>
-          <p className="font-mono text-[11px]">Built with Next.js 16, React 19, Tailwind CSS &amp; Go stdlib &bull; v0.6.54</p>
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center text-xs text-[#546C7B] sm:flex-row sm:text-left">
+          <p>© 2026 Daksh Raman. Released under the open-source MIT License.</p>
+          <p className="font-mono text-[11px]">Next.js 16, React 19, Tailwind CSS &amp; Go stdlib • v0.6.55</p>
         </div>
       </div>
     </footer>

@@ -5,139 +5,105 @@ import {
   Terminal,
   Copy,
   Check,
-  Shield,
-  Zap,
   Server,
   Layers,
   ArrowRight,
-  Lock,
-  Cpu,
-  Globe,
-  Bot,
-  Stethoscope,
-  Key,
-  Clock,
-  Sparkles,
-  ExternalLink,
-  ChevronRight,
+  Shield,
   Activity,
-  CheckCircle2,
+  Globe,
+  Database,
+  Cpu,
+  Lock,
+  ExternalLink,
 } from "lucide-react";
 
 export function Hero() {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"deck" | "ai" | "php" | "apps" | "term">("deck");
+  const [activeTab, setActiveTab] = useState<"overview" | "sites" | "services" | "terminal">("overview");
 
   const installCommand = "curl -fsSL https://clouddeck.dakshraman.in/install.sh | sudo bash";
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(installCommand);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2200);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(installCommand);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
-    <section id="top" className="relative overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24">
-      {/* Precision Ambient Glows */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-1/2 -z-10 h-[550px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-[#38BDF8]/15 via-[#6366F1]/10 to-transparent blur-[120px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-40 -left-40 -z-10 h-[380px] w-[380px] rounded-full bg-[#10B981]/10 blur-[100px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-40 -right-40 -z-10 h-[380px] w-[380px] rounded-full bg-[#6366F1]/15 blur-[100px]"
-      />
-
+    <section id="top" className="relative pt-10 pb-16 sm:pt-14 sm:pb-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* Pill Badge */}
+        {/* Release Pill */}
         <div className="flex justify-center">
           <a
             href="#install"
-            className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md transition hover:border-[#38BDF8]/40 hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#8FA6B5] hover:border-[#74B8CC]/40 hover:text-[#F4F8FA] transition"
           >
-            <span className="flex h-2 w-2 rounded-full bg-[#10B981] ring-4 ring-[#10B981]/20 animate-pulse" />
-            <span className="font-semibold text-white">v0.6.54 STABLE</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400 group-hover:text-white transition-colors">
-              The AI-Native cPanel Replacement &bull; 8 AI Agents
-            </span>
-            <ArrowRight className="h-3 w-3 text-[#38BDF8] transition group-hover:translate-x-0.5" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+            <span className="font-semibold text-[#F4F8FA]">CloudDeck v0.6.55</span>
+            <span className="text-white/20">•</span>
+            <span>Zero-Root Linux Control Panel &amp; Local Dev Suite</span>
+            <ArrowRight className="h-3 w-3 text-[#74B8CC]" />
           </a>
         </div>
 
         {/* Hero Title */}
-        <div className="mt-8 text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl sm:leading-[1.1] md:text-7xl">
-            The modern hosting deck <br className="hidden sm:inline" />
-            built for the{" "}
-            <span className="bg-gradient-to-r from-[#38BDF8] via-[#60A5FA] to-[#A78BFA] bg-clip-text text-transparent">
-              autonomous AI era
-            </span>
-            .
+        <div className="mt-8 text-center max-w-3xl mx-auto">
+          <h1 className="text-3xl font-semibold tracking-tight text-[#F4F8FA] sm:text-5xl sm:leading-[1.15]">
+            The lightweight Linux hosting deck for modern developers
           </h1>
 
-          <p className="mx-auto mt-6 max-w-3xl text-base text-slate-400 sm:text-lg sm:leading-relaxed">
-            Manage websites, multi-PHP (8.1–8.4), and production email while orchestrating{" "}
-            <strong className="font-semibold text-slate-200">8 native AI coding agents</strong> and autonomous Site Doctor auto-fix — all from one elegant deck consuming{" "}
-            <strong className="font-semibold text-[#10B981]">under 50MB of idle RAM</strong>{" "}
-            with zero root web processes.
+          <p className="mt-5 text-base sm:text-lg text-[#8FA6B5] leading-relaxed">
+            Manage websites, multi-PHP (8.1–8.4), MariaDB, production email, and PowerDNS from one unified deck consuming <span className="text-[#F4F8FA] font-medium">under 50MB of idle RAM</span> — with zero root processes exposed to the web.
           </p>
         </div>
 
         {/* CTA Buttons */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <a
             href="#install"
-            className="flex items-center gap-2 rounded-full bg-[#38BDF8] px-6 py-3 text-sm font-bold text-[#080C10] shadow-lg shadow-[#38BDF8]/20 transition hover:bg-[#7DD3FC] hover:shadow-[#38BDF8]/30 hover:scale-[1.02]"
+            className="flex items-center gap-2 rounded-lg bg-[#74B8CC] px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#0A0E13] hover:bg-[#85c6d8] transition"
           >
-            <span>Quick Install (~4 mins)</span>
-            <ArrowRight className="h-4 w-4" />
+            <span>Install Quickstart</span>
+            <ArrowRight className="h-3.5 w-3.5" />
           </a>
 
           <a
-            href="#ai-agents"
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:border-[#38BDF8]/40 hover:bg-white/10 hover:shadow-md"
+            href="https://github.com/dakshraman/clouddeck"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-xs sm:text-sm font-medium text-[#F4F8FA] hover:bg-white/10 hover:border-white/20 transition"
           >
-            <Bot className="h-4 w-4 text-[#38BDF8]" />
-            <span>AI Agents &amp; Doctor</span>
-            <span className="rounded-full bg-[#38BDF8]/20 px-2 py-0.5 text-[11px] font-mono font-bold text-[#38BDF8]">
-              v0.6.54
-            </span>
-          </a>
-
-          <a
-            href="#local-dev"
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-          >
-            <span>Local Dev</span>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-mono text-slate-400">
-              WSL 2 &bull; Mac
-            </span>
+            <span>Documentation &amp; Source</span>
+            <ExternalLink className="h-3.5 w-3.5 text-[#8FA6B5]" />
           </a>
         </div>
 
         {/* 1-Click Terminal Command Bar */}
-        <div className="mt-8 flex justify-center">
-          <div className="flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0E141D] px-4 py-3 text-slate-200 shadow-2xl sm:px-5">
-            <div className="flex items-center gap-3 overflow-hidden font-mono text-xs sm:text-sm">
-              <span className="text-[#38BDF8] select-none font-bold">$</span>
-              <span className="truncate text-slate-300">{installCommand}</span>
+        <div className="mt-6 flex justify-center">
+          <div className="flex w-full max-w-xl items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#101720] px-4 py-2.5 shadow-subtle sm:px-5">
+            <div className="flex items-center gap-2.5 overflow-hidden font-mono text-xs sm:text-sm">
+              <span className="text-[#74B8CC] select-none font-bold">$</span>
+              <span className="truncate text-[#F4F8FA]">{installCommand}</span>
             </div>
+
+            <span className="sr-only" role="status">
+              {copied ? "Installation command copied to clipboard" : ""}
+            </span>
 
             <button
               type="button"
               onClick={handleCopy}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#38BDF8] hover:bg-[#38BDF8]/10 hover:border-[#38BDF8]/30 transition"
+              className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#8FA6B5] hover:bg-white/10 hover:text-[#F4F8FA] transition"
               aria-label="Copy installation command"
             >
               {copied ? (
                 <>
                   <Check className="h-3.5 w-3.5 text-[#10B981]" />
-                  <span className="text-[#10B981]">Copied!</span>
+                  <span className="text-[#10B981]">Copied</span>
                 </>
               ) : (
                 <>
@@ -149,370 +115,279 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Interactive Deck Mockup Frame */}
-        <div className="mt-12 overflow-hidden rounded-2xl border border-white/10 bg-[#0B1017] shadow-2xl sm:rounded-3xl">
-          {/* Mockup Window Chrome */}
-          <div className="flex flex-wrap items-center justify-between border-b border-white/10 bg-[#080D13] px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-[#EF4444]/80" />
-              <div className="h-3 w-3 rounded-full bg-[#F59E0B]/80" />
-              <div className="h-3 w-3 rounded-full bg-[#10B981]/80" />
-              <div className="ml-3 hidden sm:flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400 font-mono">
-                <Lock className="h-3 w-3 text-[#10B981]" />
-                <span>https://vps-nyc.clouddeck.local:2083</span>
+        {/* The Moment: Authentic Hero Product Console */}
+        <div className="mt-12 rounded-xl border border-white/10 bg-[#101720] shadow-raised overflow-hidden">
+          {/* Deck Top Header */}
+          <div className="flex flex-wrap items-center justify-between border-b border-white/10 bg-[#0D141C] px-4 py-2.5 sm:px-5 gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              </div>
+              <span className="text-white/20">|</span>
+              <div className="flex items-center gap-2 text-xs font-mono text-[#8FA6B5]">
+                <Server className="h-3.5 w-3.5 text-[#74B8CC]" />
+                <span className="text-[#F4F8FA] font-medium">srv-prod-01</span>
+                <span className="text-white/30">(Ubuntu 24.04 LTS)</span>
               </div>
             </div>
 
-            {/* Quick Metrics Badges */}
-            <div className="flex items-center gap-2 text-xs">
-              <div className="flex items-center gap-1.5 rounded-full border border-[#10B981]/20 bg-[#10B981]/10 px-2.5 py-0.5 text-[#10B981]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                <span className="font-semibold font-mono">42.4 MB Idle RAM</span>
+            {/* Architecture Mode Badge */}
+            <div className="flex items-center gap-2 text-[11px] font-mono">
+              <span className="flex items-center gap-1 text-[#8FA6B5]">
+                <Shield className="h-3 w-3 text-[#10B981]" />
+                <span>Panel: unprivileged (:2083)</span>
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="text-[#8FA6B5]">Agent: root daemon (:9090)</span>
+            </div>
+          </div>
+
+          {/* Telemetry Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-white/10 border-b border-white/10 bg-[#121A24] text-xs">
+            <div className="p-3 sm:px-4">
+              <div className="text-[11px] text-[#8FA6B5] font-mono">Memory Utilization</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-mono text-base font-semibold text-[#F4F8FA] tabular-nums">48.2 MB</span>
+                <span className="text-[11px] font-mono text-[#10B981]">4.7% of 1 GB</span>
               </div>
-              <div className="hidden sm:inline-flex items-center gap-1 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#38BDF8]">
-                <span>8 AI Agents</span>
+            </div>
+
+            <div className="p-3 sm:px-4">
+              <div className="text-[11px] text-[#8FA6B5] font-mono">System Load / CPU</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-mono text-base font-semibold text-[#F4F8FA] tabular-nums">0.08, 0.04</span>
+                <span className="text-[11px] font-mono text-[#8FA6B5]">1.2% 1 vCPU</span>
               </div>
-              <div className="hidden md:inline-block rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-400">
-                Zero-Root Active
+            </div>
+
+            <div className="p-3 sm:px-4">
+              <div className="text-[11px] text-[#8FA6B5] font-mono">Websites &amp; Pools</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-mono text-base font-semibold text-[#F4F8FA] tabular-nums">12 Active</span>
+                <span className="text-[11px] font-mono text-[#74B8CC]">PHP 8.1–8.4</span>
+              </div>
+            </div>
+
+            <div className="p-3 sm:px-4">
+              <div className="text-[11px] text-[#8FA6B5] font-mono">Core Services</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-mono text-base font-semibold text-[#10B981] tabular-nums">All Running</span>
+                <span className="text-[11px] font-mono text-[#8FA6B5]">Nginx + MariaDB</span>
               </div>
             </div>
           </div>
 
-          {/* Interactive Feature Tabs */}
-          <div className="flex overflow-x-auto no-scrollbar border-b border-white/10 bg-[#0C121A] px-2 sm:px-6 text-xs font-semibold">
+          {/* Interactive Navigation Tabs */}
+          <div className="flex border-b border-white/10 bg-[#0E151E] px-4">
             <button
               type="button"
-              onClick={() => setActiveTab("deck")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "deck"
-                  ? "border-[#38BDF8] text-[#38BDF8]"
-                  : "border-transparent text-slate-400 hover:text-white"
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium transition ${
+                activeTab === "overview"
+                  ? "border-[#74B8CC] text-[#F4F8FA]"
+                  : "border-transparent text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
-              <Server className="h-3.5 w-3.5" />
-              <span>Overview Deck</span>
+              <Activity className="h-3.5 w-3.5" />
+              <span>Overview</span>
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("ai")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "ai"
-                  ? "border-[#38BDF8] text-[#38BDF8]"
-                  : "border-transparent text-slate-400 hover:text-white"
+              onClick={() => setActiveTab("sites")}
+              className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium transition ${
+                activeTab === "sites"
+                  ? "border-[#74B8CC] text-[#F4F8FA]"
+                  : "border-transparent text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
-              <Bot className="h-3.5 w-3.5" />
-              <span>AI Agents &amp; Doctor</span>
+              <Globe className="h-3.5 w-3.5" />
+              <span>Websites (12)</span>
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("php")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "php"
-                  ? "border-[#38BDF8] text-[#38BDF8]"
-                  : "border-transparent text-slate-400 hover:text-white"
+              onClick={() => setActiveTab("services")}
+              className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium transition ${
+                activeTab === "services"
+                  ? "border-[#74B8CC] text-[#F4F8FA]"
+                  : "border-transparent text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
-              <Zap className="h-3.5 w-3.5" />
-              <span>Multi-PHP (8.1–8.4)</span>
+              <Cpu className="h-3.5 w-3.5" />
+              <span>Systemd Services</span>
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("apps")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "apps"
-                  ? "border-[#38BDF8] text-[#38BDF8]"
-                  : "border-transparent text-slate-400 hover:text-white"
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5" />
-              <span>Polyglot Supervisor</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("term")}
-              className={`flex items-center gap-2 border-b-2 px-3 py-3 whitespace-nowrap transition ${
-                activeTab === "term"
-                  ? "border-[#38BDF8] text-[#38BDF8]"
-                  : "border-transparent text-slate-400 hover:text-white"
+              onClick={() => setActiveTab("terminal")}
+              className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium transition ${
+                activeTab === "terminal"
+                  ? "border-[#74B8CC] text-[#F4F8FA]"
+                  : "border-transparent text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
               <Terminal className="h-3.5 w-3.5" />
-              <span>Web Terminal PTY</span>
+              <span>Agent Terminal</span>
             </button>
           </div>
 
-          {/* Interactive Tab Body */}
-          <div className="p-4 sm:p-6 bg-[#090E15]">
-            {activeTab === "deck" && (
+          {/* Interactive Viewport Content */}
+          <div className="p-4 sm:p-5 min-h-[220px]">
+            {activeTab === "overview" && (
               <div className="space-y-4">
-                {/* 3 Stats Cards */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Memory Footprint</span>
-                      <Cpu className="h-4 w-4 text-[#38BDF8]" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Service status table */}
+                  <div className="rounded-lg border border-white/10 bg-[#0C121A] p-3.5">
+                    <div className="text-xs font-mono font-medium text-[#8FA6B5] mb-2.5 flex items-center justify-between">
+                      <span>SYSTEMD SERVICE STATUS</span>
+                      <span className="text-[11px] text-[#10B981]">monitored</span>
                     </div>
-                    <div className="mt-2 text-2xl font-bold font-mono text-white">42.4 MB</div>
-                    <div className="mt-1 text-xs text-[#10B981] font-medium">
-                      30x lighter than cPanel (1.5GB)
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Active Virtual Hosts</span>
-                      <Globe className="h-4 w-4 text-[#60A5FA]" />
-                    </div>
-                    <div className="mt-2 text-2xl font-bold font-mono text-white">6 Online</div>
-                    <div className="mt-1 text-xs text-[#38BDF8] font-medium">
-                      Nginx 1.26 + Multi PHP-FPM
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Site Doctor Score</span>
-                      <Stethoscope className="h-4 w-4 text-[#10B981]" />
-                    </div>
-                    <div className="mt-2 text-2xl font-bold font-mono text-white">98 / 100</div>
-                    <div className="mt-1 text-xs text-[#10B981] font-medium">
-                      0 Defects &bull; Auto-Fix Ready
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live Sites Table Preview */}
-                <div className="rounded-xl border border-white/10 bg-[#0B1017] overflow-hidden">
-                  <div className="border-b border-white/10 px-4 py-2.5 text-xs font-semibold text-slate-400 flex items-center justify-between">
-                    <span>Provisioned Websites</span>
-                    <span className="text-[11px] text-[#10B981] font-mono">All Systems Operational</span>
-                  </div>
-                  <div className="divide-y divide-white/5 text-xs">
-                    <div className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition">
-                      <div className="flex items-center gap-2.5">
-                        <Lock className="h-3.5 w-3.5 text-[#10B981]" />
-                        <span className="font-semibold text-white">dakshraman.in</span>
-                        <span className="hidden sm:inline text-slate-500 font-mono text-[11px]">/www/wwwroot/dakshraman.in</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-2 py-0.5 text-[11px] font-mono text-[#38BDF8]">
-                          PHP 8.4
-                        </span>
-                        <span className="rounded bg-[#10B981]/15 px-2 py-0.5 text-[11px] font-medium text-[#10B981]">
-                          active
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition">
-                      <div className="flex items-center gap-2.5">
-                        <Lock className="h-3.5 w-3.5 text-[#10B981]" />
-                        <span className="font-semibold text-white">api.clouddeck.io</span>
-                        <span className="hidden sm:inline text-slate-500 font-mono text-[11px]">Next.js 16 Reverse Proxy</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded border border-[#6366F1]/20 bg-[#6366F1]/10 px-2 py-0.5 text-[11px] font-mono text-[#818CF8]">
-                          Node.js (Next.js)
-                        </span>
-                        <span className="rounded bg-[#10B981]/15 px-2 py-0.5 text-[11px] font-medium text-[#10B981]">
-                          active
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "ai" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  {/* Site Doctor Diagnostic Preview */}
-                  <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-bold text-white">
-                        <Stethoscope className="h-4 w-4 text-[#10B981]" />
-                        <span>Autonomous Site Doctor</span>
-                      </div>
-                      <span className="rounded-full border border-[#10B981]/30 bg-[#10B981]/15 px-2.5 py-0.5 font-bold font-mono text-[#10B981]">
-                        Health: 98/100
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5">
-                        <span className="text-slate-300">Nginx Virtual Host Syntax</span>
-                        <span className="text-[#10B981] font-mono font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> PASS (nginx -t ok)
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5">
-                        <span className="text-slate-300">TLS/SSL Expiration Check</span>
-                        <span className="text-[#10B981] font-mono font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> Valid (78 days remaining)
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5">
-                        <span className="text-slate-300">Webroot Directory Permissions</span>
-                        <span className="text-[#10B981] font-mono font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> www-data:www-data 0755
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2 text-[11px] text-slate-400">
-                      <span>Autonomous Self-Healing</span>
-                      <span className="text-[#38BDF8] font-bold">1-Click Auto-Fix Enabled</span>
-                    </div>
-                  </div>
-
-                  {/* AI Key Vault & Terminal Injection */}
-                  <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-bold text-white">
-                        <Key className="h-4 w-4 text-[#38BDF8]" />
-                        <span>Encrypted AI Key Vault</span>
-                      </div>
-                      <span className="rounded-full border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-2 py-0.5 font-mono text-[10px] text-[#38BDF8]">
-                        Mode 0600 Secure
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5 font-mono">
-                        <span className="text-slate-300">ANTHROPIC_API_KEY</span>
-                        <span className="text-slate-500">sk-ant-••••••••••••</span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5 font-mono">
-                        <span className="text-slate-300">OPENAI_API_KEY</span>
-                        <span className="text-slate-500">sk-proj-••••••••••••</span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3 py-2 border border-white/5 font-mono">
-                        <span className="text-slate-300">OLLAMA_HOST</span>
-                        <span className="text-[#10B981]">http://127.0.0.1:11434</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
-                      Masked secrets &bull; Auto-exported into web terminal environment
-                    </div>
-                  </div>
-                </div>
-
-                {/* 8 AI Coding Agents Grid */}
-                <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4 text-xs">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold text-white text-xs uppercase tracking-wider">
-                      8 Supported Native AI Coding Agents
-                    </span>
-                    <span className="text-[11px] text-[#38BDF8]">
-                      Launch inside Web Terminal with 1 click
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {[
-                      { name: "Claude Code", model: "Anthropic Opus/Sonnet", status: "Installed" },
-                      { name: "OpenAI Codex", model: "GPT-4o Agentic", status: "Ready" },
-                      { name: "Google Antigravity", model: "Gemini CLI / SDK", status: "Installed" },
-                      { name: "Ollama (Offline)", model: "Llama 3 / DeepSeek", status: "Local Engine" },
-                      { name: "Aider", model: "Multi-model Git Pair", status: "Ready" },
-                      { name: "OpenCode", model: "Self-Hosted Agent", status: "Ready" },
-                      { name: "Goose", model: "Block Open Agent", status: "Ready" },
-                      { name: "Hermes Agent", model: "Nous Research Core", status: "Ready" },
-                    ].map((agent) => (
-                      <div
-                        key={agent.name}
-                        className="rounded-lg border border-white/5 bg-[#080D13] p-2.5 hover:border-[#38BDF8]/30 transition"
-                      >
-                        <div className="font-bold text-white truncate">{agent.name}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{agent.model}</div>
-                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-[#10B981]">
+                    <div className="space-y-2 text-xs font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F4F8FA]">nginx.service</span>
+                        <span className="text-[#10B981] flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                          <span>{agent.status}</span>
-                        </div>
+                          active (running)
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "php" && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4 text-xs">
-                  <div className="text-sm font-bold text-white">
-                    Isolated Multi-PHP Sockets (Coexistence) &bull; Extensions &amp; Visual php.ini
-                  </div>
-                  <p className="mt-1 text-slate-400">
-                    Run PHP 8.1, 8.2, 8.3, and 8.4 simultaneously on bare metal without Docker overhead.
-                    1-click toggle extensions (redis, opcache, imagick) and visually tune memory and upload limits.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {["PHP 8.1 FPM", "PHP 8.2 FPM", "PHP 8.3 FPM", "PHP 8.4 FPM"].map((v, i) => (
-                      <div
-                        key={v}
-                        className="rounded-xl border border-white/10 bg-[#080D13] p-3 text-center hover:border-[#38BDF8]/30 transition"
-                      >
-                        <div className="font-bold text-white">{v}</div>
-                        <div className="mt-1 text-[11px] font-mono text-[#10B981]">
-                          /run/php/php{["8.1", "8.2", "8.3", "8.4"][i]}-fpm.sock
-                        </div>
-                        <div className="mt-2 text-[10px] text-slate-400">Visual php.ini Editor</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F4F8FA]">php8.4-fpm.service</span>
+                        <span className="text-[#10B981] flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                          active (running)
+                        </span>
                       </div>
-                    ))}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F4F8FA]">mariadb.service</span>
+                        <span className="text-[#10B981] flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                          active (running)
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#F4F8FA]">clouddeck-agent.service</span>
+                        <span className="text-[#10B981] flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                          active (127.0.0.1:9090)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Audit log trail */}
+                  <div className="rounded-lg border border-white/10 bg-[#0C121A] p-3.5">
+                    <div className="text-xs font-mono font-medium text-[#8FA6B5] mb-2.5 flex items-center justify-between">
+                      <span>AUDIT LOG STREAM (JSONL)</span>
+                      <span className="text-[11px] text-[#8FA6B5]">tail -n 4</span>
+                    </div>
+                    <div className="space-y-1.5 text-xs font-mono text-[#8FA6B5]">
+                      <div className="truncate">
+                        <span className="text-[#546C7B]">07:31:02</span>{" "}
+                        <span className="text-[#74B8CC]">ssl.renew</span>{" "}
+                        <span className="text-[#F4F8FA]">app.example.com</span> [Let&apos;s Encrypt OK]
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[#546C7B]">07:28:44</span>{" "}
+                        <span className="text-[#74B8CC]">vhost.apply</span>{" "}
+                        <span className="text-[#F4F8FA]">nginx -t</span> [test passed, reloaded]
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[#546C7B]">07:15:19</span>{" "}
+                        <span className="text-[#74B8CC]">backup.zip</span>{" "}
+                        <span className="text-[#F4F8FA]">api.example.com</span> [142MB written]
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[#546C7B]">07:00:00</span>{" "}
+                        <span className="text-[#74B8CC]">cron.job</span>{" "}
+                        <span className="text-[#F4F8FA]">php artisan schedule:run</span> [exit 0]
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {activeTab === "apps" && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-[#0E141D] p-4 text-xs">
-                  <div className="text-sm font-bold text-white">
-                    Polyglot Application Supervision
-                  </div>
-                  <p className="mt-1 text-slate-400">
-                    Deploy Node.js, Python, Go, Ruby, and custom binaries. CloudDeck manages port
-                    allocation, systemd process supervision, auto-restart on crash, and reverse proxying.
-                  </p>
+            {activeTab === "sites" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[#8FA6B5]">
+                      <th className="pb-2 font-normal">Domain</th>
+                      <th className="pb-2 font-normal">Runtime / Socket</th>
+                      <th className="pb-2 font-normal">Document Root</th>
+                      <th className="pb-2 font-normal">SSL</th>
+                      <th className="pb-2 font-normal text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    <tr>
+                      <td className="py-2.5 text-[#F4F8FA] font-medium">api.clouddeck.local</td>
+                      <td className="py-2.5 text-[#74B8CC]">PHP 8.4 (unix socket)</td>
+                      <td className="py-2.5 text-[#8FA6B5]">/www/wwwroot/api/public</td>
+                      <td className="py-2.5 text-[#10B981]">Let&apos;s Encrypt (88d)</td>
+                      <td className="py-2.5 text-right text-[#10B981]">Active</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 text-[#F4F8FA] font-medium">billing.store.com</td>
+                      <td className="py-2.5 text-[#74B8CC]">PHP 8.3 (unix socket)</td>
+                      <td className="py-2.5 text-[#8FA6B5]">/www/wwwroot/billing/web</td>
+                      <td className="py-2.5 text-[#10B981]">Let&apos;s Encrypt (64d)</td>
+                      <td className="py-2.5 text-right text-[#10B981]">Active</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 text-[#F4F8FA] font-medium">docs.internal.net</td>
+                      <td className="py-2.5 text-[#FAAA93]">Node.js 22 (proxy :3000)</td>
+                      <td className="py-2.5 text-[#8FA6B5]">/www/wwwroot/docs</td>
+                      <td className="py-2.5 text-[#10B981]">Local CA Trusted</td>
+                      <td className="py-2.5 text-right text-[#10B981]">Active</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3.5 py-2.5 border border-white/5">
-                      <span className="font-mono text-white">web-frontend (Next.js 16)</span>
-                      <span className="text-[#38BDF8] font-mono text-xs">Port 3000 &bull; systemd active</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3.5 py-2.5 border border-white/5">
-                      <span className="font-mono text-white">ai-worker (Python FastAPI)</span>
-                      <span className="text-[#38BDF8] font-mono text-xs">Port 8000 &bull; systemd active</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-[#080D13] px-3.5 py-2.5 border border-white/5">
-                      <span className="font-mono text-white">core-api (Go Stdlib)</span>
-                      <span className="text-[#38BDF8] font-mono text-xs">Port 9091 &bull; systemd active</span>
-                    </div>
+            {activeTab === "services" && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-white/10 bg-[#0C121A] p-3 text-xs font-mono">
+                  <div className="text-[#8FA6B5] text-[11px]">Web Server</div>
+                  <div className="mt-1 font-semibold text-[#F4F8FA]">Nginx 1.26.1</div>
+                  <div className="mt-2 text-[#10B981] flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                    Ports 80, 443 active
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-[#0C121A] p-3 text-xs font-mono">
+                  <div className="text-[#8FA6B5] text-[11px]">Database Engine</div>
+                  <div className="mt-1 font-semibold text-[#F4F8FA]">MariaDB 11.4 LTS</div>
+                  <div className="mt-2 text-[#10B981] flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                    127.0.0.1:3306 active
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-[#0C121A] p-3 text-xs font-mono">
+                  <div className="text-[#8FA6B5] text-[11px]">Authoritative DNS</div>
+                  <div className="mt-1 font-semibold text-[#F4F8FA]">PowerDNS 4.9.2</div>
+                  <div className="mt-2 text-[#10B981] flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                    UDP/TCP :53 active
                   </div>
                 </div>
               </div>
             )}
 
-            {activeTab === "term" && (
-              <div className="rounded-xl border border-white/10 bg-[#080D13] p-4 font-mono text-xs text-slate-300">
-                <div className="text-slate-500">clouddeck@vps-nyc3:~$ clouddeck status</div>
-                <div className="mt-2 text-[#10B981]">
-                  [✓] CloudDeck Agent: active (pid 1420, 127.0.0.1:9090)
+            {activeTab === "terminal" && (
+              <div className="rounded-lg border border-white/10 bg-[#080C10] p-3 font-mono text-xs text-[#8FA6B5] space-y-1.5">
+                <div className="text-[#F4F8FA]">
+                  <span className="text-[#74B8CC]">clouddeck@srv-prod-01</span>:<span className="text-[#8FA6B5]">~</span>$ clouddeck status
                 </div>
-                <div className="text-[#10B981]">
-                  [✓] CloudDeck Panel: active (pid 1485, port 2083) [Next.js 16.4.6]
-                </div>
-                <div className="text-[#38BDF8]">
-                  [✓] Memory Footprint: 42.4 MB / 1024 MB (4.1% utilization)
-                </div>
-                <div className="text-[#818CF8]">
-                  [✓] AI Key Vault: 5 API keys decrypted &amp; auto-injected into shell
-                </div>
-                <div className="text-[#10B981]">
-                  [✓] Site Doctor: 0 defects detected across all vhosts
-                </div>
-                <div className="mt-3 text-slate-500">
-                  clouddeck@vps-nyc3:~$ claude --version<br />
-                  <span className="text-white">claude-code v0.6.54 (ready to pair-program on your server)</span><br />
-                  clouddeck@vps-nyc3:~$ <span className="animate-pulse text-[#38BDF8]">_</span>
+                <div className="text-[#8FA6B5] whitespace-pre-wrap leading-relaxed">
+{`CloudDeck v0.6.55 (Go stdlib runtime)
+  Daemon:     active (PID 842, 127.0.0.1:9090)
+  Web Panel:  active (PID 910, :2083, user: clouddeck)
+  RAM usage:  48.2 MB / 1.0 GB (idle target < 50MB: PASSED)
+  Vhosts:     12 sites configured (0 errors)
+  PHP Pools:  8.1, 8.2, 8.3, 8.4 active
+  Audit log:  /var/log/clouddeck/audit.log (ok)`}
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { Check, X, Shield, DollarSign, Cpu, Zap, Server, Globe, Bot, Stethoscope, Key, Clock, Sliders, ArrowRight } from "lucide-react";
+import { Check } from "lucide-react";
 
 export function Comparison() {
   const rows = [
@@ -24,25 +24,32 @@ export function Comparison() {
       coolify: "Container PaaS (root docker.sock)",
     },
     {
-      feature: "AI Coding Agents",
-      clouddeck: "8 Native Agents (Claude, Codex, Ollama, Hermes)",
+      feature: "Websites & PHP Engine",
+      clouddeck: "Nginx + Multi PHP-FPM (8.1–8.4) Sockets",
+      cpanel: "Apache / LiteSpeed (heavy)",
+      aapanel: "Nginx / Apache / OpenLiteSpeed",
+      coolify: "Docker containerized PHP only",
+    },
+    {
+      feature: "Developer AI Agents",
+      clouddeck: "Claude, Codex, Ollama, Hermes terminal orchestration",
       cpanel: "None",
       aapanel: "None",
       coolify: "None",
     },
     {
-      feature: "Autonomous Site Doctor",
-      clouddeck: "0-100 Score + 1-Click Auto-Fix",
-      cpanel: "None (manual log parsing)",
+      feature: "Site Diagnostics & Repair",
+      clouddeck: "Automated 0-100 Health Score & 1-Click Fix",
+      cpanel: "None (manual log inspection)",
       aapanel: "None",
       coolify: "None",
     },
     {
-      feature: "AI Key Vault & Injection",
-      clouddeck: "Encrypted 0600 Vault + Auto-Export",
+      feature: "Credential Protection",
+      clouddeck: "Encrypted 0600 Vault + Terminal Injection",
       cpanel: "None",
       aapanel: "None",
-      coolify: "Manual env vars",
+      coolify: "Manual environment variables",
     },
     {
       feature: "Scheduled Tasks / Cron",
@@ -54,21 +61,14 @@ export function Comparison() {
     {
       feature: "PHP Extensions & Tuning",
       clouddeck: "1-Click Toggles + Visual php.ini Editor",
-      cpanel: "EasyApache (slow rebuild)",
+      cpanel: "EasyApache (rebuild required)",
       aapanel: "Extension list",
       coolify: "Dockerfile rebuild required",
     },
     {
-      feature: "Websites & PHP Engine",
-      clouddeck: "Nginx + Multi PHP-FPM (8.1–8.4) Sockets",
-      cpanel: "Apache / LiteSpeed (heavy)",
-      aapanel: "Nginx / Apache / OpenLiteSpeed",
-      coolify: "Docker containerized PHP only",
-    },
-    {
       feature: "Polyglot App Supervision",
       clouddeck: "Node.js, Python, Go, Ruby (systemd)",
-      cpanel: "Clunky Passenger / extra licensing",
+      cpanel: "Passenger / extra licensing",
       aapanel: "Limited Python/Node plugins",
       coolify: "First-class Docker PaaS",
     },
@@ -103,55 +103,55 @@ export function Comparison() {
   ];
 
   return (
-    <section id="comparison" className="border-t border-white/5 bg-[#090D14] py-16 sm:py-24">
+    <section id="comparison" className="border-t border-white/5 bg-[#0C121A] py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Section Heading */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-semibold text-[#38BDF8]">
-            <span>TRANSPARENT COMPARISON &bull; v0.6.54</span>
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-mono font-medium text-[#74B8CC]">
+            <span>Platform Comparison</span>
           </div>
-          <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
-            Why switch to <span className="text-[#38BDF8]">CloudDeck</span>?
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[#F4F8FA] sm:text-4xl">
+            How CloudDeck compares to traditional panels
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base text-slate-400 sm:text-lg">
-            See how CloudDeck compares against traditional legacy hosting panels and modern container PaaS platforms.
+          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[#8FA6B5]">
+            Comparison across resource consumption, security models, and developer tooling.
           </p>
 
-          <div className="mt-3 inline-block sm:hidden text-[11px] font-mono text-slate-500">
-            &larr; Swipe horizontally to compare platforms &rarr;
+          <div className="mt-3 inline-block sm:hidden text-[11px] font-mono text-[#546C7B]">
+            &larr; Scroll horizontally to compare platforms &rarr;
           </div>
         </div>
 
         {/* Responsive Table Container */}
-        <div className="mt-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0C121A] shadow-2xl">
-          <div className="overflow-x-auto no-scrollbar">
+        <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-[#101720] shadow-subtle">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-[#080D13]">
-                  <th className="py-4 px-4 sm:px-6 font-bold text-slate-300">Feature</th>
-                  <th className="py-4 px-4 sm:px-6 font-extrabold text-[#38BDF8] bg-[#38BDF8]/10 border-x border-[#38BDF8]/20">
-                    CloudDeck (v0.6.54)
+                <tr className="border-b border-white/10 bg-[#0E151E] text-xs font-mono">
+                  <th className="py-3.5 px-4 sm:px-5 font-medium text-[#8FA6B5]">Feature</th>
+                  <th className="py-3.5 px-4 sm:px-5 font-semibold text-[#74B8CC] bg-white/[0.03]">
+                    CloudDeck (v0.6.55)
                   </th>
-                  <th className="py-4 px-4 sm:px-6 font-semibold text-slate-400">cPanel / WHM</th>
-                  <th className="py-4 px-4 sm:px-6 font-semibold text-slate-400">aaPanel</th>
-                  <th className="py-4 px-4 sm:px-6 font-semibold text-slate-400">Coolify</th>
+                  <th className="py-3.5 px-4 sm:px-5 font-normal text-[#8FA6B5]">cPanel / WHM</th>
+                  <th className="py-3.5 px-4 sm:px-5 font-normal text-[#8FA6B5]">aaPanel</th>
+                  <th className="py-3.5 px-4 sm:px-5 font-normal text-[#8FA6B5]">Coolify</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {rows.map((row) => (
                   <tr key={row.feature} className="transition hover:bg-white/[0.02]">
-                    <td className="py-3.5 px-4 sm:px-6 font-semibold text-slate-200">
+                    <td className="py-3 px-4 sm:px-5 font-medium text-[#F4F8FA]">
                       {row.feature}
                     </td>
-                    <td className="py-3.5 px-4 sm:px-6 font-bold text-white bg-[#38BDF8]/[0.06] border-x border-[#38BDF8]/20">
+                    <td className="py-3 px-4 sm:px-5 font-medium text-[#F4F8FA] bg-white/[0.02]">
                       <div className="flex items-center gap-1.5">
-                        <Check className="h-4 w-4 shrink-0 text-[#10B981]" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-[#10B981]" />
                         <span>{row.clouddeck}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 sm:px-6 text-slate-400">{row.cpanel}</td>
-                    <td className="py-3.5 px-4 sm:px-6 text-slate-400">{row.aapanel}</td>
-                    <td className="py-3.5 px-4 sm:px-6 text-slate-400">{row.coolify}</td>
+                    <td className="py-3 px-4 sm:px-5 text-[#8FA6B5]">{row.cpanel}</td>
+                    <td className="py-3 px-4 sm:px-5 text-[#8FA6B5]">{row.aapanel}</td>
+                    <td className="py-3 px-4 sm:px-5 text-[#8FA6B5]">{row.coolify}</td>
                   </tr>
                 ))}
               </tbody>
