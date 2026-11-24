@@ -96,14 +96,24 @@ func TestInstallPHPOverrideCommand(t *testing.T) {
 	inst, _ := newInstaller(t, config.Config{PHPInstallCmd: bin})
 	log := tasks.LogFunc(func(level, message string) {})
 
-	if err := inst.Install(context.Background(), log, KindPHP, "8.2"); err != nil {
+	// Pick an installable PHP version not already installed on the host to avoid already_installed conflict
+	installed := phpVersions()
+	testVer := "8.0"
+	for _, v := range Installable()[KindPHP] {
+		if !slicesContains(installed, v) {
+			testVer = v
+			break
+		}
+	}
+
+	if err := inst.Install(context.Background(), log, KindPHP, testVer); err != nil {
 		t.Fatalf("Install php: %v", err)
 	}
 	data, err := os.ReadFile(marker)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "8.2") {
+	if !strings.Contains(string(data), testVer) {
 		t.Fatalf("installer argv = %q, want the version as last argument", data)
 	}
 }

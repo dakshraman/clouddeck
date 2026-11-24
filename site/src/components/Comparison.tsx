@@ -4,17 +4,17 @@ export function Comparison() {
   const rows = [
     {
       feature: "Monthly License Cost",
-      clouddeck: "$0 Free & Open Source",
-      cpanel: "$30–$60+/mo ($360–$720/yr)",
+      clouddeck: "$0 Free & Open Source (MIT)",
+      cpanel: "$30–$60+/mo per server ($360–$720/yr)",
       aapanel: "Freemium ($15–$25/mo Pro)",
       coolify: "$0 self-hosted ($5/mo cloud)",
     },
     {
-      feature: "Memory Footprint (Idle)",
+      feature: "Idle Memory Footprint",
       clouddeck: "< 50 MB RAM (runs on 1GB VPS)",
       cpanel: "1.0 – 2.0+ GB RAM idle",
       aapanel: "400 MB – 800 MB RAM",
-      coolify: "500 MB – 1.0 GB RAM",
+      coolify: "500 MB – 1.0 GB+ RAM",
     },
     {
       feature: "Security Architecture",
@@ -24,78 +24,85 @@ export function Comparison() {
       coolify: "Container PaaS (root docker.sock)",
     },
     {
-      feature: "Websites & PHP Engine",
-      clouddeck: "Nginx + Multi PHP-FPM (8.1–8.4) Sockets",
-      cpanel: "Apache / LiteSpeed (heavy)",
+      feature: "Multi-Server Fleet Management",
+      clouddeck: "Native Fleet Clusters & Node Health Checks",
+      cpanel: "WHM multi-server (requires paid licenses)",
+      aapanel: "None (single server only)",
+      coolify: "Remote servers via SSH",
+    },
+    {
+      feature: "1-Click App Store & Stacks",
+      clouddeck: "Docker Compose (Ghost, Plausible, n8n, MinIO)",
+      cpanel: "Softaculous / cPAddons (PHP scripts only)",
+      aapanel: "Limited app store plugins",
+      coolify: "300+ 1-click community templates",
+    },
+    {
+      feature: "Git CI/CD & Atomic Rollbacks",
+      clouddeck: "Native Git Releases & 1-Click Rollback",
+      cpanel: "Basic Git Version Control (no rollback)",
+      aapanel: "Manual git clone webhook",
+      coolify: "Automated git push deployments",
+    },
+    {
+      feature: "Websites & Bare-Metal LEMP",
+      clouddeck: "Native Nginx + Coexisting PHP-FPM (8.1–8.4)",
+      cpanel: "Apache / LiteSpeed (heavy overhead)",
       aapanel: "Nginx / Apache / OpenLiteSpeed",
       coolify: "Docker containerized PHP only",
     },
     {
-      feature: "Developer AI Agents",
-      clouddeck: "Claude, Codex, Ollama, Hermes terminal orchestration",
-      cpanel: "None",
-      aapanel: "None",
-      coolify: "None",
-    },
-    {
-      feature: "Site Diagnostics & Repair",
-      clouddeck: "Automated 0-100 Health Score & 1-Click Fix",
-      cpanel: "None (manual log inspection)",
-      aapanel: "None",
-      coolify: "None",
-    },
-    {
-      feature: "Credential Protection",
-      clouddeck: "Encrypted 0600 Vault + Terminal Injection",
-      cpanel: "None",
-      aapanel: "None",
-      coolify: "Manual environment variables",
-    },
-    {
-      feature: "Scheduled Tasks / Cron",
-      clouddeck: "Visual Crontab Manager + Run-Now Test",
-      cpanel: "Basic Cron tab",
-      aapanel: "Shell crontab",
-      coolify: "Docker cron",
-    },
-    {
-      feature: "PHP Extensions & Tuning",
-      clouddeck: "1-Click Toggles + Visual php.ini Editor",
-      cpanel: "EasyApache (rebuild required)",
-      aapanel: "Extension list",
-      coolify: "Dockerfile rebuild required",
-    },
-    {
-      feature: "Polyglot App Supervision",
-      clouddeck: "Node.js, Python, Go, Ruby (systemd)",
-      cpanel: "Passenger / extra licensing",
-      aapanel: "Limited Python/Node plugins",
-      coolify: "First-class Docker PaaS",
-    },
-    {
-      feature: "1-Click Panel SSL",
-      clouddeck: "Self-Signed (IP SANs) or Let's Encrypt",
-      cpanel: "AutoSSL (domain only, no IP SANs)",
-      aapanel: "Self-signed or Let's Encrypt",
-      coolify: "Traefik / Let's Encrypt (domains only)",
-    },
-    {
-      feature: "Built-in Production Mail",
-      clouddeck: "Postfix + Dovecot + RSA DKIM + SPF",
+      feature: "Built-in Production Email",
+      clouddeck: "Postfix + Dovecot + RSA-2048 DKIM + SPF",
       cpanel: "Exim + Dovecot + cPanel Mail",
       aapanel: "Paid mail plugin or CyberPanel mail",
       coolify: "None (requires 3rd-party SMTP)",
     },
     {
       feature: "Authoritative DNS Server",
-      clouddeck: "PowerDNS (SQLite backend)",
+      clouddeck: "PowerDNS (SQLite / MySQL backend)",
       cpanel: "BIND (named) complex zones",
       aapanel: "PowerDNS / BIND plugins",
       coolify: "None (requires external DNS)",
     },
     {
+      feature: "Wildcard SSL & Panel SSL",
+      clouddeck: "IP SANs + Let's Encrypt + Wildcard DNS-01",
+      cpanel: "AutoSSL (domain only, no IP SANs)",
+      aapanel: "Self-signed or Let's Encrypt",
+      coolify: "Traefik Let's Encrypt (domains only)",
+    },
+    {
+      feature: "Developer AI Agent Launcher",
+      clouddeck: "Claude, Codex, Antigravity, Ollama, Hermes",
+      cpanel: "None",
+      aapanel: "None",
+      coolify: "None",
+    },
+    {
+      feature: "Site Diagnostics & Auto-Fix",
+      clouddeck: "0-100 Site Doctor Score + 1-Click Repair",
+      cpanel: "None (manual log inspection)",
+      aapanel: "None",
+      coolify: "Basic container healthchecks",
+    },
+    {
+      feature: "WordPress Staging & Production Sync",
+      clouddeck: "1-Click Push/Pull Staging with DB Rewrite",
+      cpanel: "cPanel WP Toolkit Staging (clunky)",
+      aapanel: "Manual export and import",
+      coolify: "Manual Docker container duplication",
+    },
+    {
+      feature: "Scheduled Tasks / Cron",
+      clouddeck: "Visual Crontab Manager + 1-Click Run-Now",
+      cpanel: "Basic Cron tab",
+      aapanel: "Shell crontab",
+      coolify: "Docker container cron",
+    },
+    {
       feature: "Dual-Mode .zip Backups",
-      clouddeck: "PC download & in-place restore",
+      clouddeck: "PC download & in-place restore + Telegram sync",
       cpanel: "cPanel tar backup wizard",
       aapanel: "Manual backup script",
       coolify: "Volume snapshot & S3 export",
@@ -111,10 +118,10 @@ export function Comparison() {
             <span>Platform Comparison</span>
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[#F4F8FA] sm:text-4xl">
-            How CloudDeck compares to traditional panels
+            CloudDeck vs. cPanel, aaPanel &amp; Coolify
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[#8FA6B5]">
-            Comparison across resource consumption, security models, and developer tooling.
+            See how CloudDeck combines traditional hosting power (bare-metal LEMP, multi-PHP, mail, DNS) with modern PaaS workflows (App Store, Git rollbacks, fleet management) in under 50MB of RAM.
           </p>
 
           <div className="mt-3 inline-block sm:hidden text-[11px] font-mono text-[#546C7B]">
@@ -125,7 +132,7 @@ export function Comparison() {
         {/* Responsive Table Container */}
         <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-[#101720] shadow-subtle">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-xs sm:text-sm">
+            <table className="w-full min-w-[720px] text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-[#0E151E] text-xs font-mono">
                   <th className="py-3.5 px-4 sm:px-5 font-medium text-[#8FA6B5]">Feature</th>

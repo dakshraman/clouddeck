@@ -13,6 +13,8 @@ import {
   Clock,
   ArrowRight,
   Check,
+  LayoutGrid,
+  Server,
 } from "lucide-react";
 
 export function TourGallery() {
@@ -33,7 +35,23 @@ export function TourGallery() {
       icon: Globe,
       title: "Nginx Vhosts, Multi-PHP & Extensions",
       desc: "Deploy websites in seconds with isolated PHP-FPM sockets (8.1, 8.2, 8.3, 8.4). 1-click toggle PHP extensions (redis, imagick, opcache) and visually edit php.ini memory limits.",
-      highlights: ["Zero Docker overhead", "1-Click Let's Encrypt & Panel SSL", "Visual php.ini & extension manager"],
+      highlights: ["Zero Docker overhead", "1-Click Let's Encrypt & Wildcard SSL", "Visual php.ini & extension manager"],
+    },
+    {
+      id: "appstore",
+      label: "App Store",
+      icon: LayoutGrid,
+      title: "1-Click Docker Compose Stacks",
+      desc: "Deploy curated production applications with isolated Docker Compose stacks: Ghost, Plausible Analytics, Umami, n8n automation, MinIO S3 object storage, and Vaultwarden with automatic Nginx reverse proxying.",
+      highlights: ["Pre-configured Compose stacks", "Automated reverse proxy & SSL", "Real-time container log streaming"],
+    },
+    {
+      id: "fleet",
+      label: "Fleet Clusters",
+      icon: Server,
+      title: "Multi-Server Management & Clusters",
+      desc: "Manage multiple Linux servers from one unified deck. Register remote agent nodes with token authentication, monitor cluster health, and seamlessly switch contexts across servers.",
+      highlights: ["Unified multi-node dashboard", "Live node latency & ping checks", "Centralized cluster oversight"],
     },
     {
       id: "ai",
@@ -100,7 +118,7 @@ export function TourGallery() {
             Everything your server needs, under one deck
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[#8FA6B5]">
-            From coexisting PHP sockets and production email to automated backups and terminal access.
+            From coexisting PHP sockets and production email to 1-click Docker Compose apps, multi-server fleet management, and automated backups.
           </p>
         </div>
 
@@ -114,7 +132,7 @@ export function TourGallery() {
                 key={tour.id}
                 type="button"
                 onClick={() => setActiveTour(idx)}
-                className={`flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-medium transition ${
+                className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   isActive
                     ? "bg-[#18232F] text-[#F4F8FA] border border-white/10 shadow-sm"
                     : "border border-transparent text-[#8FA6B5] hover:text-[#F4F8FA] hover:bg-white/5"
