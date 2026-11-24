@@ -93,6 +93,18 @@ export function MonitoringClient() {
     if (servicesResult.status === "fulfilled") {
       setServices(servicesResult.value.services);
       setServicesError(null);
+      // Automatically clear error banner if the service is running
+      setActionErrors((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const svc of servicesResult.value.services) {
+          if (svc.state === "running" && next[svc.name]) {
+            delete next[svc.name];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
     } else {
       setServicesError(
         servicesResult.reason instanceof Error
@@ -500,6 +512,13 @@ export function MonitoringClient() {
               onStop={() => void onStop(service)}
               onStart={() => void onStart(service)}
               onRepair={() => void onRepair(service)}
+              onDismissError={() => {
+                setActionErrors((prev) => {
+                  const next = { ...prev };
+                  delete next[service.name];
+                  return next;
+                });
+              }}
             />
           ))}
         </div>

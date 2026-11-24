@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AgentService, ServiceState } from "@/lib/types";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { titleCase } from "@/components/format";
-import { Play, RotateCw, Square, Wrench } from "lucide-react";
+import { Play, RotateCw, Square, Wrench, X, Copy, Check } from "lucide-react";
 
 const stateVariant: Record<ServiceState, BadgeVariant> = {
   running: "green",
@@ -22,6 +23,7 @@ interface ServiceCardProps {
   onStop: () => void;
   onStart: () => void;
   onRepair?: () => void;
+  onDismissError?: () => void;
 }
 
 export function ServiceCard({
@@ -33,12 +35,28 @@ export function ServiceCard({
   onStop,
   onStart,
   onRepair,
+  onDismissError,
 }: ServiceCardProps) {
+  const [copied, setCopied] = useState(false);
   const isMasked = error?.toLowerCase().includes("masked");
   const isUnitConflict =
     error?.toLowerCase().includes("failed to load") ||
     error?.toLowerCase().includes("file exists") ||
     error?.toLowerCase().includes("reload service manager");
+
+  const recoveryCmd = isMasked
+    ? `sudo systemctl unmask ${service.name} && sudo systemctl daemon-reload && sudo systemctl start ${service.name}`
+    : isUnitConflict
+      ? `sudo systemctl daemon-reload && sudo systemctl reset-failed mysql mariadb && sudo systemctl start mariadb || sudo systemctl start mysql`
+      : null;
+
+  function copyCmd() {
+    if (!recoveryCmd) return;
+    void navigator.clipboard.writeText(recoveryCmd).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
     <Card className="flex flex-col">
@@ -70,18 +88,43 @@ export function ServiceCard({
 
         {error ? (
           <div className="space-y-1.5">
-            <Alert variant="error">
-              <div className="space-y-1">
+            <Alert variant="error" className="relative pr-8">
+              {onDismissError ? (
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                  aria-label="Dismiss error"
+                  title="Dismiss error"
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+              <div className="space-y-1.5">
                 <p className="break-words font-medium">{error}</p>
                 {isMasked ? (
                   <p className="text-xs opacity-90">
-                    Unit is masked by systemd (/dev/null symlink). Click <strong>Auto-Fix &amp; Start</strong> to automatically remove the mask, reload systemd, and bring up the service.
+                    Unit is masked by systemd. Click <strong>Auto-Fix &amp; Unmask</strong> below or run the command on the host.
                   </p>
                 ) : null}
                 {isUnitConflict ? (
                   <p className="text-xs opacity-90">
-                    Systemd unit alias collision detected. Click <strong>Auto-Fix &amp; Start</strong> to clean stale unit links, reload the service manager, and start the active database engine.
+                    Systemd unit collision or reload required. Click <strong>Auto-Fix &amp; Reload</strong> below or run the command on the host.
                   </p>
+                ) : null}
+                {recoveryCmd ? (
+                  <div className="mt-2 flex items-center gap-2 rounded bg-black/40 px-2 py-1 font-mono text-xs text-foreground/90">
+                    <span className="flex-1 truncate">{recoveryCmd}</span>
+                    <button
+                      type="button"
+                      onClick={copyCmd}
+                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      title="Copy command"
+                    >
+                      {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </Alert>
@@ -105,14 +148,14 @@ export function ServiceCard({
               {error && onRepair ? (
                 <Button variant="primary" size="sm" disabled={disabled} onClick={onRepair}>
                   <Wrench size={14} aria-hidden="true" />
-                  Auto-Fix &amp; Start
+                  {isMasked ? "Auto-Fix & Unmask" : isUnitConflict ? "Auto-Fix & Reload" : "Auto-Fix & Start"}
                 </Button>
               ) : null}
 
-              {service.state === "stopped" && !error ? (
-                <Button variant="primary" size="sm" disabled={disabled} onClick={onStart}>
+              {service.state === "stopped" ? (
+                <Button variant={error ? "secondary" : "primary"} size="sm" disabled={disabled} onClick={onStart}>
                   <Play size={14} aria-hidden="true" />
-                  Start
+                  {error ? "Retry Start" : "Start"}
                 </Button>
               ) : null}
 

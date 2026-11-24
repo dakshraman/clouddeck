@@ -277,6 +277,16 @@ func (m *Manager) executeOp(
 		}
 	}
 
+	// If unmasking was needed and all retries failed, return an actionable diagnosis
+	if needsUnmask {
+		if name == NameNginx {
+			return Status{}, serviceOpFailed(op, fmt.Sprintf("%s of nginx failed: Unit nginx.service is masked or failed to load. Auto-unmask was attempted. Run 'sudo systemctl unmask nginx && sudo systemctl daemon-reload && sudo systemctl start nginx' on the host to recover.", op))
+		}
+		if name == NameMySQL {
+			return Status{}, serviceOpFailed(op, fmt.Sprintf("%s of mysql failed: Unit failed to load properly. Auto-fix was attempted. Run 'sudo systemctl daemon-reload && sudo systemctl reset-failed mysql mariadb && sudo systemctl start mariadb || sudo systemctl start mysql' on the host to recover.", op))
+		}
+	}
+
 	// If Nginx failed, append nginx -t diagnostic hints if syntax error is detected
 	if name == NameNginx && runtime.GOOS != "windows" {
 		if syntaxErr := checkNginxConfigSyntax(ctx); syntaxErr != "" {
@@ -304,20 +314,29 @@ func unmaskAndReload(ctx context.Context, unitNames ...string) {
 		}
 		baseUnit := strings.TrimSuffix(unit, ".service")
 
-		// Run systemctl unmask
+		// Run systemctl reset-failed and unmask
+		_ = exec.CommandContext(ctx, systemctl, "reset-failed", baseUnit).Run()
+		_ = exec.CommandContext(ctx, systemctl, "reset-failed", baseUnit+".service").Run()
 		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit).Run()
 		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit+".service").Run()
 
-		// Remove /etc/systemd/system/<unit>.service if it's a mask symlink to /dev/null
-		for _, p := range []string{
-			filepath.Join("/etc/systemd/system", baseUnit+".service"),
-			filepath.Join("/etc/systemd/system", baseUnit),
+		// Remove mask symlinks to /dev/null or broken dangling symlinks across systemd dirs
+		for _, dir := range []string{
+			"/etc/systemd/system",
+			"/etc/systemd/system/multi-user.target.wants",
+			"/run/systemd/system",
 		} {
-			if fi, err := os.Lstat(p); err == nil {
-				if fi.Mode()&os.ModeSymlink != 0 {
-					target, err := os.Readlink(p)
-					if err == nil && (target == "/dev/null" || strings.Contains(target, "null")) {
-						_ = os.Remove(p)
+			for _, filename := range []string{baseUnit + ".service", baseUnit} {
+				p := filepath.Join(dir, filename)
+				if fi, lstatErr := os.Lstat(p); lstatErr == nil {
+					if fi.Mode()&os.ModeSymlink != 0 {
+						target, rErr := os.Readlink(p)
+						if rErr == nil && (target == "/dev/null" || strings.Contains(target, "null")) {
+							_ = os.Remove(p)
+						} else if _, statErr := os.Stat(p); os.IsNotExist(statErr) {
+							// Dangling or broken symlink
+							_ = os.Remove(p)
+						}
 					}
 				}
 			}
