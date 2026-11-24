@@ -68,4 +68,3 @@ func (s *Server) handleRepairService(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, status)
 }
-
