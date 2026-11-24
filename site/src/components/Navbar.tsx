@@ -14,17 +14,14 @@ export function Navbar() {
       >
         {/* Brand Logo */}
         <a href="#top" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#74B8CC] text-[#0A0E13] font-mono font-bold text-sm">
-            CD
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tracking-tight text-[#F4F8FA]">
-              CloudDeck
-            </span>
-            <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono font-normal text-[#8FA6B5]">
-              v0.6.55
-            </span>
-          </div>
+          <img
+            src="/assets/favicon.svg"
+            alt="CloudDeck"
+            className="h-8 w-8 rounded-lg shadow-sm"
+          />
+          <span className="text-sm font-semibold tracking-tight text-[#F4F8FA]">
+            CloudDeck
+          </span>
         </a>
 
         {/* Desktop Navigation Links */}

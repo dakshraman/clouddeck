@@ -137,7 +137,10 @@ export function Comparison() {
                 <tr className="border-b border-white/10 bg-[#0E151E] text-xs font-mono">
                   <th className="py-3.5 px-4 sm:px-5 font-medium text-[#8FA6B5]">Feature</th>
                   <th className="py-3.5 px-4 sm:px-5 font-semibold text-[#74B8CC] bg-white/[0.03]">
-                    CloudDeck (v0.6.55)
+                    <div className="flex items-center gap-2">
+                      <img src="/assets/favicon.svg" alt="CloudDeck" className="h-4 w-4 rounded shrink-0" />
+                      <span>CloudDeck</span>
+                    </div>
                   </th>
                   <th className="py-3.5 px-4 sm:px-5 font-normal text-[#8FA6B5]">cPanel / WHM</th>
                   <th className="py-3.5 px-4 sm:px-5 font-normal text-[#8FA6B5]">aaPanel</th>

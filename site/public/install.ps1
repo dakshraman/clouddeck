@@ -1,4 +1,4 @@
-# CloudDeck Windows Local Development Suite Installer
+﻿# CloudDeck Windows Local Development Suite Installer
 # One-line install command:
 #   irm https://clouddeck.dakshraman.in/install.ps1 | iex
 #
@@ -382,7 +382,7 @@ function Get-ExistingCloudDeckInstall([string]$DistroName) {
     if (-not $DistroName) { return @{ IsInstalled = $false } }
     try {
         $checkCmd = 'if [ -d /opt/clouddeck ] || [ -f /etc/clouddeck/panel.env ] || [ -f /opt/clouddeck/bin/clouddeck ] || [ -f /opt/clouddeck/.clouddeck-version ] || [ -f /opt/clouddeck/.clouddeck-install ]; then ' +
-                    '_v=$(cat /opt/clouddeck/.clouddeck-version 2>/dev/null || echo "0.6.55"); ' +
+                    '_v=$(cat /opt/clouddeck/.clouddeck-version 2>/dev/null || echo "0.6.56"); ' +
                     '_p=$(grep -E "^PORT=" /etc/clouddeck/panel.env 2>/dev/null | cut -d= -f2 || echo "2083"); ' +
                     '_prof=$(grep -E "^PROFILE=" /opt/clouddeck/.clouddeck-install 2>/dev/null | cut -d= -f2 || echo "recommended"); ' +
                     'echo "$_v|$_p|$_prof"; ' +
@@ -953,7 +953,7 @@ switch ($cmd) {
     Write-OpenLine "    clouddeck wsl        Interactive terminal inside WSL" -Color Gray
     Write-OpenLine "  ================================================================" -Color DarkCyan
     Write-OpenLine ""
-    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.55" }
+    $cleanVersion = if ($Version) { $Version.TrimStart('v') } else { "0.6.56" }
     Write-Success "CloudDeck v$cleanVersion is ready! You can now run 'clouddeck status' or 'clouddeck open'."
 }
 

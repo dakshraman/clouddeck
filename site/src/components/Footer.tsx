@@ -6,13 +6,12 @@ export function Footer() {
           {/* Brand Column */}
           <div className="space-y-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#74B8CC] text-[#0A0E13] font-mono font-bold text-xs">
-                CD
-              </div>
+              <img
+                src="/assets/favicon.svg"
+                alt="CloudDeck"
+                className="h-7 w-7 rounded-lg"
+              />
               <span className="text-base font-semibold text-[#F4F8FA]">CloudDeck</span>
-              <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5]">
-                v0.6.55
-              </span>
             </div>
             <p className="text-xs text-[#8FA6B5] leading-relaxed">
               Lightweight, open-source Linux hosting control panel and local development suite.
@@ -147,7 +146,7 @@ export function Footer() {
         {/* Bottom Strip */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center text-xs text-[#546C7B] sm:flex-row sm:text-left">
           <p>© 2026 Daksh Raman. Released under the open-source MIT License.</p>
-          <p className="font-mono text-[11px]">Next.js 16, React 19, Tailwind CSS &amp; Go stdlib • v0.6.55</p>
+          <p className="font-mono text-[11px]">Next.js 16, React 19, Tailwind CSS &amp; Go stdlib</p>
         </div>
       </div>
     </footer>

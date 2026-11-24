@@ -43,7 +43,7 @@ export function Hero() {
             className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#8FA6B5] hover:border-[#74B8CC]/40 hover:text-[#F4F8FA] transition"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-            <span className="font-semibold text-[#F4F8FA]">CloudDeck v0.6.55</span>
+            <span className="font-semibold text-[#F4F8FA]">CloudDeck</span>
             <span className="text-white/20">•</span>
             <span>Zero-Root Linux Control Panel &amp; Local Dev Suite</span>
             <ArrowRight className="h-3 w-3 text-[#74B8CC]" />
@@ -381,7 +381,7 @@ export function Hero() {
                   <span className="text-[#74B8CC]">clouddeck@srv-prod-01</span>:<span className="text-[#8FA6B5]">~</span>$ clouddeck status
                 </div>
                 <div className="text-[#8FA6B5] whitespace-pre-wrap leading-relaxed">
-{`CloudDeck v0.6.55 (Go stdlib runtime)
+{`CloudDeck (Go stdlib runtime)
   Daemon:     active (PID 842, 127.0.0.1:9090)
   Web Panel:  active (PID 910, :2083, user: clouddeck)
   RAM usage:  48.2 MB / 1.0 GB (idle target < 50MB: PASSED)
