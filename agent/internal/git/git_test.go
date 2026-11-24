@@ -223,3 +223,61 @@ func TestLocalGitCloneAndDeploy(t *testing.T) {
 		t.Errorf("build.txt missing or wrong content: %v", err)
 	}
 }
+
+func TestDeployWebhookToken(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	// 1. GetWebhookInfo returns a 32-char hex token
+	token, webhookURL, err := svc.GetWebhookInfo("testsite.com")
+	if err != nil {
+		t.Fatalf("GetWebhookInfo failed: %v", err)
+	}
+	if len(token) != 32 {
+		t.Errorf("expected 32-char hex token, got %q (len %d)", token, len(token))
+	}
+	expectedURL := "/v1/sites/testsite.com/git/webhook?token=" + token
+	if webhookURL != expectedURL {
+		t.Errorf("webhookURL = %q, want %q", webhookURL, expectedURL)
+	}
+
+	// 2. Configure git repository
+	saved, err := svc.Save("testsite.com", SaveInput{
+		RepoURL:    "https://github.com/example/repo.git",
+		Branch:     "main",
+		AutoDeploy: false, // Auto-deploy is false, but deploy token should still work!
+	})
+	if err != nil {
+		t.Fatalf("svc.Save failed: %v", err)
+	}
+	if saved.DeployToken == "" {
+		t.Errorf("saved.DeployToken should not be empty")
+	}
+
+	// 3. Trigger webhook via X-Deploy-Token header
+	headers := http.Header{}
+	headers.Set("X-Deploy-Token", saved.DeployToken)
+	res, err := svc.HandleWebhook("testsite.com", headers, "", nil)
+	if err != nil {
+		t.Fatalf("HandleWebhook with X-Deploy-Token failed: %v", err)
+	}
+	if res.Status != "deploying" {
+		t.Errorf("expected status 'deploying', got %s", res.Status)
+	}
+
+	// 4. Trigger webhook via query param token
+	res2, err := svc.HandleWebhook("testsite.com", http.Header{}, saved.DeployToken, nil)
+	if err != nil {
+		t.Fatalf("HandleWebhook with query param token failed: %v", err)
+	}
+	if res2.Status != "deploying" {
+		t.Errorf("expected status 'deploying', got %s", res2.Status)
+	}
+
+	// 5. Unauthorized token fails
+	_, err = svc.HandleWebhook("testsite.com", http.Header{}, "wrongtoken1234567890123456789012", nil)
+	if err == nil {
+		t.Errorf("expected unauthorized error with wrong token")
+	}
+
+	svc.Wait()
+}

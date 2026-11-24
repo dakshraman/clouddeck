@@ -3,6 +3,10 @@ package sites
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"text/template"
 
 	"clouddeck/agent/internal/safeexec"
@@ -108,4 +112,49 @@ func (s *Service) proxyTargets(site string) (ProxyTargets, int) {
 		targets.Apps = append(targets.Apps, appProxy{Name: app.Name, Port: app.Port})
 	}
 	return targets, 0
+}
+
+// ConfigureProxy ensures a site exists and applies an nginx reverse proxy to the given upstream port.
+func (s *Service) ConfigureProxy(ctx context.Context, domain string, port int) error {
+	cleanDomain, err := ValidateDomain(domain)
+	if err != nil {
+		return err
+	}
+	site, ok := s.st.GetSite(cleanDomain)
+	if !ok {
+		now := store.Now()
+		site = store.Site{
+			Domain:     cleanDomain,
+			Root:       s.rootFor(cleanDomain),
+			PHPVersion: "none",
+			SSL:        store.SSL{Enabled: false},
+			Status:     store.SiteActive,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}
+		if err := s.st.CreateSite(site); err != nil && !errors.Is(err, store.ErrExists) {
+			return err
+		}
+	}
+	confPath := s.confPath(site.Domain)
+	if s.cfg.DryRun {
+		_ = os.MkdirAll(filepath.Dir(confPath), 0o755)
+	} else {
+		_ = os.MkdirAll(s.cfg.LogDir, 0o755)
+	}
+	engine := ""
+	if site.WAFEnabled {
+		engine = detectWAFEngine(s.cfg)
+	}
+	conf := renderNginxConfigWithApps(site, s.cfg.LogDir, "", engine, s.cfg.ModsecConf, ProxyTargets{}, port)
+	if err := os.WriteFile(confPath, []byte(conf), 0o644); err != nil {
+		return fmt.Errorf("write nginx config %s: %w", confPath, err)
+	}
+	if !s.cfg.DryRun {
+		if err := safeexec.Run(ctx, s.cfg.DryRun, func(string, string) {}, "nginx", "-t"); err != nil {
+			return fmt.Errorf("nginx -t: %w", err)
+		}
+		_ = s.reload(ctx, func(string, string) {})
+	}
+	return nil
 }

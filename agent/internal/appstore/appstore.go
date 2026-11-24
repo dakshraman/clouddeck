@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +54,14 @@ type InstallAppInput struct {
 	Domain     string            `json:"domain"`
 	Port       int               `json:"port,omitempty"`
 	EnvVars    map[string]string `json:"envVars,omitempty"`
+}
+
+// InstallCustomAppInput specifies creation parameters for a custom Docker Compose application.
+type InstallCustomAppInput struct {
+	Name        string            `json:"name"`
+	Domain      string            `json:"domain"`
+	ComposeYAML string            `json:"composeYaml"`
+	EnvVars     map[string]string `json:"envVars,omitempty"`
 }
 
 // AppActionResult reports the status of an app container action.
@@ -265,6 +275,72 @@ services:
 `,
 		},
 		{
+			ID:          "redis",
+			Name:        "Redis In-Memory Database",
+			Category:    "Database",
+			Description: "High-performance in-memory key-value data structure store, cache, and message broker.",
+			Icon:        "database",
+			DefaultPort: 6379,
+			EnvVars: map[string]string{
+				"REDIS_PASSWORD": "redisPassword123!",
+			},
+			ComposeYAML: `version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --requirepass {{.Env_REDIS_PASSWORD}}
+    ports:
+      - "{{.Port}}:6379"
+    volumes:
+      - ./data:/data
+`,
+		},
+		{
+			ID:          "mongodb",
+			Name:        "MongoDB Community Server",
+			Category:    "Database",
+			Description: "Leading document-oriented NoSQL database designed for modern applications.",
+			Icon:        "database",
+			DefaultPort: 27017,
+			EnvVars: map[string]string{
+				"MONGO_INITDB_ROOT_USERNAME": "admin",
+				"MONGO_INITDB_ROOT_PASSWORD": "mongoSecurePassword123",
+			},
+			ComposeYAML: `version: '3.8'
+services:
+  mongodb:
+    image: mongo:7.0
+    restart: always
+    ports:
+      - "{{.Port}}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: {{.Env_MONGO_INITDB_ROOT_USERNAME}}
+      MONGO_INITDB_ROOT_PASSWORD: {{.Env_MONGO_INITDB_ROOT_PASSWORD}}
+    volumes:
+      - ./data:/data/db
+`,
+		},
+		{
+			ID:          "pocketbase",
+			Name:        "PocketBase Backend",
+			Category:    "Backend",
+			Description: "Open-source backend in 1 file with embedded SQLite database, auth, and realtime API.",
+			Icon:        "server",
+			DefaultPort: 8090,
+			EnvVars:     map[string]string{},
+			ComposeYAML: `version: '3.8'
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    restart: always
+    ports:
+      - "{{.Port}}:8090"
+    volumes:
+      - ./pb_data:/pb/pb_data
+`,
+		},
+		{
 			ID:          "meilisearch",
 			Name:        "Meilisearch",
 			Category:    "Search",
@@ -418,6 +494,11 @@ func (s *Service) Install(ctx context.Context, in InstallAppInput) (InstalledApp
 		}
 	}
 
+	// Configure reverse proxy via siteSvc if domain is provided
+	if s.sites != nil && domain != "" && port > 0 {
+		_ = s.sites.ConfigureProxy(ctx, domain, port)
+	}
+
 	now := time.Now().UTC()
 	app := InstalledApp{
 		ID:          appID,
@@ -441,6 +522,153 @@ func (s *Service) Install(ctx context.Context, in InstallAppInput) (InstalledApp
 		_ = s.audit.Append(audit.Record{
 			Action: "appstore.install",
 			Params: map[string]any{"id": appID, "template": tmpl.ID, "domain": domain, "port": port},
+			Result: audit.ResultAccepted,
+		})
+	}
+
+	return app, nil
+}
+
+// validateComposeYAML verifies that the YAML content is non-empty, contains a services block,
+// and does not use illegal tab indentations.
+func validateComposeYAML(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return apierr.BadRequest("missing_compose_yaml", "compose YAML content is required")
+	}
+
+	lines := strings.Split(trimmed, "\n")
+	hasServices := false
+
+	for idx, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "\t") {
+			return apierr.BadRequest("invalid_compose_yaml", fmt.Sprintf("line %d: YAML forbids tab indentation, use spaces", idx+1))
+		}
+
+		if strings.HasPrefix(trimmedLine, "services:") || trimmedLine == "services:" {
+			hasServices = true
+		}
+	}
+
+	if !hasServices {
+		return apierr.BadRequest("invalid_compose_yaml", "compose YAML must define a 'services:' section")
+	}
+
+	return nil
+}
+
+var portPattern = regexp.MustCompile(`(?m)^\s*-\s*["']?(?:[0-9.]+:)?(\d+):\d+["']?`)
+
+func extractPortFromCompose(yamlContent string) int {
+	matches := portPattern.FindStringSubmatch(yamlContent)
+	if len(matches) > 1 {
+		if p, err := strconv.Atoi(matches[1]); err == nil && p > 0 {
+			return p
+		}
+	}
+	inlinePattern := regexp.MustCompile(`["']?(?:[0-9.]+:)?(\d+):\d+["']?`)
+	matches = inlinePattern.FindStringSubmatch(yamlContent)
+	if len(matches) > 1 {
+		if p, err := strconv.Atoi(matches[1]); err == nil && p > 0 {
+			return p
+		}
+	}
+	return 0
+}
+
+// InstallCustom deploys an arbitrary Docker Compose application stack.
+func (s *Service) InstallCustom(ctx context.Context, in InstallCustomAppInput) (InstalledApp, error) {
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		return InstalledApp{}, apierr.BadRequest("missing_name", "application name is required")
+	}
+	for _, r := range name {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return InstalledApp{}, apierr.BadRequest("invalid_name", "app name may only contain letters, numbers, hyphens, and underscores")
+		}
+	}
+
+	if err := validateComposeYAML(in.ComposeYAML); err != nil {
+		return InstalledApp{}, err
+	}
+
+	domain := strings.TrimSpace(in.Domain)
+
+	// App directory: prefer /www/apps/<name>, fallback to StateDir/apps/<name> if non-root or /www not writable
+	appDir := filepath.Join("/www/apps", name)
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		if s.cfg.StateDir != "" {
+			appDir = filepath.Join(s.cfg.StateDir, "apps", name)
+			if err2 := os.MkdirAll(appDir, 0o755); err2 != nil {
+				return InstalledApp{}, apierr.Internal("failed to create app directory: " + err.Error())
+			}
+		} else {
+			return InstalledApp{}, apierr.Internal("failed to create app directory: " + err.Error())
+		}
+	}
+
+	// Write docker-compose.yml
+	composePath := filepath.Join(appDir, "docker-compose.yml")
+	if err := os.WriteFile(composePath, []byte(in.ComposeYAML), 0o644); err != nil {
+		return InstalledApp{}, apierr.Internal("failed to write docker-compose.yml: " + err.Error())
+	}
+
+	// Write .env
+	var envLines []string
+	envLines = append(envLines, fmt.Sprintf("APP_NAME=%s", name))
+	if domain != "" {
+		envLines = append(envLines, fmt.Sprintf("APP_DOMAIN=%s", domain))
+	}
+	for k, v := range in.EnvVars {
+		envLines = append(envLines, fmt.Sprintf("%s=%s", k, v))
+	}
+	_ = os.WriteFile(filepath.Join(appDir, ".env"), []byte(strings.Join(envLines, "\n")), 0o600)
+
+	// In non-dry-run mode, invoke docker compose up -d
+	if !s.cfg.DryRun {
+		cmd := exec.CommandContext(ctx, "docker", "compose", "-f", composePath, "up", "-d")
+		cmd.Dir = appDir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return InstalledApp{}, apierr.Internal(fmt.Sprintf("docker compose up failed: %v: %s", err, string(out)))
+		}
+	}
+
+	port := extractPortFromCompose(in.ComposeYAML)
+
+	// Configure reverse proxy via siteSvc if domain is provided
+	if s.sites != nil && domain != "" && port > 0 {
+		_ = s.sites.ConfigureProxy(ctx, domain, port)
+	}
+
+	appID := fmt.Sprintf("custom_%s_%s", name, randomHex(4))
+	now := time.Now().UTC()
+	app := InstalledApp{
+		ID:          appID,
+		TemplateID:  "custom",
+		Name:        name,
+		Domain:      domain,
+		Port:        port,
+		Status:      "running",
+		EnvVars:     in.EnvVars,
+		AppDir:      appDir,
+		InstalledAt: now,
+		UpdatedAt:   now,
+	}
+
+	s.mu.Lock()
+	s.installed[appID] = app
+	_ = s.saveUnlocked()
+	s.mu.Unlock()
+
+	if s.audit != nil {
+		_ = s.audit.Append(audit.Record{
+			Action: "appstore.custom_install",
+			Params: map[string]any{"id": appID, "name": name, "domain": domain, "port": port},
 			Result: audit.ResultAccepted,
 		})
 	}

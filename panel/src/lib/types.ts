@@ -66,6 +66,7 @@ export interface GitConfig {
   buildCommand?: string;
   autoDeploy?: boolean;
   webhookSecret?: string;
+  deployToken?: string;
   deployKeyPublic?: string;
   deployKeyPrivate?: string;
   lastCommitHash?: string;
@@ -260,6 +261,7 @@ export interface MySQLStatus {
 
 export interface MySQLDatabase {
   name: string;
+  sizeBytes?: number;
 }
 
 export interface MySQLListDatabasesResponse {
@@ -861,6 +863,20 @@ export interface SiteTunnelInfo {
   status: string;
 }
 
+export interface GlobalTunnelStatus {
+  configured: boolean;
+  status: "running" | "stopped" | "not_configured" | "error" | string;
+  running: boolean;
+  token?: string;
+  startedAt?: string;
+  error?: string;
+}
+
+export interface GlobalTunnelConfig {
+  token: string;
+  autoStart?: boolean;
+}
+
 export interface SiteSyncResult {
   dnsZoneCreated: boolean;
   mailDomainCreated: boolean;
@@ -1185,6 +1201,48 @@ export interface BackupDestinationTestRequest {
 export interface BackupDestinationTestResponse {
   success: boolean;
   message: string;
+}
+
+// ---- Wave 2: Direct S3 Database Backup Schedules ----
+export interface S3DatabaseBackupConfig {
+  enabled: boolean;
+  provider: CloudStorageProvider | string;
+  endpoint?: string;
+  bucket: string;
+  accessKey?: string;
+  secretKey?: string;
+  access_key?: string;
+  secret_key?: string;
+  region?: string;
+  prefix?: string;
+  retentionDays?: number;
+  retention_days?: number;
+  frequency?: "daily" | "weekly";
+  time?: string;
+  database?: string;
+  lastRunAt?: string | null;
+  last_run_at?: string | null;
+  nextRunAt?: string | null;
+  next_run_at?: string | null;
+  lastError?: string;
+  last_error?: string;
+  updatedAt?: string;
+  updated_at?: string;
+}
+
+export interface S3DatabaseBackupArchive {
+  database: string;
+  key: string;
+  sizeBytes: number;
+  url?: string;
+}
+
+export interface S3DatabaseBackupResult {
+  success: boolean;
+  message: string;
+  archives?: S3DatabaseBackupArchive[];
+  pruned?: number;
+  timestamp?: string;
 }
 
 // ---- Wave 3: cPanel Parity & Migration ----
@@ -1564,7 +1622,7 @@ export interface AppStoreTemplate {
   name: string;
   tagline: string;
   description: string;
-  category: "CMS" | "Analytics" | "Automation" | "Storage" | "Security" | "Search" | "Productivity";
+  category: "CMS" | "Analytics" | "Automation" | "Storage" | "Security" | "Search" | "Productivity" | "Database" | "Backend";
   icon: string;
   defaultPort: number;
   websiteUrl?: string;
@@ -1601,6 +1659,13 @@ export interface InstallAppStoreRequest {
   domain?: string;
   port?: number;
   env?: Record<string, string>;
+}
+
+export interface InstallCustomAppStoreRequest {
+  name: string;
+  domain?: string;
+  composeYaml: string;
+  envVars?: Record<string, string>;
 }
 
 export interface AppStoreActionRequest {

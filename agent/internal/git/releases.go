@@ -25,11 +25,38 @@ type Release struct {
 }
 
 const releasesMetaFile = "releases.json"
+const deployTokenFile = "deploy_token"
 
 func (s *Service) releasesMetaPath(siteRoot string) string {
 	metaDir := filepath.Join(siteRoot, ".clouddeck")
 	_ = os.MkdirAll(metaDir, 0o755)
 	return filepath.Join(metaDir, releasesMetaFile)
+}
+
+func (s *Service) deployTokenPath(siteRoot string) string {
+	metaDir := filepath.Join(siteRoot, ".clouddeck")
+	_ = os.MkdirAll(metaDir, 0o755)
+	return filepath.Join(metaDir, deployTokenFile)
+}
+
+func (s *Service) readDeployToken(siteRoot string) string {
+	if siteRoot == "" {
+		return ""
+	}
+	path := s.deployTokenPath(siteRoot)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func (s *Service) writeDeployToken(siteRoot string, token string) error {
+	if siteRoot == "" || token == "" {
+		return nil
+	}
+	path := s.deployTokenPath(siteRoot)
+	return os.WriteFile(path, []byte(strings.TrimSpace(token)), 0o600)
 }
 
 func (s *Service) readReleases(siteRoot string) []Release {

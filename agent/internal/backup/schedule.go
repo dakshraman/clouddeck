@@ -153,6 +153,7 @@ func (s *Service) Start() {
 // tick that finds a run still going is skipped, and the next tick retries
 // because nextRunAt stays in the past.
 func (s *Service) tick(now time.Time) {
+	s.TickS3DatabaseBackup(now)
 	sc, err := s.GetSchedule()
 	if err != nil {
 		stdlog.Printf("backup: scheduled run: %v", err)

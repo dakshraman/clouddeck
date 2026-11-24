@@ -81,6 +81,8 @@ func newTestPhaseBServer(t *testing.T) (*Server, http.Handler, string) {
 	mux.HandleFunc("GET /api/appstore/installed", s.handleListInstalledApps)
 	mux.HandleFunc("POST /v1/appstore/install", s.handleInstallApp)
 	mux.HandleFunc("POST /api/appstore/install", s.handleInstallApp)
+	mux.HandleFunc("POST /v1/appstore/custom", s.handleInstallCustomApp)
+	mux.HandleFunc("POST /api/appstore/custom", s.handleInstallCustomApp)
 	mux.HandleFunc("POST /v1/appstore/{id}/action", s.handleAppAction)
 	mux.HandleFunc("POST /api/appstore/{id}/action", s.handleAppAction)
 	mux.HandleFunc("DELETE /v1/appstore/{id}", s.handleUninstallApp)
@@ -251,5 +253,24 @@ func TestPhaseBAppStoreLifecycle(t *testing.T) {
 
 	if delRec.Code != http.StatusOK {
 		t.Fatalf("uninstall failed: %d: %s", delRec.Code, delRec.Body.String())
+	}
+
+	// 7. Install Custom App: POST /v1/appstore/custom
+	customBody := `{"name":"custom-app","domain":"custom.test","composeYaml":"version: '3.8'\nservices:\n  app:\n    image: redis:alpine\n    ports:\n      - \"6380:6379\""}`
+	customReq := httptest.NewRequest(http.MethodPost, "/v1/appstore/custom", bytes.NewBufferString(customBody))
+	customReq.Header.Set("X-CloudDeck-Agent-Token", "phase-b-token")
+	customReq.Header.Set("Content-Type", "application/json")
+	customRec := httptest.NewRecorder()
+	handler.ServeHTTP(customRec, customReq)
+
+	if customRec.Code != http.StatusOK {
+		t.Fatalf("install custom failed: %d: %s", customRec.Code, customRec.Body.String())
+	}
+	var customInstalled appstore.InstalledApp
+	if err := json.Unmarshal(customRec.Body.Bytes(), &customInstalled); err != nil {
+		t.Fatalf("unmarshal custom installed: %v", err)
+	}
+	if customInstalled.Name != "custom-app" || customInstalled.Port != 6380 {
+		t.Fatalf("unexpected custom installed app: %+v", customInstalled)
 	}
 }

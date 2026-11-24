@@ -130,3 +130,97 @@ exec sleep 30
 		t.Error("tunnel still found after StopTunnel")
 	}
 }
+
+func TestGlobalTunnelLifecycle(t *testing.T) {
+	tempDir := t.TempDir()
+	svc := New(config.Config{StateDir: tempDir, DryRun: true})
+	ctx := context.Background()
+
+	// Initial status should be not_configured
+	st := svc.GetGlobalStatus()
+	if st.Configured {
+		t.Errorf("expected configured=false, got true")
+	}
+	if st.Running {
+		t.Errorf("expected running=false, got true")
+	}
+	if st.Status != "not_configured" {
+		t.Errorf("expected status 'not_configured', got %q", st.Status)
+	}
+
+	// Starting without token should fail
+	_, err := svc.StartGlobalTunnel(ctx)
+	if err == nil {
+		t.Fatal("expected error starting tunnel without token")
+	}
+
+	// Saving empty token should fail
+	_, err = svc.SaveGlobalConfig(GlobalConfig{Token: ""})
+	if err == nil {
+		t.Fatal("expected error saving empty token")
+	}
+
+	// Save valid token
+	savedSt, err := svc.SaveGlobalConfig(GlobalConfig{
+		Token:     "eyJhIjoiZXhhbXBsZXRva2VuMTIzNCJ9",
+		AutoStart: true,
+	})
+	if err != nil {
+		t.Fatalf("SaveGlobalConfig error: %v", err)
+	}
+	if !savedSt.Configured {
+		t.Errorf("expected configured=true")
+	}
+	if savedSt.Status != "stopped" {
+		t.Errorf("expected status 'stopped', got %q", savedSt.Status)
+	}
+	if savedSt.Token != "eyJhIjoiZXhhbXBsZXRva2VuMTIzNCJ9" {
+		t.Errorf("unexpected token: %s", savedSt.Token)
+	}
+
+	// Start tunnel in dry run
+	startedSt, err := svc.StartGlobalTunnel(ctx)
+	if err != nil {
+		t.Fatalf("StartGlobalTunnel error: %v", err)
+	}
+	if !startedSt.Running {
+		t.Errorf("expected running=true")
+	}
+	if startedSt.Status != "running" {
+		t.Errorf("expected status 'running', got %q", startedSt.Status)
+	}
+	if startedSt.StartedAt == nil {
+		t.Errorf("expected startedAt to be set")
+	}
+
+	// Starting when already running is idempotent
+	sameSt, err := svc.StartGlobalTunnel(ctx)
+	if err != nil {
+		t.Fatalf("second StartGlobalTunnel error: %v", err)
+	}
+	if !sameSt.Running {
+		t.Errorf("expected running=true on second start")
+	}
+
+	// Stop tunnel
+	stoppedSt, err := svc.StopGlobalTunnel(ctx)
+	if err != nil {
+		t.Fatalf("StopGlobalTunnel error: %v", err)
+	}
+	if stoppedSt.Running {
+		t.Errorf("expected running=false after stop")
+	}
+	if stoppedSt.Status != "stopped" {
+		t.Errorf("expected status 'stopped', got %q", stoppedSt.Status)
+	}
+
+	// Persistence verification: create new service with same StateDir
+	svc2 := New(config.Config{StateDir: tempDir, DryRun: true})
+	st2 := svc2.GetGlobalStatus()
+	if !st2.Configured {
+		t.Errorf("expected svc2 configured=true from disk")
+	}
+	if st2.Token != "eyJhIjoiZXhhbXBsZXRva2VuMTIzNCJ9" {
+		t.Errorf("expected persisted token, got %q", st2.Token)
+	}
+}

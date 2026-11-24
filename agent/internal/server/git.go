@@ -126,6 +126,23 @@ func (s *Server) handleGetSiteGitHistory(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]any{"history": cfg.History})
 }
 
+func (s *Server) handleGetSiteGitWebhookInfo(w http.ResponseWriter, r *http.Request) {
+	if s.git == nil {
+		writeError(w, apierr.Internal("git service is not configured"))
+		return
+	}
+	domain := r.PathValue("domain")
+	token, webhookURL, err := s.git.GetWebhookInfo(domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"token":      token,
+		"webhookUrl": webhookURL,
+	})
+}
+
 func (s *Server) handleWebhookSiteGit(w http.ResponseWriter, r *http.Request) {
 	if s.git == nil {
 		writeError(w, apierr.Internal("git service is not configured"))

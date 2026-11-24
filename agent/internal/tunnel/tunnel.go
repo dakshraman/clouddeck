@@ -4,6 +4,7 @@ package tunnel
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +24,22 @@ import (
 
 var tryCloudflareRe = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
 
+// GlobalConfig represents the persistent Cloudflare Tunnel configuration.
+type GlobalConfig struct {
+	Token     string `json:"token"`
+	AutoStart bool   `json:"autoStart"`
+}
+
+// GlobalStatus represents the status of the global Cloudflare Tunnel daemon.
+type GlobalStatus struct {
+	Configured bool       `json:"configured"`
+	Status     string     `json:"status"` // "running", "stopped", "not_configured", "error"
+	Running    bool       `json:"running"`
+	Token      string     `json:"token,omitempty"`
+	StartedAt  *time.Time `json:"startedAt,omitempty"`
+	Error      string     `json:"error,omitempty"`
+}
+
 // Tunnel represents an active cloudflared tunnel.
 type Tunnel struct {
 	Domain    string    `json:"domain"`
@@ -39,14 +56,211 @@ type Service struct {
 	mu         sync.RWMutex
 	tunnels    map[string]*Tunnel
 	binaryPath string // optional override for testing
+
+	// Global tunnel daemon
+	globalCfg       GlobalConfig
+	globalCmd       *exec.Cmd
+	globalStartedAt *time.Time
+	globalStatus    string
+	globalErr       string
+	globalDone      chan struct{}
 }
 
 // New creates a new tunnel Service.
 func New(cfg config.Config) *Service {
-	return &Service{
-		cfg:     cfg,
-		tunnels: make(map[string]*Tunnel),
+	s := &Service{
+		cfg:          cfg,
+		tunnels:      make(map[string]*Tunnel),
+		globalStatus: "not_configured",
 	}
+	_ = s.loadGlobalConfig()
+	return s
+}
+
+func (s *Service) configPath() string {
+	if s.cfg.StateDir != "" {
+		_ = os.MkdirAll(s.cfg.StateDir, 0o755)
+		return filepath.Join(s.cfg.StateDir, "tunnel.json")
+	}
+	return "tunnel.json"
+}
+
+func (s *Service) loadGlobalConfig() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	p := s.configPath()
+	data, err := os.ReadFile(p)
+	if err != nil {
+		s.globalStatus = "not_configured"
+		return nil
+	}
+	var cfg GlobalConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		s.globalStatus = "not_configured"
+		return err
+	}
+	s.globalCfg = cfg
+	if strings.TrimSpace(cfg.Token) != "" {
+		s.globalStatus = "stopped"
+	} else {
+		s.globalStatus = "not_configured"
+	}
+	return nil
+}
+
+func (s *Service) saveGlobalConfigLocked(cfg GlobalConfig) error {
+	p := s.configPath()
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o600)
+}
+
+// GetGlobalStatus returns the status of the global Cloudflare Tunnel daemon.
+func (s *Service) GetGlobalStatus() GlobalStatus {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	configured := strings.TrimSpace(s.globalCfg.Token) != ""
+	running := s.globalStatus == "running" && (s.cfg.DryRun || (s.globalCmd != nil && s.globalCmd.Process != nil))
+
+	st := s.globalStatus
+	if !configured {
+		st = "not_configured"
+	} else if running {
+		st = "running"
+	} else if st == "running" && !running {
+		st = "stopped"
+	} else if st == "" {
+		st = "stopped"
+	}
+
+	return GlobalStatus{
+		Configured: configured,
+		Status:     st,
+		Running:    running,
+		Token:      s.globalCfg.Token,
+		StartedAt:  s.globalStartedAt,
+		Error:      s.globalErr,
+	}
+}
+
+// SaveGlobalConfig saves the Cloudflare Tunnel configuration.
+func (s *Service) SaveGlobalConfig(cfg GlobalConfig) (GlobalStatus, error) {
+	token := strings.TrimSpace(cfg.Token)
+	if token == "" {
+		return GlobalStatus{}, apierr.BadRequest("missing_token", "cloudflare tunnel token is required")
+	}
+
+	s.mu.Lock()
+	s.globalCfg.Token = token
+	s.globalCfg.AutoStart = cfg.AutoStart
+	if s.globalStatus == "not_configured" || s.globalStatus == "" {
+		s.globalStatus = "stopped"
+	}
+	err := s.saveGlobalConfigLocked(s.globalCfg)
+	s.mu.Unlock()
+
+	if err != nil {
+		return GlobalStatus{}, fmt.Errorf("save tunnel config: %w", err)
+	}
+
+	return s.GetGlobalStatus(), nil
+}
+
+// StartGlobalTunnel starts the global Cloudflare Tunnel daemon using the configured token.
+func (s *Service) StartGlobalTunnel(ctx context.Context) (GlobalStatus, error) {
+	s.mu.Lock()
+	token := strings.TrimSpace(s.globalCfg.Token)
+	if token == "" {
+		s.mu.Unlock()
+		return GlobalStatus{}, apierr.BadRequest("tunnel_not_configured", "tunnel token is not configured")
+	}
+
+	if s.globalStatus == "running" && (s.cfg.DryRun || (s.globalCmd != nil && s.globalCmd.Process != nil)) {
+		s.mu.Unlock()
+		return s.GetGlobalStatus(), nil
+	}
+
+	if s.cfg.DryRun {
+		now := time.Now().UTC()
+		s.globalStartedAt = &now
+		s.globalStatus = "running"
+		s.globalErr = ""
+		s.mu.Unlock()
+		return s.GetGlobalStatus(), nil
+	}
+
+	binPath, err := s.resolveBinary()
+	if err != nil {
+		s.mu.Unlock()
+		return GlobalStatus{}, err
+	}
+
+	cmd := exec.Command(binPath, "tunnel", "run", "--token", token)
+	if err := cmd.Start(); err != nil {
+		s.globalErr = err.Error()
+		s.globalStatus = "error"
+		s.mu.Unlock()
+		return GlobalStatus{}, fmt.Errorf("start cloudflared tunnel daemon: %w", err)
+	}
+
+	now := time.Now().UTC()
+	s.globalCmd = cmd
+	s.globalStartedAt = &now
+	s.globalStatus = "running"
+	s.globalErr = ""
+	s.globalDone = make(chan struct{})
+
+	doneCh := s.globalDone
+	s.mu.Unlock()
+
+	go func() {
+		err := cmd.Wait()
+		close(doneCh)
+
+		s.mu.Lock()
+		if s.globalCmd == cmd {
+			s.globalStatus = "stopped"
+			s.globalCmd = nil
+			if err != nil {
+				s.globalErr = err.Error()
+			}
+		}
+		s.mu.Unlock()
+	}()
+
+	return s.GetGlobalStatus(), nil
+}
+
+// StopGlobalTunnel stops the global Cloudflare Tunnel daemon.
+func (s *Service) StopGlobalTunnel(ctx context.Context) (GlobalStatus, error) {
+	s.mu.Lock()
+	if s.globalStatus != "running" && s.globalCmd == nil {
+		s.mu.Unlock()
+		return s.GetGlobalStatus(), nil
+	}
+
+	s.globalStatus = "stopped"
+	cmd := s.globalCmd
+	doneCh := s.globalDone
+	s.globalCmd = nil
+	s.globalStartedAt = nil
+	s.mu.Unlock()
+
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+		if doneCh != nil {
+			select {
+			case <-doneCh:
+			case <-time.After(2 * time.Second):
+			}
+		}
+	}
+
+	return s.GetGlobalStatus(), nil
 }
 
 // SetBinaryPath sets a custom path for the cloudflared binary (used in tests).

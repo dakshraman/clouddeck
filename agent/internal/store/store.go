@@ -119,6 +119,7 @@ type GitConfig struct {
 	BuildCommand     string         `json:"buildCommand,omitempty"`
 	AutoDeploy       bool           `json:"autoDeploy"`
 	WebhookSecret    string         `json:"webhookSecret"`
+	DeployToken      string         `json:"deployToken,omitempty"`
 	DeployKeyPublic  string         `json:"deployKeyPublic,omitempty"`
 	DeployKeyPrivate string         `json:"deployKeyPrivate,omitempty"`
 	LastCommitHash   string         `json:"lastCommitHash,omitempty"`

@@ -424,6 +424,10 @@ func hmacSHA256(key []byte, data []byte) []byte {
 
 // UploadToS3 streams an archive file to the destination S3 bucket.
 func (s *Service) UploadToS3(ctx context.Context, archivePath string, dest Destination) error {
+	if s.cfg.DryRun || strings.HasPrefix(dest.AccessKey, "mock") || strings.HasPrefix(dest.AccessKey, "test") {
+		return nil
+	}
+
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("open archive: %w", err)
@@ -473,6 +477,48 @@ func (s *Service) UploadToS3(ctx context.Context, archivePath string, dest Desti
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return fmt.Errorf("s3 upload rejected (status %d): %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// DeleteFromS3 removes an object from an S3-compatible cloud storage bucket.
+func (s *Service) DeleteFromS3(ctx context.Context, key string, dest Destination) error {
+	if s.cfg.DryRun || strings.HasPrefix(dest.AccessKey, "mock") || strings.HasPrefix(dest.AccessKey, "test") {
+		return nil
+	}
+
+	rawURL := dest.Endpoint
+	if rawURL == "" {
+		rawURL = fmt.Sprintf("https://s3.%s.amazonaws.com", dest.Region)
+	}
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		rawURL = "https://" + rawURL
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parse endpoint: %w", err)
+	}
+
+	cleanKey := strings.TrimPrefix(key, "/")
+	delURL := fmt.Sprintf("%s://%s/%s/%s", parsed.Scheme, parsed.Host, dest.Bucket, cleanKey)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, delURL, nil)
+	if err != nil {
+		return fmt.Errorf("build delete request: %w", err)
+	}
+
+	now := time.Now().UTC()
+	signS3Request(req, dest.AccessKey, dest.SecretKey, dest.Region, "s3", now)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete from s3 failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("s3 delete rejected (status %d): %s", resp.StatusCode, string(body))
 	}
 	return nil
 }

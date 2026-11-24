@@ -65,3 +65,40 @@ func (s *Server) handleListTunnels(w http.ResponseWriter, r *http.Request) {
 	tunnels := s.getTunnelService().ListTunnels()
 	writeJSON(w, http.StatusOK, map[string]any{"tunnels": tunnels})
 }
+
+func (s *Server) handleGetGlobalTunnelStatus(w http.ResponseWriter, r *http.Request) {
+	status := s.getTunnelService().GetGlobalStatus()
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) handleStartGlobalTunnel(w http.ResponseWriter, r *http.Request) {
+	status, err := s.getTunnelService().StartGlobalTunnel(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) handleStopGlobalTunnel(w http.ResponseWriter, r *http.Request) {
+	status, err := s.getTunnelService().StopGlobalTunnel(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) handleSaveGlobalTunnelConfig(w http.ResponseWriter, r *http.Request) {
+	var req tunnel.GlobalConfig
+	if err := decodeBody(w, r, &req); err != nil {
+		writeError(w, err)
+		return
+	}
+	status, err := s.getTunnelService().SaveGlobalConfig(req)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}

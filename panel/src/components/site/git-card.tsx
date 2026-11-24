@@ -256,7 +256,11 @@ export function GitCard({ domain }: GitCardProps) {
   }
 
   const isConfigured = Boolean(git?.repoUrl);
-  const webhookUrl = typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/git/${domain}` : `/api/webhooks/git/${domain}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const deployToken = git?.deployToken || git?.webhookSecret || "";
+  const webhookUrl = `${origin}/api/webhooks/git/${domain}`;
+  const deployWebhookUrl = `${origin}/api/sites/${encodeURIComponent(domain)}/git/webhook?token=${deployToken}`;
+  const curlDeploySnippet = `curl -X POST "${deployWebhookUrl}"`;
 
   return (
     <div className="grid gap-6">
@@ -401,13 +405,81 @@ export function GitCard({ domain }: GitCardProps) {
                   </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Trigger automatic deployments instantly when code is pushed to your Git repository.
+                  Trigger automatic deployments instantly when code is pushed to your Git repository or via CI/CD pipelines.
                 </p>
+
+                {/* Direct 1-Click CI/CD Deploy URL & curl snippet */}
+                <div className="space-y-3 rounded-md border border-brand/30 bg-brand/5 p-3.5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">
+                      Webhook Deploy URL (CI/CD)
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      POST to this authenticated URL to trigger a zero-downtime release from external CI/CD runners.
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={deployWebhookUrl}
+                        className="w-full rounded border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleCopy("deploy_webhook_url", deployWebhookUrl)}
+                        title="Copy Deploy Webhook URL"
+                      >
+                        {copiedKey === "deploy_webhook_url" ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 1-Click curl snippet */}
+                  <div className="space-y-1.5 border-t border-border/50 pt-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Terminal className="h-3.5 w-3.5 text-brand" />
+                        1-Click CI/CD curl Snippet
+                      </span>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleCopy("curl_snippet", curlDeploySnippet)}
+                        className="h-7 text-xs"
+                      >
+                        {copiedKey === "curl_snippet" ? (
+                          <>
+                            <Check className="mr-1 h-3 w-3 text-emerald-500" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-1 h-3 w-3" />
+                            Copy curl
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <pre className="overflow-x-auto rounded bg-black/40 p-2 font-mono text-[11px] text-foreground">
+                      {curlDeploySnippet}
+                    </pre>
+                    <p className="text-[11px] text-muted-foreground">
+                      Add to your GitHub Actions <code>.github/workflows/deploy.yml</code> step: <code>run: {curlDeploySnippet}</code>
+                    </p>
+                  </div>
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">
-                      Payload URL
+                      GitHub/GitLab Payload URL
                     </label>
                     <div className="mt-1 flex items-center gap-1.5">
                       <input

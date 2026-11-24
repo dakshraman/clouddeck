@@ -18,6 +18,7 @@ import {
   UserRound,
   Users,
   Network,
+  Cloud,
   type LucideIcon,
 } from "lucide-react";
 import type { PanelSSLStatus, SystemInfo } from "@/lib/types";
@@ -35,7 +36,8 @@ import { Input, Label } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TwoFactorCard } from "@/components/two-factor-card";
 import { PanelSSLDialog } from "@/components/settings/panel-ssl-dialog";
-import { AlertsSettingsCard } from "@/components/settings/alerts-settings-card";
+import { NotificationsCard } from "@/components/settings/notifications-card";
+import { CloudflareTunnelCard } from "@/components/tunnel/tunnel-card";
 import { UsersRbacCard } from "@/components/settings/users-rbac-card";
 import { FleetManager } from "@/components/fleet/fleet-manager";
 
@@ -90,6 +92,7 @@ const sections = [
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "two-factor", label: "Two-Factor Auth", icon: KeyRound },
   { id: "alerts", label: "Alerts & Notifications", icon: BellRing },
+  { id: "tunnel", label: "Cloudflare Tunnel", icon: Cloud },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "server", label: "Server", icon: Server },
   { id: "updates", label: "Updates", icon: ArrowUpCircle },
@@ -772,7 +775,11 @@ export default function SettingsPage() {
           />
 
           <div id="alerts">
-            <AlertsSettingsCard />
+            <NotificationsCard />
+          </div>
+
+          <div id="tunnel">
+            <CloudflareTunnelCard />
           </div>
 
           <SectionCard

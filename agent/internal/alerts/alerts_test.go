@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -101,5 +102,96 @@ func TestAlertsConfigAndDispatch(t *testing.T) {
 	}
 	if testRes["status"] != "dry-run: alert test passed" {
 		t.Fatalf("expected dry-run passed, got: %+v", testRes)
+	}
+}
+
+func TestDiscordAndSlackFormatting(t *testing.T) {
+	dir := t.TempDir()
+	cfg := config.Config{StateDir: dir}
+	svc := New(cfg, nil)
+	ctx := context.Background()
+
+	var discordBody map[string]any
+	var slackBody map[string]any
+
+	discordServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &discordBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer discordServer.Close()
+
+	slackServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &slackBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer slackServer.Close()
+
+	conf := Config{
+		Enabled: true,
+		Channels: ChannelsConfig{
+			Discord: DiscordConfig{
+				Enabled:    true,
+				WebhookURL: discordServer.URL,
+			},
+			Slack: SlackConfig{
+				Enabled:    true,
+				WebhookURL: slackServer.URL,
+			},
+		},
+	}
+	if err := svc.UpdateConfig(ctx, conf); err != nil {
+		t.Fatalf("UpdateConfig: %v", err)
+	}
+
+	alert := Alert{
+		Type:      "cpu",
+		Severity:  "critical",
+		Title:     "High CPU Alert",
+		Message:   "CPU usage at 98%",
+		Metrics:   map[string]any{"cpu": "98%"},
+		Timestamp: time.Now(),
+	}
+
+	results := svc.Dispatch(ctx, alert)
+	if results["discord"] != "sent" || results["slack"] != "sent" {
+		t.Fatalf("expected discord and slack sent, got: %+v", results)
+	}
+
+	// Verify Discord Embeds
+	embeds, ok := discordBody["embeds"].([]any)
+	if !ok || len(embeds) == 0 {
+		t.Fatalf("expected discord embeds, got: %+v", discordBody)
+	}
+	firstEmbed := embeds[0].(map[string]any)
+	if firstEmbed["title"] != "High CPU Alert" {
+		t.Errorf("discord title = %v, want High CPU Alert", firstEmbed["title"])
+	}
+	if firstEmbed["color"] != float64(0xef4444) { // red for critical
+		t.Errorf("discord color = %v, want red 0xef4444", firstEmbed["color"])
+	}
+	fields, ok := firstEmbed["fields"].([]any)
+	if !ok || len(fields) < 2 {
+		t.Fatalf("expected discord embed fields, got: %+v", firstEmbed)
+	}
+
+	// Verify Slack Blocks
+	blocks, ok := slackBody["blocks"].([]any)
+	if !ok || len(blocks) == 0 {
+		t.Fatalf("expected slack blocks, got: %+v", slackBody)
+	}
+	headerBlock := blocks[0].(map[string]any)
+	if headerBlock["type"] != "header" {
+		t.Errorf("expected slack header block, got: %+v", headerBlock)
+	}
+
+	// Test targeted channel testing
+	testRes, err := svc.Test(ctx, "discord")
+	if err != nil {
+		t.Fatalf("test discord failed: %v", err)
+	}
+	if testRes["discord"] != "sent" {
+		t.Errorf("expected discord sent in test, got: %+v", testRes)
 	}
 }

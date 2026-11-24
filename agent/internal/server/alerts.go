@@ -65,5 +65,6 @@ func (s *Server) handleTestAlerts(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"channel": channel,
 		"results": results,
+		"message": "Test notification dispatched successfully.",
 	})
 }

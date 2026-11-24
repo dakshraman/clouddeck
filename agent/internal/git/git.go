@@ -72,9 +72,12 @@ func (s *Service) Get(domain string) (store.GitConfig, error) {
 
 	if site.Git == nil {
 		secret, _ := randomHex(24)
+		token, _ := randomHex(16)
+		_ = s.writeDeployToken(site.Root, token)
 		return store.GitConfig{
 			Branch:           "main",
 			WebhookSecret:    secret,
+			DeployToken:      token,
 			DeployKeyPublic:  pub,
 			DeployKeyPrivate: priv,
 			LastDeployStatus: "idle",
@@ -86,7 +89,31 @@ func (s *Service) Get(domain string) (store.GitConfig, error) {
 		cfg.DeployKeyPublic = pub
 		cfg.DeployKeyPrivate = priv
 	}
+	if cfg.DeployToken == "" {
+		tok := s.readDeployToken(site.Root)
+		if tok == "" {
+			tok, _ = randomHex(16)
+		}
+		cfg.DeployToken = tok
+		_ = s.writeDeployToken(site.Root, tok)
+		_ = s.st.UpdateSite(domain, func(stSite *store.Site) {
+			if stSite.Git != nil {
+				stSite.Git.DeployToken = tok
+			}
+		})
+	}
 	return cfg, nil
+}
+
+// GetWebhookInfo returns the per-site deploy webhook token and relative webhook URL.
+func (s *Service) GetWebhookInfo(domain string) (string, string, error) {
+	cfg, err := s.Get(domain)
+	if err != nil {
+		return "", "", err
+	}
+	token := cfg.DeployToken
+	webhookURL := fmt.Sprintf("/v1/sites/%s/git/webhook?token=%s", domain, token)
+	return token, webhookURL, nil
 }
 
 // Save saves or updates Git and CI/CD settings for a site.
@@ -129,6 +156,14 @@ func (s *Service) Save(domain string, in SaveInput) (store.GitConfig, error) {
 	currentCfg.DeployKeyPrivate = priv
 	if currentCfg.WebhookSecret == "" {
 		currentCfg.WebhookSecret, _ = randomHex(24)
+	}
+	if currentCfg.DeployToken == "" {
+		tok := s.readDeployToken(site.Root)
+		if tok == "" {
+			tok, _ = randomHex(16)
+		}
+		currentCfg.DeployToken = tok
+		_ = s.writeDeployToken(site.Root, tok)
 	}
 
 	if err := s.st.UpdateSite(domain, func(stSite *store.Site) {
@@ -474,22 +509,32 @@ func (s *Service) HandleWebhook(domain string, headers http.Header, queryToken s
 	if !ok {
 		return store.DeployRecord{}, apierr.NotFound("site_not_found", fmt.Sprintf("site %q does not exist", domain))
 	}
-	if site.Git == nil || !site.Git.AutoDeploy {
-		return store.DeployRecord{}, apierr.BadRequest("auto_deploy_disabled", "auto-deploy is disabled for this site")
+	if site.Git == nil {
+		return store.DeployRecord{}, apierr.BadRequest("git_not_configured", "git repository is not configured for this site")
 	}
 
 	secret := site.Git.WebhookSecret
+	deployToken := site.Git.DeployToken
+	if deployToken == "" {
+		deployToken = s.readDeployToken(site.Root)
+	}
 
 	// Signature verification:
 	// 1. GitHub: X-Hub-Signature-256
 	// 2. GitLab: X-Gitlab-Token
-	// 3. Generic query param or X-CloudDeck-Token
+	// 3. Generic query param or X-CloudDeck-Token or X-Deploy-Token
 	authed := false
 	ghSig := headers.Get("X-Hub-Signature-256")
 	glToken := headers.Get("X-Gitlab-Token")
 	customToken := headers.Get("X-CloudDeck-Token")
+	deployTokenHdr := headers.Get("X-Deploy-Token")
 
-	if ghSig != "" && strings.HasPrefix(ghSig, "sha256=") {
+	isDeployToken := (queryToken != "" && ((deployToken != "" && queryToken == deployToken) || queryToken == secret)) ||
+		(deployTokenHdr != "" && ((deployToken != "" && deployTokenHdr == deployToken) || deployTokenHdr == secret))
+
+	if isDeployToken {
+		authed = true
+	} else if ghSig != "" && strings.HasPrefix(ghSig, "sha256=") {
 		mac := hmac.New(sha256.New, []byte(secret))
 		mac.Write(body)
 		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
@@ -506,6 +551,10 @@ func (s *Service) HandleWebhook(domain string, headers http.Header, queryToken s
 
 	if !authed {
 		return store.DeployRecord{}, apierr.New(http.StatusUnauthorized, "invalid_signature", "webhook signature verification failed")
+	}
+
+	if !isDeployToken && !site.Git.AutoDeploy {
+		return store.DeployRecord{}, apierr.BadRequest("auto_deploy_disabled", "auto-deploy is disabled for this site")
 	}
 
 	// Verify push event and branch if payload is JSON
@@ -531,7 +580,7 @@ func (s *Service) HandleWebhook(domain string, headers http.Header, queryToken s
 		defer s.wg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		_, _ = s.Deploy(ctx, domain, "webhook")
+		_, _ = s.DeployWithOpts(ctx, domain, "webhook", true)
 	}()
 
 	return store.DeployRecord{

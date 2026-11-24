@@ -159,6 +159,7 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("DELETE /v1/sites/{domain}/git", s.handleRemoveSiteGit)
 	mux.HandleFunc("POST /v1/sites/{domain}/git/deploy", s.handleDeploySiteGit)
 	mux.HandleFunc("GET /v1/sites/{domain}/git/history", s.handleGetSiteGitHistory)
+	mux.HandleFunc("GET /v1/sites/{domain}/git/webhook-info", s.handleGetSiteGitWebhookInfo)
 	mux.HandleFunc("POST /v1/sites/{domain}/git/webhook", s.handleWebhookSiteGit)
 
 	mux.HandleFunc("GET /v1/sites/{domain}/files", s.handleFileList)
@@ -248,6 +249,10 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/sites/{domain}/tunnel", s.handleStartTunnel)
 	mux.HandleFunc("DELETE /v1/sites/{domain}/tunnel", s.handleStopTunnel)
 	mux.HandleFunc("GET /v1/tunnels", s.handleListTunnels)
+	mux.HandleFunc("GET /v1/tunnel/status", s.handleGetGlobalTunnelStatus)
+	mux.HandleFunc("POST /v1/tunnel/start", s.handleStartGlobalTunnel)
+	mux.HandleFunc("POST /v1/tunnel/stop", s.handleStopGlobalTunnel)
+	mux.HandleFunc("POST /v1/tunnel/config", s.handleSaveGlobalTunnelConfig)
 
 	// v0.5 — FTP accounts
 	mux.HandleFunc("GET /v1/ftp/status", s.handleFTPStatus)
@@ -425,6 +430,18 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/backups/destinations/test", s.handleTestBackupDestination)
 	mux.HandleFunc("POST /api/backups/destinations/test", s.handleTestBackupDestination)
 
+	// Direct S3 Database Backup Schedules
+	mux.HandleFunc("GET /v1/backups/database/s3", s.handleGetS3DatabaseBackupConfig)
+	mux.HandleFunc("GET /api/backups/database/s3", s.handleGetS3DatabaseBackupConfig)
+	mux.HandleFunc("PUT /v1/backups/database/s3", s.handleSaveS3DatabaseBackupConfig)
+	mux.HandleFunc("PUT /api/backups/database/s3", s.handleSaveS3DatabaseBackupConfig)
+	mux.HandleFunc("POST /v1/backups/database/s3", s.handleSaveS3DatabaseBackupConfig)
+	mux.HandleFunc("POST /api/backups/database/s3", s.handleSaveS3DatabaseBackupConfig)
+	mux.HandleFunc("POST /v1/backups/database/s3/run", s.handleRunS3DatabaseBackup)
+	mux.HandleFunc("POST /api/backups/database/s3/run", s.handleRunS3DatabaseBackup)
+	mux.HandleFunc("POST /v1/backups/database/s3/test", s.handleTestS3DatabaseBackup)
+	mux.HandleFunc("POST /api/backups/database/s3/test", s.handleTestS3DatabaseBackup)
+
 	// cPanel Migration Importer
 	mux.HandleFunc("POST /v1/migrations/cpanel/upload", s.handleUploadMigration)
 	mux.HandleFunc("POST /api/migrations/cpanel/upload", s.handleUploadMigration)
@@ -528,6 +545,8 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("GET /api/appstore/installed", s.handleListInstalledApps)
 	mux.HandleFunc("POST /v1/appstore/install", s.handleInstallApp)
 	mux.HandleFunc("POST /api/appstore/install", s.handleInstallApp)
+	mux.HandleFunc("POST /v1/appstore/custom", s.handleInstallCustomApp)
+	mux.HandleFunc("POST /api/appstore/custom", s.handleInstallCustomApp)
 	mux.HandleFunc("POST /v1/appstore/{id}/action", s.handleAppAction)
 	mux.HandleFunc("POST /api/appstore/{id}/action", s.handleAppAction)
 	mux.HandleFunc("DELETE /v1/appstore/{id}", s.handleUninstallApp)

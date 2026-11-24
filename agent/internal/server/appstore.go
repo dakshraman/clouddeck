@@ -44,6 +44,24 @@ func (s *Server) handleInstallApp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, app)
 }
 
+func (s *Server) handleInstallCustomApp(w http.ResponseWriter, r *http.Request) {
+	if s.appstore == nil {
+		writeError(w, apierr.Internal("appstore service is not configured"))
+		return
+	}
+	var in appstore.InstallCustomAppInput
+	if err := decodeBody(w, r, &in); err != nil {
+		writeError(w, err)
+		return
+	}
+	app, err := s.appstore.InstallCustom(r.Context(), in)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, app)
+}
+
 func (s *Server) handleAppAction(w http.ResponseWriter, r *http.Request) {
 	if s.appstore == nil {
 		writeError(w, apierr.Internal("appstore service is not configured"))

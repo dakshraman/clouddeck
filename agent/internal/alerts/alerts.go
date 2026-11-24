@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -284,8 +285,61 @@ func (s *Service) Test(ctx context.Context, targetChannel string) (map[string]st
 		}, nil
 	}
 
-	res := s.Dispatch(ctx, alert)
-	return res, nil
+	target := strings.ToLower(strings.TrimSpace(targetChannel))
+	if target == "" || target == "all" {
+		res := s.Dispatch(ctx, alert)
+		return res, nil
+	}
+
+	conf := s.GetConfig()
+	results := make(map[string]string)
+
+	switch target {
+	case "telegram":
+		if conf.Channels.Telegram.BotToken != "" && conf.Channels.Telegram.ChatID != "" {
+			if err := s.sendTelegram(ctx, conf.Channels.Telegram, alert); err != nil {
+				results["telegram"] = "error: " + err.Error()
+			} else {
+				results["telegram"] = "sent"
+			}
+		} else {
+			results["telegram"] = "error: telegram not configured (missing botToken or chatId)"
+		}
+	case "discord":
+		if conf.Channels.Discord.WebhookURL != "" {
+			if err := s.sendDiscord(ctx, conf.Channels.Discord, alert); err != nil {
+				results["discord"] = "error: " + err.Error()
+			} else {
+				results["discord"] = "sent"
+			}
+		} else {
+			results["discord"] = "error: discord webhook url is not configured"
+		}
+	case "slack":
+		if conf.Channels.Slack.WebhookURL != "" {
+			if err := s.sendSlack(ctx, conf.Channels.Slack, alert); err != nil {
+				results["slack"] = "error: " + err.Error()
+			} else {
+				results["slack"] = "sent"
+			}
+		} else {
+			results["slack"] = "error: slack webhook url is not configured"
+		}
+	case "webhook":
+		if conf.Channels.Webhook.URL != "" {
+			if err := s.sendWebhook(ctx, conf.Channels.Webhook, alert); err != nil {
+				results["webhook"] = "error: " + err.Error()
+			} else {
+				results["webhook"] = "sent"
+			}
+		} else {
+			results["webhook"] = "error: webhook url is not configured"
+		}
+	default:
+		return s.Dispatch(ctx, alert), nil
+	}
+
+	return results, nil
 }
 
 func (s *Service) sendTelegram(ctx context.Context, tg TelegramConfig, alert Alert) error {
@@ -324,6 +378,30 @@ func (s *Service) sendDiscord(ctx context.Context, dc DiscordConfig, alert Alert
 		color = 0xf59e0b // yellow
 	}
 
+	fields := []map[string]any{
+		{
+			"name":   "Severity",
+			"value":  strings.ToUpper(alert.Severity),
+			"inline": true,
+		},
+		{
+			"name":   "Type",
+			"value":  alert.Type,
+			"inline": true,
+		},
+	}
+	if alert.Metrics != nil && len(alert.Metrics) > 0 {
+		var metricParts []string
+		for k, v := range alert.Metrics {
+			metricParts = append(metricParts, fmt.Sprintf("%s: %v", k, v))
+		}
+		fields = append(fields, map[string]any{
+			"name":   "Metrics",
+			"value":  strings.Join(metricParts, ", "),
+			"inline": false,
+		})
+	}
+
 	payload, _ := json.Marshal(map[string]any{
 		"username": "CloudDeck Alerts",
 		"embeds": []map[string]any{
@@ -331,7 +409,11 @@ func (s *Service) sendDiscord(ctx context.Context, dc DiscordConfig, alert Alert
 				"title":       alert.Title,
 				"description": alert.Message,
 				"color":       color,
+				"fields":      fields,
 				"timestamp":   alert.Timestamp.Format(time.RFC3339),
+				"footer": map[string]any{
+					"text": "CloudDeck Alert System",
+				},
 			},
 		},
 	})
@@ -354,9 +436,64 @@ func (s *Service) sendDiscord(ctx context.Context, dc DiscordConfig, alert Alert
 }
 
 func (s *Service) sendSlack(ctx context.Context, sc SlackConfig, alert Alert) error {
-	text := fmt.Sprintf(":warning: *%s*\n%s\n_Time: %s_", alert.Title, alert.Message, alert.Timestamp.Format(time.RFC3339))
+	emoji := "ℹ️"
+	if alert.Severity == "critical" {
+		emoji = "🚨"
+	} else if alert.Severity == "warning" {
+		emoji = "⚠️"
+	}
+
+	headerText := fmt.Sprintf("%s %s", emoji, alert.Title)
+	fields := []map[string]any{
+		{
+			"type": "mrkdwn",
+			"text": fmt.Sprintf("*Severity:*\n%s", strings.ToUpper(alert.Severity)),
+		},
+		{
+			"type": "mrkdwn",
+			"text": fmt.Sprintf("*Type:*\n%s", alert.Type),
+		},
+		{
+			"type": "mrkdwn",
+			"text": fmt.Sprintf("*Time:*\n%s", alert.Timestamp.Format("2006-01-02 15:04:05 MST")),
+		},
+	}
+	if alert.Metrics != nil && len(alert.Metrics) > 0 {
+		var metricParts []string
+		for k, v := range alert.Metrics {
+			metricParts = append(metricParts, fmt.Sprintf("%s: %v", k, v))
+		}
+		fields = append(fields, map[string]any{
+			"type": "mrkdwn",
+			"text": fmt.Sprintf("*Metrics:*\n%s", strings.Join(metricParts, ", ")),
+		})
+	}
+
+	blocks := []map[string]any{
+		{
+			"type": "header",
+			"text": map[string]any{
+				"type":  "plain_text",
+				"text":  headerText,
+				"emoji": true,
+			},
+		},
+		{
+			"type": "section",
+			"text": map[string]any{
+				"type": "mrkdwn",
+				"text": alert.Message,
+			},
+		},
+		{
+			"type":   "section",
+			"fields": fields,
+		},
+	}
+
 	payload, _ := json.Marshal(map[string]any{
-		"text": text,
+		"text":   fmt.Sprintf("[%s] %s: %s", strings.ToUpper(alert.Severity), alert.Title, alert.Message),
+		"blocks": blocks,
 	})
 
 	req, err := http.NewRequestWithContext(ctx, "POST", sc.WebhookURL, bytes.NewReader(payload))

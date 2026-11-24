@@ -22,6 +22,7 @@ import { PostgresCard } from "@/components/databases/postgres-card";
 import { Database } from "lucide-react";
 import { PmaCard } from "./pma-card";
 import { RemoteMysqlCard } from "./remote-mysql-card";
+import { S3BackupCard } from "@/components/databases/s3-backup-card";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -217,6 +218,9 @@ export default function DatabasesPage() {
           ) : null}
           <div className="mt-6">
             <RemoteMysqlCard />
+          </div>
+          <div className="mt-6">
+            <S3BackupCard databases={databases} />
           </div>
         </>
       ) : null}

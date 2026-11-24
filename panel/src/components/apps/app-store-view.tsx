@@ -42,6 +42,7 @@ import type {
   AppStoreLogsResponse,
   AppStoreTemplate,
   InstallAppStoreRequest,
+  InstallCustomAppStoreRequest,
   InstalledAppStoreApp,
   Site,
   SiteListResponse,
@@ -145,6 +146,47 @@ const CURATED_CATALOG: AppStoreTemplate[] = [
     ],
   },
   {
+    id: "redis",
+    name: "Redis In-Memory Database",
+    tagline: "Ultra-fast in-memory key-value database & cache",
+    description: "High-performance in-memory data store used as a database, cache, streaming engine, and message broker.",
+    category: "Database",
+    icon: "Database",
+    defaultPort: 6379,
+    minRamMb: 256,
+    websiteUrl: "https://redis.io",
+    envVars: [
+      { key: "REDIS_PASSWORD", label: "Redis Password", defaultValue: "redisPassword123!", required: true, type: "password" },
+    ],
+  },
+  {
+    id: "mongodb",
+    name: "MongoDB Server",
+    tagline: "Modern document-oriented NoSQL database",
+    description: "Flexible, scalable document database designed for modern applications with flexible JSON-like schema.",
+    category: "Database",
+    icon: "Database",
+    defaultPort: 27017,
+    minRamMb: 1024,
+    websiteUrl: "https://www.mongodb.com",
+    envVars: [
+      { key: "MONGO_INITDB_ROOT_USERNAME", label: "Root Username", defaultValue: "admin", required: true },
+      { key: "MONGO_INITDB_ROOT_PASSWORD", label: "Root Password", defaultValue: "mongoSecurePassword123", required: true, type: "password" },
+    ],
+  },
+  {
+    id: "pocketbase",
+    name: "PocketBase Backend",
+    tagline: "Open-source backend in 1 file with realtime DB",
+    description: "Embedded SQLite database with realtime subscriptions, built-in auth, file storage, and an elegant admin UI.",
+    category: "Backend",
+    icon: "Server",
+    defaultPort: 8090,
+    minRamMb: 256,
+    websiteUrl: "https://pocketbase.io",
+    envVars: [],
+  },
+  {
     id: "meilisearch",
     name: "Meilisearch",
     tagline: "Lightning-fast, typo-tolerant search engine",
@@ -175,7 +217,18 @@ const CURATED_CATALOG: AppStoreTemplate[] = [
   },
 ];
 
-type CategoryFilter = "All" | "CMS" | "Analytics" | "Automation" | "Storage" | "Security" | "Search" | "Productivity";
+const DEFAULT_CUSTOM_COMPOSE = `version: '3.8'
+services:
+  web:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - APP_ENV=production
+`;
+
+type CategoryFilter = "All" | "CMS" | "Analytics" | "Automation" | "Database" | "Backend" | "Storage" | "Security" | "Search" | "Productivity";
 
 export function AppStoreView() {
   const [activeTab, setActiveTab] = useState<"catalog" | "installed">("catalog");
@@ -199,6 +252,15 @@ export function AppStoreView() {
   const [installEnv, setInstallEnv] = useState<Record<string, string>>({});
   const [installing, setInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
+
+  // Custom Compose Modal state
+  const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customDomain, setCustomDomain] = useState("");
+  const [customComposeYaml, setCustomComposeYaml] = useState(DEFAULT_CUSTOM_COMPOSE);
+  const [customEnvVars, setCustomEnvVars] = useState("");
+  const [customDeploying, setCustomDeploying] = useState(false);
+  const [customError, setCustomError] = useState<string | null>(null);
 
   // Logs Modal state
   const [viewingLogsApp, setViewingLogsApp] = useState<InstalledAppStoreApp | null>(null);
@@ -294,6 +356,48 @@ export function AppStoreView() {
     }
   }
 
+  async function handleCustomComposeSubmit(e: FormEvent) {
+    e.preventDefault();
+    setCustomDeploying(true);
+    setCustomError(null);
+
+    try {
+      const envObj: Record<string, string> = {};
+      if (customEnvVars.trim()) {
+        for (const line of customEnvVars.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) continue;
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx !== -1) {
+            const k = trimmed.slice(0, eqIdx).trim();
+            const v = trimmed.slice(eqIdx + 1).trim();
+            if (k) envObj[k] = v;
+          }
+        }
+      }
+
+      const payload: InstallCustomAppStoreRequest = {
+        name: customName.trim(),
+        domain: customDomain.trim() || undefined,
+        composeYaml: customComposeYaml,
+        envVars: Object.keys(envObj).length > 0 ? envObj : undefined,
+      };
+
+      await apiPost("/api/appstore/custom", payload);
+      setNotice(`Custom stack "${customName}" deployed successfully via Docker Compose!`);
+      setCustomModalOpen(false);
+      setCustomName("");
+      setCustomDomain("");
+      setCustomEnvVars("");
+      setActiveTab("installed");
+      await loadData();
+    } catch (err: unknown) {
+      setCustomError(err instanceof Error ? err.message : "Custom stack deployment failed.");
+    } finally {
+      setCustomDeploying(false);
+    }
+  }
+
   async function handleAppAction(appId: string, action: "start" | "stop" | "restart") {
     setActionLoadingId(`${appId}-${action}`);
     setError(null);
@@ -377,37 +481,49 @@ export function AppStoreView() {
           </div>
         </div>
 
-        {/* Tab switch: Catalog vs Installed */}
-        <div className="flex rounded-lg border border-border bg-muted/30 p-1 text-xs shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab("catalog")}
-            className={cn(
-              "rounded-md px-3 py-1.5 font-medium transition-colors cursor-pointer",
-              activeTab === "catalog"
-                ? "bg-card text-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setCustomModalOpen(true)}
+            className="gap-1.5"
           >
-            Catalog ({catalog.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("installed")}
-            className={cn(
-              "rounded-md px-3 py-1.5 font-medium transition-colors cursor-pointer flex items-center gap-1.5",
-              activeTab === "installed"
-                ? "bg-card text-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Installed Apps
-            {installedApps.length > 0 && (
-              <Badge variant="green" className="text-[10px] py-0 px-1.5">
-                {installedApps.length}
-              </Badge>
-            )}
-          </button>
+            <FileCode size={13} />
+            <span>Deploy Custom Compose</span>
+          </Button>
+
+          {/* Tab switch: Catalog vs Installed */}
+          <div className="flex rounded-lg border border-border bg-muted/30 p-1 text-xs shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab("catalog")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors cursor-pointer",
+                activeTab === "catalog"
+                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Catalog ({catalog.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("installed")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors cursor-pointer flex items-center gap-1.5",
+                activeTab === "installed"
+                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Installed Apps
+              {installedApps.length > 0 && (
+                <Badge variant="green" className="text-[10px] py-0 px-1.5">
+                  {installedApps.length}
+                </Badge>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -428,7 +544,7 @@ export function AppStoreView() {
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-              {(["All", "CMS", "Analytics", "Automation", "Storage", "Security", "Search", "Productivity"] as CategoryFilter[]).map(
+              {(["All", "CMS", "Analytics", "Automation", "Database", "Backend", "Storage", "Security", "Search", "Productivity"] as CategoryFilter[]).map(
                 (cat) => (
                   <button
                     key={cat}
@@ -521,19 +637,31 @@ export function AppStoreView() {
                 Containers managed by CloudDeck Docker Compose orchestrator.
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => void loadData()} disabled={loading}>
-              <RefreshCw size={13} className={loading ? "animate-spin mr-1" : "mr-1"} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={() => setCustomModalOpen(true)}>
+                <FileCode size={13} className="mr-1" />
+                Deploy Custom Compose
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => void loadData()} disabled={loading}>
+                <RefreshCw size={13} className={loading ? "animate-spin mr-1" : "mr-1"} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
 
           <CardBody className="p-0">
             {installedApps.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted-foreground space-y-3">
                 <p>No 1-Click Docker applications deployed yet.</p>
-                <Button variant="secondary" size="sm" onClick={() => setActiveTab("catalog")}>
-                  Browse 1-Click App Catalog
-                </Button>
+                <div className="flex items-center justify-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setActiveTab("catalog")}>
+                    Browse 1-Click App Catalog
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => setCustomModalOpen(true)}>
+                    <FileCode size={13} className="mr-1" />
+                    Deploy Custom Compose
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -781,6 +909,130 @@ export function AppStoreView() {
                     Cancel
                   </Button>
                   <Button type="submit" variant="primary" loading={installing}>
+                    <Wand2 size={14} className="mr-1.5" />
+                    Deploy Stack Now
+                  </Button>
+                </div>
+              </form>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
+
+      {/* Deploy Custom Docker Compose Modal */}
+      {customModalOpen && (
+        <Dialog.Root open={customModalOpen} onOpenChange={setCustomModalOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs animate-in fade-in" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+                    <FileCode size={20} />
+                  </div>
+                  <div>
+                    <Dialog.Title className="text-base font-semibold text-foreground">
+                      Deploy Custom Docker Compose
+                    </Dialog.Title>
+                    <p className="text-xs text-muted-foreground">
+                      Deploy arbitrary multi-container stacks with automated reverse proxy routing
+                    </p>
+                  </div>
+                </div>
+                <Dialog.Close asChild>
+                  <button type="button" className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <X size={18} />
+                  </button>
+                </Dialog.Close>
+              </div>
+
+              <form onSubmit={handleCustomComposeSubmit} className="space-y-4 pt-4">
+                {customError && <Alert variant="error">{customError}</Alert>}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="custom-name" className="text-xs">
+                      Application Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="custom-name"
+                      type="text"
+                      placeholder="e.g. my-service"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      required
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Saved to /www/apps/&lt;name&gt;/docker-compose.yml
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="custom-domain" className="text-xs">
+                      Public Domain / Reverse Proxy (Optional)
+                    </Label>
+                    <Input
+                      id="custom-domain"
+                      type="text"
+                      placeholder="e.g. service.mycompany.com"
+                      value={customDomain}
+                      onChange={(e) => setCustomDomain(e.target.value)}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Nginx will reverse-proxy requests to your container port.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="custom-yaml" className="text-xs">
+                      Docker Compose YAML <span className="text-red-500">*</span>
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      docker-compose.yml
+                    </span>
+                  </div>
+                  <textarea
+                    id="custom-yaml"
+                    rows={12}
+                    className="w-full rounded-md border border-input bg-muted/40 p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="version: '3.8'&#10;services:&#10;  app:&#10;    image: my-image:latest&#10;    ports:&#10;      - '8080:80'"
+                    value={customComposeYaml}
+                    onChange={(e) => setCustomComposeYaml(e.target.value)}
+                    required
+                    spellCheck={false}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="custom-env" className="text-xs">
+                    Environment Variables (Optional, KEY=value format)
+                  </Label>
+                  <textarea
+                    id="custom-env"
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-muted/40 p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="PORT=8080&#10;SECRET_KEY=my_secure_secret&#10;DB_HOST=127.0.0.1"
+                    value={customEnvVars}
+                    onChange={(e) => setCustomEnvVars(e.target.value)}
+                    spellCheck={false}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Variables will be written to .env file in the app directory.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCustomModalOpen(false)}
+                    disabled={customDeploying}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" loading={customDeploying}>
                     <Wand2 size={14} className="mr-1.5" />
                     Deploy Stack Now
                   </Button>
