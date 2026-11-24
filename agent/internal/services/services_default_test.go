@@ -106,3 +106,123 @@ func TestRestartUnconfiguredWithoutSystemctl(t *testing.T) {
 	_, err := mgr.Restart(context.Background(), NameNginx)
 	assertAPIErr(t, err, 502, "service_restart_failed")
 }
+
+func TestRestartUnmasksAndRetriesWhenMasked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("systemctl shim requires a POSIX shell")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "invocations.txt")
+	stateFile := filepath.Join(dir, "unmasked.txt")
+
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> " + shQuote(marker) + "\n" +
+		"if [ \"$1\" = unmask ]; then touch " + shQuote(stateFile) + "; exit 0; fi\n" +
+		"if [ \"$1\" = daemon-reload ]; then exit 0; fi\n" +
+		"if [ \"$1\" = restart ] && [ \"$2\" = nginx ]; then\n" +
+		"  if [ ! -f " + shQuote(stateFile) + " ]; then\n" +
+		"    echo 'Failed to restart nginx.service: Unit nginx.service is masked.' >&2\n" +
+		"    exit 1\n" +
+		"  fi\n" +
+		"fi\n" +
+		"exit 0\n"
+
+	if err := os.WriteFile(filepath.Join(dir, "systemctl"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+
+	mgr, _ := newTestManager(t, config.Config{})
+	status, err := mgr.Restart(context.Background(), NameNginx)
+	if err != nil {
+		t.Fatalf("Restart should unmask and succeed on retry: %v", err)
+	}
+	if status.Name != NameNginx {
+		t.Fatalf("status name = %q", status.Name)
+	}
+
+	invocations, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(invocations), "unmask nginx") {
+		t.Fatalf("expected unmask invocation in %s", invocations)
+	}
+	if !strings.Contains(string(invocations), "daemon-reload") {
+		t.Fatalf("expected daemon-reload invocation in %s", invocations)
+	}
+}
+
+func TestRestartRecoversFileExistsConflict(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("systemctl shim requires a POSIX shell")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "invocations.txt")
+
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> " + shQuote(marker) + "\n" +
+		"if [ \"$1\" = daemon-reload ]; then exit 0; fi\n" +
+		"if [ \"$1\" = unmask ]; then exit 0; fi\n" +
+		"if [ \"$2\" = mysql ]; then\n" +
+		"  echo 'Unit mysql.service failed to load properly, please adjust/correct and reload service manager: File exists' >&2\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+
+	if err := os.WriteFile(filepath.Join(dir, "systemctl"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+
+	mgr, _ := newTestManager(t, config.Config{})
+	status, err := mgr.Restart(context.Background(), NameMySQL)
+	if err != nil {
+		t.Fatalf("Restart mysql should recover via mariadb candidate: %v", err)
+	}
+	if status.Name != NameMySQL {
+		t.Fatalf("status name = %q", status.Name)
+	}
+
+	invocations, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(invocations), "mariadb") {
+		t.Fatalf("expected mariadb recovery attempt in %s", invocations)
+	}
+}
+
+func TestRepairService(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("systemctl shim requires a POSIX shell")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "invocations.txt")
+
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + shQuote(marker) + "\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "systemctl"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+
+	mgr, _ := newTestManager(t, config.Config{})
+	status, err := mgr.Repair(context.Background(), NameMySQL)
+	if err != nil {
+		t.Fatalf("Repair failed: %v", err)
+	}
+	if status.Name != NameMySQL {
+		t.Fatalf("status name = %q", status.Name)
+	}
+
+	invocations, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(invocations), "unmask mariadb") {
+		t.Fatalf("expected unmask in %s", invocations)
+	}
+	if !strings.Contains(string(invocations), "daemon-reload") {
+		t.Fatalf("expected daemon-reload in %s", invocations)
+	}
+}

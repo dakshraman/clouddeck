@@ -56,3 +56,16 @@ func (s *Server) handleStartService(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, status)
 }
+
+func (s *Server) handleRepairService(w http.ResponseWriter, r *http.Request) {
+	if !s.checkServices(w) {
+		return
+	}
+	status, err := s.services.Repair(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
+}
+

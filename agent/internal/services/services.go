@@ -53,6 +53,8 @@ const (
 	actionStop = "service.stop"
 	// actionStart is the audit action recorded for service starts.
 	actionStart = "service.start"
+	// actionRepair is the audit action recorded for service repairs.
+	actionRepair = "service.repair"
 )
 
 // Status is one service's probed state.
@@ -149,104 +151,25 @@ func (m *Manager) List(ctx context.Context) []Status {
 // default to `systemctl restart <unit>`. Errors: 404 unknown_service,
 // 409 dry_run, 502 service_restart_failed.
 func (m *Manager) Restart(ctx context.Context, name string) (Status, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	spec, ok := specFor(name)
-	if !ok {
-		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
-	}
-	if m.cfg.DryRun {
-		return Status{}, apierr.Conflict("dry_run", "service restarts are disabled in dry-run mode")
-	}
-	command := strings.TrimSpace(spec.command(m.cfg))
-	usedDefault := command == ""
-	if usedDefault {
-		command = defaultRestartCommand(name)
-	}
-
-	if err := m.audit.Append(audit.Record{
-		Action: actionRestart,
-		Params: map[string]any{"name": name},
-		Result: audit.ResultAccepted,
-	}); err != nil {
-		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
-	}
-	if err := runRestart(ctx, name, command); err != nil {
-		if usedDefault {
-			if runtime.GOOS == "darwin" && name == NameMySQL {
-				if err := runRestart(ctx, name, "brew services restart mysql"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-				if err := runRestart(ctx, name, "systemctl restart mariadb"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
-				if err := runRestart(ctx, name, "service "+name+" restart"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-		}
-		return Status{}, err
-	}
-	return probe(ctx, spec), nil
+	return m.executeOp(ctx, "restart", actionRestart, name, func(s probeSpec) string { return s.command(m.cfg) }, defaultRestartCommand)
 }
 
 // Stop runs the stop command for name and returns the freshly probed status.
 // Errors: 404 unknown_service, 409 dry_run, 502 service_stop_failed.
 func (m *Manager) Stop(ctx context.Context, name string) (Status, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	spec, ok := specFor(name)
-	if !ok {
-		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
-	}
-	if m.cfg.DryRun {
-		return Status{}, apierr.Conflict("dry_run", "service stops are disabled in dry-run mode")
-	}
-	command := strings.TrimSpace(spec.stopCmd(m.cfg))
-	usedDefault := command == ""
-	if usedDefault {
-		command = defaultStopCommand(name)
-	}
-
-	if err := m.audit.Append(audit.Record{
-		Action: actionStop,
-		Params: map[string]any{"name": name},
-		Result: audit.ResultAccepted,
-	}); err != nil {
-		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
-	}
-	if err := runServiceOp(ctx, "stop", name, command); err != nil {
-		if usedDefault {
-			if runtime.GOOS == "darwin" && name == NameMySQL {
-				if err := runServiceOp(ctx, "stop", name, "brew services stop mysql"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-				if err := runServiceOp(ctx, "stop", name, "systemctl stop mariadb"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
-				if err := runServiceOp(ctx, "stop", name, "service "+name+" stop"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-		}
-		return Status{}, err
-	}
-	return probe(ctx, spec), nil
+	return m.executeOp(ctx, "stop", actionStop, name, func(s probeSpec) string { return s.stopCmd(m.cfg) }, defaultStopCommand)
 }
 
 // Start runs the start command for name and returns the freshly probed status.
 // Errors: 404 unknown_service, 409 dry_run, 502 service_start_failed.
 func (m *Manager) Start(ctx context.Context, name string) (Status, error) {
+	return m.executeOp(ctx, "start", actionStart, name, func(s probeSpec) string { return s.startCmd(m.cfg) }, defaultStartCommand)
+}
+
+// Repair runs full self-healing recovery on the service:
+// unmasks masked units, cleans up /etc/systemd/system/ dead masks,
+// executes daemon-reload, and brings up the service.
+func (m *Manager) Repair(ctx context.Context, name string) (Status, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -255,42 +178,238 @@ func (m *Manager) Start(ctx context.Context, name string) (Status, error) {
 		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
 	}
 	if m.cfg.DryRun {
-		return Status{}, apierr.Conflict("dry_run", "service starts are disabled in dry-run mode")
-	}
-	command := strings.TrimSpace(spec.startCmd(m.cfg))
-	usedDefault := command == ""
-	if usedDefault {
-		command = defaultStartCommand(name)
+		return Status{}, apierr.Conflict("dry_run", "service repairs are disabled in dry-run mode")
 	}
 
 	if err := m.audit.Append(audit.Record{
-		Action: actionStart,
+		Action: actionRepair,
 		Params: map[string]any{"name": name},
 		Result: audit.ResultAccepted,
 	}); err != nil {
 		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
 	}
-	if err := runServiceOp(ctx, "start", name, command); err != nil {
-		if usedDefault {
-			if runtime.GOOS == "darwin" && name == NameMySQL {
-				if err := runServiceOp(ctx, "start", name, "brew services start mysql"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && name == NameMySQL && strings.Contains(err.Error(), "not found") {
-				if err := runServiceOp(ctx, "start", name, "systemctl start mariadb"); err == nil {
-					return probe(ctx, spec), nil
-				}
-			}
-			if runtime.GOOS != "darwin" && (strings.Contains(err.Error(), "not booted") || strings.Contains(err.Error(), "systemctl: command not found")) {
-				if err := runServiceOp(ctx, "start", name, "service "+name+" start"); err == nil {
-					return probe(ctx, spec), nil
+
+	// Force unmask and daemon-reload across all associated units
+	unmaskAndReload(ctx, getAssociatedUnits(name)...)
+
+	// Attempt starting or restarting through candidate commands
+	candidates := opCommandCandidates("start", name)
+	var lastErr error
+	for _, cmdStr := range candidates {
+		if err := runServiceOp(ctx, "start", name, cmdStr); err == nil {
+			return probe(ctx, spec), nil
+		} else {
+			lastErr = err
+		}
+	}
+
+	if lastErr != nil {
+		return Status{}, lastErr
+	}
+	return probe(ctx, spec), nil
+}
+
+func (m *Manager) executeOp(
+	ctx context.Context,
+	op string,
+	auditAction string,
+	name string,
+	cfgCmd func(probeSpec) string,
+	defaultCmd func(string) string,
+) (Status, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	spec, ok := specFor(name)
+	if !ok {
+		return Status{}, apierr.NotFound("unknown_service", fmt.Sprintf("unknown service %q", name))
+	}
+	if m.cfg.DryRun {
+		return Status{}, apierr.Conflict("dry_run", fmt.Sprintf("service %ss are disabled in dry-run mode", op))
+	}
+
+	command := strings.TrimSpace(cfgCmd(spec))
+	usedDefault := command == ""
+	if usedDefault {
+		command = defaultCmd(name)
+	}
+
+	if err := m.audit.Append(audit.Record{
+		Action: auditAction,
+		Params: map[string]any{"name": name},
+		Result: audit.ResultAccepted,
+	}); err != nil {
+		return Status{}, apierr.Internal(fmt.Sprintf("write audit log: %v", err))
+	}
+
+	initialErr := runServiceOp(ctx, op, name, command)
+	if initialErr == nil {
+		return probe(ctx, spec), nil
+	}
+
+	if !usedDefault {
+		return Status{}, initialErr
+	}
+
+	// Automatic self-healing: analyze failure and attempt recovery
+	errStr := initialErr.Error()
+	needsUnmask := strings.Contains(errStr, "masked") ||
+		strings.Contains(errStr, "failed to load properly") ||
+		strings.Contains(errStr, "File exists") ||
+		strings.Contains(errStr, "reload service manager")
+
+	if needsUnmask {
+		unmaskAndReload(ctx, getAssociatedUnits(name)...)
+		// Retry initial command after unmask & daemon-reload
+		if retryErr := runServiceOp(ctx, op, name, command); retryErr == nil {
+			return probe(ctx, spec), nil
+		}
+	}
+
+	// Try all alternate commands (e.g. mariadb <-> mysql <-> mysqld, or service SysV fallback)
+	candidates := opCommandCandidates(op, name)
+	for _, altCmd := range candidates {
+		if altCmd == command {
+			continue
+		}
+		if err := runServiceOp(ctx, op, name, altCmd); err == nil {
+			return probe(ctx, spec), nil
+		}
+	}
+
+	// If Nginx failed, append nginx -t diagnostic hints if syntax error is detected
+	if name == NameNginx && runtime.GOOS != "windows" {
+		if syntaxErr := checkNginxConfigSyntax(ctx); syntaxErr != "" {
+			return Status{}, serviceOpFailed(op, fmt.Sprintf("%s of %s failed: %v (configuration test error: %s)", op, name, initialErr, syntaxErr))
+		}
+	}
+
+	return Status{}, initialErr
+}
+
+// unmaskAndReload attempts to unmask unit files, remove /etc/systemd/system dead masks,
+// and execute systemctl daemon-reload.
+func unmaskAndReload(ctx context.Context, unitNames ...string) {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		return
+	}
+	systemctl, err := exec.LookPath("systemctl")
+	if err != nil {
+		return
+	}
+
+	for _, unit := range unitNames {
+		if unit == "" {
+			continue
+		}
+		baseUnit := strings.TrimSuffix(unit, ".service")
+
+		// Run systemctl unmask
+		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit).Run()
+		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit+".service").Run()
+
+		// Remove /etc/systemd/system/<unit>.service if it's a mask symlink to /dev/null
+		for _, p := range []string{
+			filepath.Join("/etc/systemd/system", baseUnit+".service"),
+			filepath.Join("/etc/systemd/system", baseUnit),
+		} {
+			if fi, err := os.Lstat(p); err == nil {
+				if fi.Mode()&os.ModeSymlink != 0 {
+					target, err := os.Readlink(p)
+					if err == nil && (target == "/dev/null" || strings.Contains(target, "null")) {
+						_ = os.Remove(p)
+					}
 				}
 			}
 		}
-		return Status{}, err
 	}
-	return probe(ctx, spec), nil
+
+	// Reload systemd daemon
+	_ = exec.CommandContext(ctx, systemctl, "daemon-reload").Run()
+}
+
+func getAssociatedUnits(name string) []string {
+	switch name {
+	case NameNginx:
+		return []string{"nginx"}
+	case NameMySQL:
+		return []string{"mariadb", "mysql", "mysqld"}
+	case NamePHPFpm:
+		units := []string{"php-fpm"}
+		units = append(units, phpFpmUnits()...)
+		return units
+	default:
+		return []string{name}
+	}
+}
+
+func opCommandCandidates(op, name string) []string {
+	if runtime.GOOS == "darwin" {
+		switch name {
+		case NameNginx:
+			return []string{"brew services " + op + " nginx"}
+		case NameMySQL:
+			return []string{"brew services " + op + " mariadb", "brew services " + op + " mysql"}
+		case NamePHPFpm:
+			return []string{"brew services " + op + " php"}
+		}
+		return nil
+	}
+
+	switch name {
+	case NameNginx:
+		return []string{
+			"systemctl " + op + " nginx",
+			"service nginx " + op,
+			"/etc/init.d/nginx " + op,
+		}
+	case NameMySQL:
+		return []string{
+			"systemctl " + op + " mariadb",
+			"systemctl " + op + " mysql",
+			"systemctl " + op + " mysqld",
+			"service mariadb " + op,
+			"service mysql " + op,
+			"/etc/init.d/mariadb " + op,
+			"/etc/init.d/mysql " + op,
+		}
+	case NamePHPFpm:
+		var list []string
+		if units := phpFpmUnits(); len(units) > 0 {
+			list = append(list, "systemctl "+op+" "+strings.Join(units, " "))
+			for _, u := range units {
+				list = append(list, "systemctl "+op+" "+u)
+			}
+		}
+		list = append(list,
+			"systemctl "+op+" php-fpm",
+			"service php-fpm "+op,
+			"service php8.4-fpm "+op,
+			"service php8.3-fpm "+op,
+			"service php8.2-fpm "+op,
+			"service php8.1-fpm "+op,
+		)
+		return list
+	}
+	return nil
+}
+
+func checkNginxConfigSyntax(ctx context.Context) string {
+	nginxBin, err := exec.LookPath("nginx")
+	if err != nil {
+		return ""
+	}
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, nginxBin, "-t")
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
+		if len(lines) > 2 {
+			return strings.Join(lines[len(lines)-2:], " ")
+		}
+		return strings.TrimSpace(stderr.String())
+	}
+	return ""
 }
 
 func phpFpmUnits() []string {

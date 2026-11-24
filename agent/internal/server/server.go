@@ -186,6 +186,11 @@ func New(cfg config.Config, eng *tasks.Engine, siteSvc *sites.Service, sslIssuer
 	mux.HandleFunc("POST /v1/services/{name}/restart", s.handleRestartService)
 	mux.HandleFunc("POST /v1/services/{name}/stop", s.handleStopService)
 	mux.HandleFunc("POST /v1/services/{name}/start", s.handleStartService)
+	mux.HandleFunc("POST /v1/services/{name}/repair", s.handleRepairService)
+	mux.HandleFunc("POST /api/services/{name}/restart", s.handleRestartService)
+	mux.HandleFunc("POST /api/services/{name}/stop", s.handleStopService)
+	mux.HandleFunc("POST /api/services/{name}/start", s.handleStartService)
+	mux.HandleFunc("POST /api/services/{name}/repair", s.handleRepairService)
 
 	mux.HandleFunc("GET /v1/dns/status", s.handleDNSStatus)
 	mux.HandleFunc("POST /v1/dns/install", s.handleInstallDNS)

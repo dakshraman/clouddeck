@@ -50,7 +50,7 @@ export function MonitoringClient() {
   const [processSort, setProcessSort] = useState<ProcessSort>("cpu");
   const [actionService, setActionService] = useState<{
     name: string;
-    action: "restart" | "stop" | "start";
+    action: "restart" | "stop" | "start" | "repair";
   } | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
   const [killing, setKilling] = useState<number | null>(null);
@@ -232,6 +232,29 @@ export function MonitoringClient() {
       setActionErrors((prev) => ({
         ...prev,
         [service.name]: error instanceof Error ? error.message : "Start failed",
+      }));
+    } finally {
+      setActionService(null);
+    }
+  }
+
+  async function onRepair(service: AgentService) {
+    setActionErrors((prev) => {
+      const next = { ...prev };
+      delete next[service.name];
+      return next;
+    });
+    setActionService({ name: service.name, action: "repair" });
+
+    try {
+      await apiFetch<AgentService>(`/api/services/${encodeURIComponent(service.name)}/repair`, {
+        method: "POST",
+      });
+      await load({ silent: true });
+    } catch (error) {
+      setActionErrors((prev) => ({
+        ...prev,
+        [service.name]: error instanceof Error ? error.message : "Auto-fix failed",
       }));
     } finally {
       setActionService(null);
@@ -476,6 +499,7 @@ export function MonitoringClient() {
               onRestart={() => void onRestart(service)}
               onStop={() => void onStop(service)}
               onStart={() => void onStart(service)}
+              onRepair={() => void onRepair(service)}
             />
           ))}
         </div>
