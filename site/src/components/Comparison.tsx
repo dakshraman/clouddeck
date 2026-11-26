@@ -110,18 +110,18 @@ export function Comparison() {
   ];
 
   return (
-    <section id="comparison" className="border-t border-white/5 bg-[#0C121A] py-16 sm:py-20">
+    <section id="comparison" className="border-t border-white/10 bg-[#080C10] py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Section Heading */}
         <div className="text-center">
           <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-mono font-medium text-[#74B8CC]">
-            <span>Platform Comparison</span>
+            <span>Architecture comparison</span>
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[#F4F8FA] sm:text-4xl">
-            CloudDeck vs. cPanel, aaPanel &amp; Coolify
+            CloudDeck compared with traditional and container panels
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[#8FA6B5]">
-            See how CloudDeck combines traditional hosting power (bare-metal LEMP, multi-PHP, mail, DNS) with modern PaaS workflows (App Store, Git rollbacks, fleet management) in under 50MB of RAM.
+            Bare-metal LEMP speed (Nginx + multi-PHP FPM sockets) combined with modern PaaS conveniences (App Store, Git rollbacks, fleet oversight) in under 50MB of RAM.
           </p>
 
           <div className="mt-3 inline-block sm:hidden text-[11px] font-mono text-[#546C7B]">
@@ -130,11 +130,11 @@ export function Comparison() {
         </div>
 
         {/* Responsive Table Container */}
-        <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-[#101720] shadow-subtle">
+        <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-[#0D131A] shadow-subtle">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-[#0E151E] text-xs font-mono">
+                <tr className="border-b border-white/10 bg-[#080C10] text-xs font-mono">
                   <th className="py-3.5 px-4 sm:px-5 font-medium text-[#8FA6B5]">Feature</th>
                   <th className="py-3.5 px-4 sm:px-5 font-semibold text-[#74B8CC] bg-white/[0.03]">
                     <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export function Comparison() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {rows.map((row) => (
-                  <tr key={row.feature} className="transition hover:bg-white/[0.02]">
+                  <tr key={row.feature} className="transition-colors hover:bg-white/[0.02]">
                     <td className="py-3 px-4 sm:px-5 font-medium text-[#F4F8FA]">
                       {row.feature}
                     </td>

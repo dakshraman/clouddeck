@@ -22,7 +22,7 @@ export function InstallSection() {
   const macCmd = "curl -fsSL https://clouddeck.dakshraman.in/install.sh | bash";
 
   return (
-    <section id="install" className="border-t border-white/5 bg-[#0A0E13] py-16 sm:py-20 relative">
+    <section id="install" className="border-t border-white/10 bg-[#080C10] py-16 sm:py-24 relative">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center">
@@ -40,13 +40,13 @@ export function InstallSection() {
 
         {/* Platform Selector Tabs */}
         <div className="mt-8 flex justify-center">
-          <div className="inline-flex flex-wrap justify-center rounded-lg border border-white/10 bg-[#101720] p-1 shadow-subtle">
+          <div className="inline-flex flex-wrap justify-center rounded-lg border border-white/10 bg-[#0D131A] p-1 shadow-subtle">
             <button
               type="button"
               onClick={() => setPlatform("linux")}
-              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
+              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 platform === "linux"
-                  ? "bg-[#18232F] text-[#F4F8FA] border border-white/10 shadow-sm"
+                  ? "bg-[#121A22] text-[#F4F8FA] border border-white/10 shadow-sm"
                   : "text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
@@ -56,9 +56,9 @@ export function InstallSection() {
             <button
               type="button"
               onClick={() => setPlatform("mac")}
-              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
+              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 platform === "mac"
-                  ? "bg-[#18232F] text-[#F4F8FA] border border-white/10 shadow-sm"
+                  ? "bg-[#121A22] text-[#F4F8FA] border border-white/10 shadow-sm"
                   : "text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >
@@ -68,9 +68,9 @@ export function InstallSection() {
             <button
               type="button"
               onClick={() => setPlatform("win")}
-              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
+              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 platform === "win"
-                  ? "bg-[#18232F] text-[#F4F8FA] border border-white/10 shadow-sm"
+                  ? "bg-[#121A22] text-[#F4F8FA] border border-white/10 shadow-sm"
                   : "text-[#8FA6B5] hover:text-[#F4F8FA]"
               }`}
             >

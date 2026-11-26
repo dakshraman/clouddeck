@@ -154,7 +154,7 @@ export function BentoGrid() {
                   </p>
                 </div>
                 <div className="mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5] w-fit">
-                  Windows PATH &bull; macOS brew
+                  Windows PATH / macOS brew
                 </div>
               </div>
 
@@ -173,7 +173,7 @@ export function BentoGrid() {
                   </p>
                 </div>
                 <div className="mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5] w-fit">
-                  PTY streaming &bull; xterm.js
+                  PTY streaming / xterm.js
                 </div>
               </div>
 
@@ -211,7 +211,7 @@ export function BentoGrid() {
                   </p>
                 </div>
                 <div className="mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5] w-fit">
-                  Static binary &bull; stdlib only
+                  Static binary / stdlib only
                 </div>
               </div>
             </div>
@@ -254,7 +254,7 @@ export function BentoGrid() {
                   </p>
                 </div>
                 <div className="mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5] w-fit">
-                  0-100 Score &bull; Auto-Fix
+                  0-100 Score / Auto-Fix
                 </div>
               </div>
 
@@ -311,7 +311,7 @@ export function BentoGrid() {
                   </p>
                 </div>
                 <div className="mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-mono text-[#8FA6B5] w-fit">
-                  Crontab &bull; Run-Now testing
+                  Crontab / Run-Now testing
                 </div>
               </div>
 

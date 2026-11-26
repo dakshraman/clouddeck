@@ -30,3 +30,6 @@ Thumbs.db
 
 # Netlify CLI state
 .netlify/
+
+# Hallmark
+.hallmark/

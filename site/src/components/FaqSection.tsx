@@ -41,7 +41,7 @@ export function FaqSection() {
   ];
 
   return (
-    <section id="faq" className="border-t border-white/5 bg-[#0C121A] py-16 sm:py-20" aria-labelledby="faq-heading">
+    <section id="faq" className="border-t border-white/10 bg-[#080C10] py-16 sm:py-24" aria-labelledby="faq-heading">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center">

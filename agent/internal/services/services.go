@@ -308,6 +308,16 @@ func unmaskAndReload(ctx context.Context, unitNames ...string) {
 		return
 	}
 
+	sudo, _ := exec.LookPath("sudo")
+
+	runSys := func(args ...string) {
+		cmd := exec.CommandContext(ctx, systemctl, args...)
+		if err := cmd.Run(); err != nil && sudo != "" {
+			sudoArgs := append([]string{"-n", systemctl}, args...)
+			_ = exec.CommandContext(ctx, sudo, sudoArgs...).Run()
+		}
+	}
+
 	for _, unit := range unitNames {
 		if unit == "" {
 			continue
@@ -315,16 +325,17 @@ func unmaskAndReload(ctx context.Context, unitNames ...string) {
 		baseUnit := strings.TrimSuffix(unit, ".service")
 
 		// Run systemctl reset-failed and unmask
-		_ = exec.CommandContext(ctx, systemctl, "reset-failed", baseUnit).Run()
-		_ = exec.CommandContext(ctx, systemctl, "reset-failed", baseUnit+".service").Run()
-		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit).Run()
-		_ = exec.CommandContext(ctx, systemctl, "unmask", baseUnit+".service").Run()
+		runSys("reset-failed", baseUnit)
+		runSys("reset-failed", baseUnit+".service")
+		runSys("unmask", baseUnit)
+		runSys("unmask", baseUnit+".service")
 
 		// Remove mask symlinks to /dev/null or broken dangling symlinks across systemd dirs
 		for _, dir := range []string{
 			"/etc/systemd/system",
 			"/etc/systemd/system/multi-user.target.wants",
 			"/run/systemd/system",
+			"/usr/lib/systemd/system",
 		} {
 			for _, filename := range []string{baseUnit + ".service", baseUnit} {
 				p := filepath.Join(dir, filename)
@@ -332,10 +343,14 @@ func unmaskAndReload(ctx context.Context, unitNames ...string) {
 					if fi.Mode()&os.ModeSymlink != 0 {
 						target, rErr := os.Readlink(p)
 						if rErr == nil && (target == "/dev/null" || strings.Contains(target, "null")) {
-							_ = os.Remove(p)
+							if remErr := os.Remove(p); remErr != nil && sudo != "" {
+								_ = exec.CommandContext(ctx, sudo, "-n", "rm", "-f", p).Run()
+							}
 						} else if _, statErr := os.Stat(p); os.IsNotExist(statErr) {
 							// Dangling or broken symlink
-							_ = os.Remove(p)
+							if remErr := os.Remove(p); remErr != nil && sudo != "" {
+								_ = exec.CommandContext(ctx, sudo, "-n", "rm", "-f", p).Run()
+							}
 						}
 					}
 				}
@@ -344,7 +359,7 @@ func unmaskAndReload(ctx context.Context, unitNames ...string) {
 	}
 
 	// Reload systemd daemon
-	_ = exec.CommandContext(ctx, systemctl, "daemon-reload").Run()
+	runSys("daemon-reload")
 }
 
 func getAssociatedUnits(name string) []string {
@@ -562,6 +577,17 @@ func runServiceOp(ctx context.Context, op, name, command string) error {
 	runErr := cmd.Run()
 	if runErr == nil {
 		return nil
+	}
+	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
+		if sudo, sErr := exec.LookPath("sudo"); sErr == nil {
+			sudoArgs := append([]string{"-n", path}, argv[1:]...)
+			sudoCmd := exec.CommandContext(ctx, sudo, sudoArgs...)
+			var sudoStderr bytes.Buffer
+			sudoCmd.Stderr = &sudoStderr
+			if sudoErr := sudoCmd.Run(); sudoErr == nil {
+				return nil
+			}
+		}
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return serviceOpFailed(op, fmt.Sprintf("%s command timed out after %s", op, restartTimeout))

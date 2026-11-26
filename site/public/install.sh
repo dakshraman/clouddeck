@@ -341,7 +341,7 @@ resolve_latest() {
     if [ -n "$_tag" ]; then
       VERSION="$_tag"
     else
-      VERSION="v0.6.60"
+      VERSION="v0.6.61"
     fi
   fi
 }

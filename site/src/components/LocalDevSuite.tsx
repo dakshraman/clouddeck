@@ -95,7 +95,7 @@ export function LocalDevSuite() {
               <button
                 type="button"
                 onClick={copyWin}
-                className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#8FA6B5] hover:bg-white/10 hover:text-[#F4F8FA] transition"
+                className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#8FA6B5] hover:bg-white/10 hover:text-[#F4F8FA] transition-colors"
                 aria-label="Copy Windows installation command"
               >
                 {copiedWin ? (
@@ -159,7 +159,7 @@ export function LocalDevSuite() {
               <button
                 type="button"
                 onClick={copyMac}
-                className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#8FA6B5] hover:bg-white/10 hover:text-[#F4F8FA] transition"
+                className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#8FA6B5] hover:bg-white/10 hover:text-[#F4F8FA] transition-colors"
                 aria-label="Copy macOS installation command"
               >
                 {copiedMac ? (

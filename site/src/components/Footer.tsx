@@ -21,12 +21,12 @@ export function Footer() {
 
           {/* Product Links */}
           <div>
-            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Product</h4>
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA]">Product</h4>
             <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
               <li><a href="#architecture" className="hover:text-[#F4F8FA] transition-colors">System Architecture</a></li>
               <li><a href="#comparison" className="hover:text-[#F4F8FA] transition-colors">Platform Comparison</a></li>
               <li><a href="#local-dev" className="hover:text-[#F4F8FA] transition-colors">Local Dev Suite (WSL / Mac)</a></li>
-              <li><a href="#features" className="hover:text-[#F4F8FA] transition-colors">Core Features</a></li>
+              <li><a href="#tour" className="hover:text-[#F4F8FA] transition-colors">Feature Tour</a></li>
               <li><a href="#install" className="hover:text-[#F4F8FA] transition-colors">Installation Guide</a></li>
               <li><a href="#faq" className="hover:text-[#F4F8FA] transition-colors">FAQ</a></li>
             </ul>
@@ -34,7 +34,7 @@ export function Footer() {
 
           {/* Documentation Links */}
           <div>
-            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Documentation</h4>
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA]">Documentation</h4>
             <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
               <li>
                 <a
@@ -91,7 +91,7 @@ export function Footer() {
 
           {/* Developer Resources */}
           <div>
-            <h4 className="text-xs font-mono font-medium text-[#F4F8FA] uppercase tracking-wider">Resources</h4>
+            <h4 className="text-xs font-mono font-medium text-[#F4F8FA]">Resources</h4>
             <ul className="mt-3.5 space-y-2.5 text-xs text-[#8FA6B5]">
               <li>
                 <a

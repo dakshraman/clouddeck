@@ -9,7 +9,7 @@ export function JsonLd() {
         "url": "https://clouddeck.dakshraman.in",
         "logo": {
           "@type": "ImageObject",
-          "url": "https://clouddeck.dakshraman.in/assets/logo.svg",
+          "url": "https://clouddeck.dakshraman.in/assets/favicon.svg",
           "caption": "CloudDeck Logo",
         },
         "sameAs": ["https://github.com/dakshraman/clouddeck"],

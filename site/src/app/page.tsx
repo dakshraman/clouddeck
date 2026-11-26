@@ -12,15 +12,15 @@ import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0A0E13] text-[#F4F8FA] antialiased bg-grid-pattern selection:bg-[#74B8CC]/25 selection:text-white">
+    <div className="min-h-screen bg-[#080C10] text-[#F4F8FA] antialiased selection:bg-[#74B8CC]/25 selection:text-white">
       <Navbar />
       <main>
         <Hero />
         <StackStrip />
+        <TourGallery />
         <BentoGrid />
         <Comparison />
         <LocalDevSuite />
-        <TourGallery />
         <InstallSection />
         <FaqSection />
         <CtaSection />
