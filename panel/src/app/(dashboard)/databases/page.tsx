@@ -41,24 +41,38 @@ export default function DatabasesPage() {
     if (!options?.silent) setState("loading");
     setErrorMessage(null);
 
-    const [statusResult, databasesResult, usersResult, pmaResult] = await Promise.allSettled([
-      apiFetch<MySQLStatus>("/api/mysql/status"),
-      apiFetch<MySQLListDatabasesResponse>("/api/mysql/databases"),
-      apiFetch<MySQLListUsersResponse>("/api/mysql/users"),
-      apiFetch<PmaStatusResponse>("/api/phpmyadmin/status"),
-    ]);
-
-    if (statusResult.status === "rejected") {
+    let statusVal: MySQLStatus | null = null;
+    try {
+      statusVal = await apiFetch<MySQLStatus>("/api/mysql/status");
+      setStatus(statusVal);
+    } catch (err) {
       setState("error");
       setErrorMessage(
-        statusResult.reason instanceof Error
-          ? statusResult.reason.message
+        err instanceof Error
+          ? err.message
           : "Cannot reach the CloudDeck agent",
       );
       return;
     }
 
-    setStatus(statusResult.value);
+    if (!statusVal || !statusVal.available) {
+      setDatabases([]);
+      setUsers([]);
+      setDatabasesError(null);
+      setUsersError(null);
+      try {
+        const pma = await apiFetch<PmaStatusResponse>("/api/phpmyadmin/status");
+        setPmaStatus(pma);
+      } catch {}
+      setState("ready");
+      return;
+    }
+
+    const [databasesResult, usersResult, pmaResult] = await Promise.allSettled([
+      apiFetch<MySQLListDatabasesResponse>("/api/mysql/databases"),
+      apiFetch<MySQLListUsersResponse>("/api/mysql/users"),
+      apiFetch<PmaStatusResponse>("/api/phpmyadmin/status"),
+    ]);
 
     if (pmaResult.status === "fulfilled") {
       setPmaStatus(pmaResult.value);
@@ -217,7 +231,7 @@ export default function DatabasesPage() {
             </div>
           ) : null}
           <div className="mt-6">
-            <RemoteMysqlCard />
+            <RemoteMysqlCard available={available} />
           </div>
           <div className="mt-6">
             <S3BackupCard databases={databases} />

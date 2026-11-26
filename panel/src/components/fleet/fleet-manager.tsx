@@ -315,15 +315,15 @@ export function FleetManager() {
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1" title="CPU Usage">
                               <Cpu size={12} className="text-muted-foreground" />
-                              <span className="font-mono">{st.cpuUsagePct ?? "—"}%</span>
+                              <span className="font-mono">{st.cpuUsagePct !== undefined && st.cpuUsagePct !== null ? `${st.cpuUsagePct}%` : "—"}</span>
                             </div>
                             <div className="flex items-center gap-1" title="Memory Usage">
                               <Activity size={12} className="text-muted-foreground" />
-                              <span className="font-mono">{st.memoryUsagePct ?? "—"}%</span>
+                              <span className="font-mono">{st.memoryUsagePct !== undefined && st.memoryUsagePct !== null ? `${st.memoryUsagePct}%` : "—"}</span>
                             </div>
                             <div className="flex items-center gap-1" title="Disk Usage">
                               <HardDrive size={12} className="text-muted-foreground" />
-                              <span className="font-mono">{st.diskUsagePct ?? "—"}%</span>
+                              <span className="font-mono">{st.diskUsagePct !== undefined && st.diskUsagePct !== null ? `${st.diskUsagePct}%` : "—"}</span>
                             </div>
                           </div>
                         </td>

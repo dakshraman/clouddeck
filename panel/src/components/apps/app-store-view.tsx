@@ -235,8 +235,8 @@ export function AppStoreView() {
   const [catalog, setCatalog] = useState<AppStoreTemplate[]>(CURATED_CATALOG);
   const [installedApps, setInstalledApps] = useState<InstalledAppStoreApp[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [dockerAvailable, setDockerAvailable] = useState<boolean>(true);
-  const [dockerComposeAvailable, setDockerComposeAvailable] = useState<boolean>(true);
+  const [dockerAvailable, setDockerAvailable] = useState<boolean>(false);
+  const [dockerComposeAvailable, setDockerComposeAvailable] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -305,8 +305,17 @@ export function AppStoreView() {
   }, [loadData]);
 
   const filteredCatalog = useMemo(() => {
+    const normalizeCat = (c: string) => {
+      const lower = (c || "").toLowerCase();
+      if (lower === "cms" || lower === "publishing") return "cms";
+      if (lower === "productivity" || lower === "collaboration") return "productivity";
+      return lower;
+    };
+
     return catalog.filter((tpl) => {
-      const matchesCategory = selectedCategory === "All" || tpl.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === "All" ||
+        normalizeCat(tpl.category) === normalizeCat(selectedCategory);
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         !q ||

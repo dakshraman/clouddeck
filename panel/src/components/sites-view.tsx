@@ -285,7 +285,7 @@ export function SitesView() {
       {state === "ready" && displayedSites.length > 0 ? (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="min-w-[800px] w-full text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Domain</th>
@@ -293,7 +293,7 @@ export function SitesView() {
                   <th className="px-5 py-3 text-left font-medium">SSL</th>
                   <th className="px-5 py-3 text-left font-medium">Status</th>
                   <th className="px-5 py-3 text-left font-medium">Created</th>
-                  <th className="px-5 py-3 text-right font-medium">Actions</th>
+                  <th className="px-5 py-3 text-right font-medium whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,7 +399,7 @@ export function SitesView() {
                         </Badge>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">{shortDateTime(site.createdAt)}</td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
                           {isDeleting ? (
                             <span className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -426,53 +426,40 @@ export function SitesView() {
                             </>
                           ) : (
                             <>
+                              <Link
+                                href={`/sites/${encodeURIComponent(site.domain)}`}
+                                className={buttonClass("secondary", "sm")}
+                              >
+                                Manage
+                              </Link>
                               <a
                                 href={`/api/preview/${encodeURIComponent(site.domain)}`}
                                 target="_blank"
                                 rel="noreferrer noopener"
-                                className={buttonClass("secondary", "sm")}
+                                className={buttonClass("ghost", "icon-sm")}
                                 title={`Preview ${site.domain} in-panel`}
+                                aria-label={`Preview ${site.domain} in-panel`}
                               >
                                 <Eye size={14} aria-hidden="true" />
-                                Preview
                               </a>
-                              <a
-                                href={siteUrl}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className={buttonClass("secondary", "sm")}
-                                title={`Open ${site.domain} in browser`}
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => startEdit(site)}
+                                title="Edit site settings"
+                                aria-label={`Edit ${site.domain}`}
                               >
-                                <ExternalLink size={14} aria-hidden="true" />
-                                Open site
-                              </a>
-                              <Link
-                                href={`/sites/${encodeURIComponent(site.domain)}?tab=apps`}
-                                className={buttonClass("secondary", "sm")}
-                                title={`Manage applications for ${site.domain}`}
-                              >
-                                <Cpu size={14} aria-hidden="true" />
-                                Apps
-                              </Link>
-                              <Link
-                                href={`/sites/${encodeURIComponent(site.domain)}`}
-                                className={buttonClass("ghost", "sm")}
-                              >
-                                Manage
-                              </Link>
-                              <Button variant="ghost" size="sm" onClick={() => startEdit(site)}>
                                 <Pencil size={14} aria-hidden="true" />
-                                Edit
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon-sm"
                                 className="text-muted-foreground hover:text-red-400"
                                 onClick={() => setConfirmDomain(site.domain)}
+                                title={`Delete ${site.domain}`}
                                 aria-label={`Delete ${site.domain}`}
                               >
                                 <Trash2 size={14} aria-hidden="true" />
-                                Delete
                               </Button>
                             </>
                           )}

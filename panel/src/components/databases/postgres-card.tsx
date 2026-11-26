@@ -200,7 +200,11 @@ export function PostgresCard() {
             <CardTitle className="flex items-center gap-2">
               PostgreSQL Database Engine
               <Badge variant={status?.running ? "green" : "neutral"} className="text-xs">
-                {status?.running ? `PostgreSQL ${status.version || "Active"}` : "Stopped"}
+                {status?.running
+                  ? status.version?.toLowerCase().includes("postgresql")
+                    ? status.version
+                    : `PostgreSQL ${status.version || "Active"}`
+                  : "Stopped"}
               </Badge>
             </CardTitle>
             <CardDescription>

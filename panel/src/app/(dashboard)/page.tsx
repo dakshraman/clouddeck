@@ -47,11 +47,13 @@ function MeterRow({
   used,
   total,
   icon: Icon,
+  unit = "bytes",
 }: {
   label: string;
   used: number;
   total: number;
   icon: typeof Cpu;
+  unit?: "bytes" | "percent";
 }) {
   const percent = percentOf(used, total);
   const tone = usageTone(percent);
@@ -73,7 +75,7 @@ function MeterRow({
         />
       </div>
       <p className="tabular mt-1 text-[11px] text-muted-foreground">
-        {formatBytes(used)} of {formatBytes(total)}
+        {unit === "percent" ? `${Math.round(percent)}% of 100%` : `${formatBytes(used)} of ${formatBytes(total)}`}
       </p>
     </div>
   );
@@ -264,12 +266,7 @@ export default function DashboardPage() {
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   }`}
                 >
-                  Failed
-                  {failedTasks.length > 0 ? (
-                    <span className="rounded-full bg-red-500/20 px-1.5 py-0.2 text-[10px] font-bold text-red-600 dark:text-red-400">
-                      {failedTasks.length}
-                    </span>
-                  ) : null}
+                  Failed ({failedTasks.length})
                 </button>
                 <button
                   type="button"
@@ -420,6 +417,7 @@ export default function DashboardPage() {
                     used={system.cpu.usagePercent}
                     total={100}
                     icon={Cpu}
+                    unit="percent"
                   />
                   <MeterRow
                     label="Memory"

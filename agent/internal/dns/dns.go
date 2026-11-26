@@ -222,7 +222,16 @@ func (m *Manager) EnsureBackendConfigured(ctx context.Context) error {
 	} else {
 		// Ensure gsqlite3 backend configuration
 		gsqlite3Conf := filepath.Join(pdnsd, "gsqlite3.conf")
+		hasLaunch := false
+		if confBytes, readErr := os.ReadFile(filepath.Join(confDir, "pdns.conf")); readErr == nil {
+			if strings.Contains(string(confBytes), "launch=gsqlite3") || strings.Contains(string(confBytes), "launch = gsqlite3") {
+				hasLaunch = true
+			}
+		}
 		gsqliteContent := fmt.Sprintf("launch+=gsqlite3\ngsqlite3-database=%s\ngsqlite3-dnssec=on\n", dbPath)
+		if hasLaunch {
+			gsqliteContent = fmt.Sprintf("gsqlite3-database=%s\ngsqlite3-dnssec=on\n", dbPath)
+		}
 		if _, err := os.Stat(gsqlite3Conf); os.IsNotExist(err) {
 			_ = os.WriteFile(gsqlite3Conf, []byte(gsqliteContent), 0o644)
 		}
@@ -620,6 +629,38 @@ func (m *Manager) run(ctx context.Context, args ...string) (string, string, erro
 	// If failed and a managed fallback config directory exists, retry with fallback
 	if m.managedConfDir != "" && confDir != m.managedConfDir {
 		fbArgv := append([]string{"--config-dir", m.managedConfDir}, args...)
+		cmdFb := exec.CommandContext(ctx, path, fbArgv...)
+		var fbStdout, fbStderr bytes.Buffer
+		cmdFb.Stdout = &fbStdout
+		cmdFb.Stderr = &fbStderr
+		if fbRunErr := cmdFb.Run(); fbRunErr == nil {
+			return fbStdout.String(), fbStderr.String(), nil
+		}
+	} else if strings.Contains(errOut, "multiple backends with the same name 'gsqlite3'") {
+		for _, confFile := range []string{
+			filepath.Join("/etc/powerdns/pdns.d", "gsqlite3.conf"),
+			filepath.Join("/etc/powerdns", "pdns.d", "gsqlite3.conf"),
+		} {
+			if b, rErr := os.ReadFile(confFile); rErr == nil && strings.Contains(string(b), "launch") {
+				newContent := strings.ReplaceAll(string(b), "launch+=gsqlite3\n", "")
+				newContent = strings.ReplaceAll(newContent, "launch+=gsqlite3", "")
+				newContent = strings.ReplaceAll(newContent, "launch=gsqlite3\n", "")
+				newContent = strings.ReplaceAll(newContent, "launch=gsqlite3", "")
+				_ = os.WriteFile(confFile, []byte(newContent), 0o644)
+			}
+		}
+		fallbackDir := filepath.Join(os.TempDir(), "clouddeck-powerdns")
+		if m.cfg.BackupDir != "" {
+			fallbackDir = filepath.Join(filepath.Dir(m.cfg.BackupDir), "powerdns")
+		}
+		_ = os.MkdirAll(fallbackDir, 0o755)
+		managedDbPath := filepath.Join(fallbackDir, "pdns.sqlite3")
+		managedConf := filepath.Join(fallbackDir, "pdns.conf")
+		managedContent := fmt.Sprintf("launch=gsqlite3\ngsqlite3-database=%s\ngsqlite3-dnssec=on\n", managedDbPath)
+		_ = os.WriteFile(managedConf, []byte(managedContent), 0o644)
+		m.managedConfDir = fallbackDir
+		_ = initSQLiteSchema(ctx, managedDbPath)
+		fbArgv := append([]string{"--config-dir", fallbackDir}, args...)
 		cmdFb := exec.CommandContext(ctx, path, fbArgv...)
 		var fbStdout, fbStderr bytes.Buffer
 		cmdFb.Stdout = &fbStdout

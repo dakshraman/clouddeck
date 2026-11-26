@@ -21,16 +21,27 @@ export function LoginForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
+
+    const formData = new FormData(event.currentTarget);
+    const resolvedUsername = (formData.get("username") as string)?.trim() || username.trim();
+    const resolvedPassword = (formData.get("password") as string) || password;
+    const resolvedCode = (formData.get("code") as string)?.trim() || code.trim();
+
+    if (!resolvedUsername || !resolvedPassword) {
+      setError("Please enter your username and password.");
+      return;
+    }
+
     setPending(true);
     setError(null);
 
     try {
       const payload: { username: string; password: string; code?: string } = {
-        username,
-        password,
+        username: resolvedUsername,
+        password: resolvedPassword,
       };
       if (requires2FA) {
-        payload.code = code.trim();
+        payload.code = resolvedCode;
       }
 
       const res = await fetch("/api/auth/login", {
@@ -119,7 +130,16 @@ export function LoginForm() {
                   />
                 </div>
                 {error ? <Alert variant="error">{error}</Alert> : null}
-                <Button type="submit" loading={pending} className="w-full">
+                <Button
+                  type="submit"
+                  loading={pending}
+                  className="w-full"
+                  onClick={(e) => {
+                    if (e.currentTarget.form && !e.defaultPrevented) {
+                      e.currentTarget.form.requestSubmit();
+                    }
+                  }}
+                >
                   Sign in
                 </Button>
               </form>

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os/exec"
 	"strconv"
 
 	"clouddeck/agent/internal/apierr"
@@ -14,7 +15,19 @@ func (s *Server) handleGetAppStoreCatalog(w http.ResponseWriter, r *http.Request
 		return
 	}
 	catalog := s.appstore.GetCatalog()
-	writeJSON(w, http.StatusOK, map[string]any{"catalog": catalog})
+	_, dockerErr := exec.LookPath("docker")
+	dockerAvailable := dockerErr == nil
+	dockerComposeAvailable := false
+	if dockerAvailable {
+		if err := exec.CommandContext(r.Context(), "docker", "compose", "version").Run(); err == nil {
+			dockerComposeAvailable = true
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"catalog":                catalog,
+		"dockerAvailable":        dockerAvailable,
+		"dockerComposeAvailable": dockerComposeAvailable,
+	})
 }
 
 func (s *Server) handleListInstalledApps(w http.ResponseWriter, r *http.Request) {

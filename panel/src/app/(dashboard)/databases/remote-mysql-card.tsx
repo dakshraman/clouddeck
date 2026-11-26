@@ -19,7 +19,7 @@ function userKey(entry: RemoteMysqlUser): string {
   return `${entry.user}@${entry.host}`;
 }
 
-export function RemoteMysqlCard() {
+export function RemoteMysqlCard({ available = true }: { available?: boolean }) {
   const [users, setUsers] = useState<RemoteMysqlUser[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -35,6 +35,11 @@ export function RemoteMysqlCard() {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
+    if (!available) {
+      setUsers([]);
+      setLoadError(null);
+      return;
+    }
     try {
       const data = await apiFetch<RemoteMysqlUsersResponse>("/api/mysql/remote");
       setUsers(data.users);
@@ -42,7 +47,7 @@ export function RemoteMysqlCard() {
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to load remote MySQL hosts");
     }
-  }, []);
+  }, [available]);
 
   useEffect(() => {
     void load();
@@ -142,7 +147,7 @@ export function RemoteMysqlCard() {
             changed.
           </CardDescription>
         </div>
-        <Button variant="secondary" size="sm" onClick={openCreate} disabled={createOpen || busy}>
+        <Button variant="secondary" size="sm" onClick={openCreate} disabled={!available || createOpen || busy}>
           <Plus size={14} aria-hidden="true" />
           Add remote host
         </Button>

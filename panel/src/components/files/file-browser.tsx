@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@animate-ui/react/primitives/radix-ui/dropdown-menu";
-import type { FileEntry, FileListResponse, FileUploadResponse } from "@/lib/types";
+import type { FileEntry, FileListResponse, FileUploadResponse, SystemInfo } from "@/lib/types";
 import { apiFetch, apiPost } from "@/components/api";
 import { FileEditor } from "@/components/files/file-editor";
 import { FileViewer } from "@/components/files/file-viewer";
@@ -147,6 +147,15 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
   const [dragOver, setDragOver] = useState(false);
   const [treeOpen, setTreeOpen] = useState(true);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  const [isDryRun, setIsDryRun] = useState(false);
+
+  useEffect(() => {
+    apiFetch<SystemInfo>("/api/system")
+      .then((sys) => {
+        if (sys?.dryRun) setIsDryRun(true);
+      })
+      .catch(() => {});
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadIdRef = useRef(0);
@@ -522,6 +531,12 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         </>
       )}
 
+      {isDryRun ? (
+        <Alert variant="warning" className="mb-4">
+          The agent is running in dry-run mode. File manager modifications (creating, uploading, renaming, moving, editing, or deleting files) are disabled.
+        </Alert>
+      ) : null}
+
       {/* Main Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button
@@ -536,8 +551,9 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         <Button
           variant="secondary"
           size="sm"
-          disabled={rowBusy || moveEntry !== null}
+          disabled={isDryRun || rowBusy || moveEntry !== null || Boolean(error)}
           onClick={() => void onCreateFolder()}
+          title={isDryRun ? "Disabled in dry-run mode" : undefined}
         >
           <FolderPlus size={14} aria-hidden="true" />
           New folder
@@ -545,8 +561,9 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
         <Button
           variant="secondary"
           size="sm"
-          disabled={rowBusy || moveEntry !== null}
+          disabled={isDryRun || rowBusy || moveEntry !== null || Boolean(error)}
           onClick={onCreateFile}
+          title={isDryRun ? "Disabled in dry-run mode" : undefined}
         >
           <FilePlus size={14} aria-hidden="true" />
           New file
@@ -555,8 +572,9 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
           variant="secondary"
           size="sm"
           loading={uploading}
-          disabled={rowBusy || moveEntry !== null}
+          disabled={isDryRun || rowBusy || moveEntry !== null || Boolean(error)}
           onClick={() => fileInputRef.current?.click()}
+          title={isDryRun ? "Disabled in dry-run mode" : undefined}
         >
           {uploading ? null : <Upload size={14} aria-hidden="true" />}
           Upload
@@ -723,7 +741,8 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                       isNew: false,
                     })
                   }
-                  disabled={rowBusy}
+                  disabled={isDryRun || rowBusy}
+                  title={isDryRun ? "Disabled in dry-run mode" : undefined}
                 >
                   <Pencil size={14} aria-hidden="true" />
                   Edit
@@ -735,7 +754,8 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                 variant="secondary"
                 size="sm"
                 onClick={() => openCompress(selectedEntries)}
-                disabled={rowBusy}
+                disabled={isDryRun || rowBusy}
+                title={isDryRun ? "Disabled in dry-run mode" : undefined}
               >
                 <FileArchive size={14} aria-hidden="true" />
                 Compress
@@ -747,7 +767,8 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                   variant="secondary"
                   size="sm"
                   onClick={() => openChmod(singleSelected)}
-                  disabled={rowBusy}
+                  disabled={isDryRun || rowBusy}
+                  title={isDryRun ? "Disabled in dry-run mode" : undefined}
                 >
                   <ShieldCheck size={14} aria-hidden="true" />
                   Permissions
@@ -760,7 +781,8 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                   variant="secondary"
                   size="sm"
                   onClick={() => openExtract(singleSelected)}
-                  disabled={rowBusy}
+                  disabled={isDryRun || rowBusy}
+                  title={isDryRun ? "Disabled in dry-run mode" : undefined}
                 >
                   <PackageOpen size={14} aria-hidden="true" />
                   Extract
@@ -771,8 +793,10 @@ export function FileBrowser({ domain, embedded = false }: { domain: string; embe
                 variant="secondary"
                 size="sm"
                 loading={bulkBusy}
+                disabled={isDryRun || bulkBusy}
                 className="text-red-400 hover:text-red-300"
                 onClick={() => void onDeleteBulk()}
+                title={isDryRun ? "Disabled in dry-run mode" : undefined}
               >
                 <Trash2 size={14} aria-hidden="true" />
                 Delete

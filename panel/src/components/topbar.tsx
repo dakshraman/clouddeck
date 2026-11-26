@@ -24,6 +24,8 @@ const segmentLabels: Record<string, string> = {
   terminal: "Terminal",
   ssh: "SSH",
   apps: "App Store",
+  runtimes: "Runtimes",
+  agents: "AI Agents",
   servers: "Fleet Nodes",
   security: "Security",
 };

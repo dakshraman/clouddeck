@@ -113,6 +113,9 @@ export default function NewSitePage() {
       const data = await apiFetch<PhpVersionsResponse>("/api/php-versions");
       const filtered = data.versions.filter((version) => version !== "none");
       setVersions(filtered);
+      if (filtered.length > 0) {
+        setPhpVersion((prev) => (prev === "none" || !filtered.includes(prev) ? filtered[filtered.length - 1] : prev));
+      }
     } catch (error) {
       setVersionsError(error instanceof Error ? error.message : "Failed to load PHP versions");
     }
@@ -171,7 +174,8 @@ export default function NewSitePage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const chosenPhp = runtime === "php" ? phpVersion : "none";
+      const defaultPhp = versions && versions.length > 0 ? versions[versions.length - 1] : "8.4";
+      const chosenPhp = runtime === "php" ? (phpVersion !== "none" ? phpVersion : defaultPhp) : "none";
       const data = await apiPost<{ taskId: string }>("/api/sites", {
         domain: normalized,
         phpVersion: chosenPhp,
@@ -439,7 +443,7 @@ export default function NewSitePage() {
                     <Globe size={18} />
                     <span>Local Custom Domain Resolution Notice: <span className="font-mono text-foreground font-bold">{createdDomain}</span></span>
                   </div>
-                  <Badge variant="amber">Local Domain (.ss)</Badge>
+                  <Badge variant="amber">Local Domain (.{createdDomain.split(".").pop() || "local"})</Badge>
                 </div>
                 <p className="mt-2 text-xs text-foreground/90 leading-relaxed">
                   Because <code className="font-mono font-semibold">.{createdDomain.split(".").pop()}</code> is a local development domain, Windows cannot resolve it over public internet DNS without a local host mapping. You have 3 instant ways to test your site:
