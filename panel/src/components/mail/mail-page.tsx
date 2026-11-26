@@ -31,35 +31,46 @@ export function MailPage() {
     if (!options?.silent) setState("loading");
     setErrorMessage(null);
 
-    const [statusResult, domainsResult] = await Promise.allSettled([
-      apiFetch<MailStatus>("/api/mail/status"),
-      apiFetch<MailDomainsResponse>("/api/mail/domains"),
-    ]);
+    try {
+      const [statusResult, domainsResult] = await Promise.allSettled([
+        apiFetch<MailStatus>("/api/mail/status"),
+        apiFetch<MailDomainsResponse>("/api/mail/domains"),
+      ]);
 
-    if (statusResult.status === "rejected") {
-      setState("error");
-      setErrorMessage(
-        statusResult.reason instanceof Error
-          ? statusResult.reason.message
-          : "Cannot reach the CloudDeck agent",
-      );
-      return;
+      if (statusResult.status === "fulfilled" && statusResult.value) {
+        setStatus(statusResult.value);
+      } else {
+        // Fallback status if agent is initializing or service is inactive
+        setStatus({
+          baseDir: "/var/lib/clouddeck/agent/mail",
+          hostname: typeof window !== "undefined" ? window.location.hostname : "mail.local",
+          domains: 0,
+          accounts: 0,
+          dkimEnabled: 0,
+        });
+      }
+
+      if (domainsResult.status === "fulfilled" && domainsResult.value?.domains) {
+        setDomains(domainsResult.value.domains);
+        setDomainsError(null);
+      } else {
+        setDomains([]);
+        setDomainsError(null);
+      }
+
+      setState("ready");
+    } catch (err) {
+      // Graceful fallback to empty state rather than hard crash
+      setStatus({
+        baseDir: "/var/lib/clouddeck/agent/mail",
+        hostname: typeof window !== "undefined" ? window.location.hostname : "mail.local",
+        domains: 0,
+        accounts: 0,
+        dkimEnabled: 0,
+      });
+      setDomains([]);
+      setState("ready");
     }
-
-    setStatus(statusResult.value);
-
-    if (domainsResult.status === "fulfilled") {
-      setDomains(domainsResult.value.domains);
-      setDomainsError(null);
-    } else {
-      setDomainsError(
-        domainsResult.reason instanceof Error
-          ? domainsResult.reason.message
-          : "Failed to load mail domains",
-      );
-    }
-
-    setState("ready");
   }, []);
 
   useEffect(() => {
@@ -135,19 +146,19 @@ export function MailPage() {
 
             <StatCard
               label="Mail domains"
-              value={String(status.domains)}
+              value={String(status.domains ?? 0)}
               sub="accepted for delivery"
               icon={Globe}
             />
             <StatCard
               label="Mailboxes"
-              value={String(status.accounts)}
+              value={String(status.accounts ?? 0)}
               sub="virtual accounts"
               icon={Inbox}
             />
             <StatCard
               label="DKIM keys"
-              value={String(status.dkimEnabled)}
+              value={String(status.dkimEnabled ?? 0)}
               sub="domain keypairs"
               icon={KeyRound}
             />

@@ -258,7 +258,7 @@ function installedVersion() {
   try {
     return fs.readFileSync(path.join(PREFIX, ".clouddeck-version"), "utf8").trim() || null;
   } catch {
-    return "0.6.62";
+    return "0.6.63";
   }
 }
 
@@ -277,7 +277,7 @@ function usageError(message) {
 
 function helpText() {
   return `
-  ${tcSky}${clrBold}${gRailTop} CloudDeck CLI v0.6.62 ────────────────────────────────────────────────────────
+  ${tcSky}${clrBold}${gRailTop} CloudDeck CLI v0.6.63 ────────────────────────────────────────────────────────
   ${tcSky}${gRailMid}${clrReset}  ${clrBold}The Modern, Ultra-Lightweight LEMP Server & Control Panel${clrReset}
   ${tcSky}${gRailMid}${clrReset}  Panel: ${tcPeach}http://localhost:${PANEL_PORT}${clrReset}  ${clrDim}•${clrReset}  Agent: ${tcPeach}127.0.0.1:${AGENT_PORT}${clrReset}  ${clrDim}•${clrReset}  Stack: ${tcSky}Next.js 16 + Go${clrReset}
   ${tcSky}${gRailBot}──────────────────────────────────────────────────────────────────────────────${clrReset}
@@ -790,7 +790,7 @@ function agentRequest(method, endpoint, body = null, silent = false) {
 // --- commands: core runtime -------------------------------------------------
 
 function cmdVersion(args, isJson = false) {
-  const v = installedVersion() || "0.6.62";
+  const v = installedVersion() || "0.6.63";
   if (isJson) {
     console.log(JSON.stringify({
       version: v,
@@ -890,7 +890,7 @@ function getSystemMetrics() {
 }
 
 function cmdStatus(args, isJson = false) {
-  const version = installedVersion() || "0.6.62";
+  const version = installedVersion() || "0.6.63";
   const metrics = getSystemMetrics();
 
   const panelSt = serviceState("clouddeck-panel", "panel.pid");

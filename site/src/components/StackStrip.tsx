@@ -1,31 +1,35 @@
 export function StackStrip() {
   const stack = [
-    { name: "< 48 MB RAM", role: "Lightweight Go stdlib daemon" },
-    { name: "Zero-Root Web Panel", role: "Unprivileged user on port 2083" },
-    { name: "Multi-PHP Coexistence", role: "PHP 8.1, 8.2, 8.3, 8.4 sockets" },
-    { name: "MariaDB & PostgreSQL", role: "Native engines with instant dumps" },
-    { name: "Production Mail Stack", role: "Postfix + Dovecot + RSA-2048 DKIM" },
-    { name: "Authoritative DNS", role: "PowerDNS SQLite & MySQL backends" },
-    { name: "WAF & Security", role: "ModSecurity OWASP & Fail2ban" },
-    { name: "Developer AI Agents", role: "Local CLI & Claude Code launcher" },
+    { title: "Runs on 1GB VPS", subtitle: "Under 50MB idle RAM" },
+    { title: "One-Click Apps", subtitle: "WordPress, Ghost & n8n" },
+    { title: "Automatic Free SSL", subtitle: "Wildcard Let's Encrypt" },
+    { title: "Fast Multi-PHP", subtitle: "PHP 8.1 through 8.4" },
+    { title: "MariaDB & Postgres", subtitle: "Instant database creation" },
+    { title: "Built-in Email", subtitle: "Custom domain mailboxes" },
+    { title: "Zero-Root Safety", subtitle: "Unprivileged web process" },
+    { title: "Universal Installer", subtitle: "Ubuntu, Debian, Mac & Win" },
   ];
 
   return (
-    <div className="border-y border-white/10 bg-[#080C10] py-5 sm:py-6">
+    <div className="border-y border-white/10 bg-[#080C10] py-6 sm:py-8">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="text-center text-xs font-mono text-[#8FA6B5]">
-          Engineered for bare-metal performance, low resource consumption, and zero root web exposure
-        </p>
+        <div className="text-center">
+          <span className="text-xs font-semibold tracking-wider uppercase text-[#74B8CC]">
+            Engineered for simplicity and high performance
+          </span>
+          <p className="mt-1 text-sm text-[#8FA6B5]">
+            Everything you need to host professional websites and web apps on your own server.
+          </p>
+        </div>
 
-        <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {stack.map((item) => (
             <div
-              key={item.name}
-              className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0D131A] px-3 py-1.5 shadow-subtle hover:border-[#74B8CC]/40 hover:bg-[#121A22] transition-colors"
+              key={item.title}
+              className="flex flex-col justify-center rounded-xl border border-white/10 bg-[#0D131A] p-3.5 shadow-subtle hover:border-[#74B8CC]/40 hover:bg-[#121A22] transition-all hover:-translate-y-0.5"
             >
-              <span className="text-xs font-medium text-[#F4F8FA]">{item.name}</span>
-              <span className="hidden sm:inline text-white/20">/</span>
-              <span className="hidden sm:inline text-[11px] text-[#8FA6B5] font-mono">{item.role}</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#F4F8FA]">{item.title}</span>
+              <span className="text-[11px] text-[#8FA6B5] mt-0.5">{item.subtitle}</span>
             </div>
           ))}
         </div>

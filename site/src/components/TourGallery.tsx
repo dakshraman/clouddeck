@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Globe,
   LayoutGrid,
@@ -16,6 +17,9 @@ import {
   Mail,
   Zap,
   RotateCcw,
+  Sparkles,
+  Play,
+  HeartPulse,
 } from "lucide-react";
 
 interface Subsystem {
@@ -24,8 +28,8 @@ interface Subsystem {
   label: string;
   icon: typeof Globe;
   title: string;
+  userStory: string;
   description: string;
-  cliCommand: string;
   specs: { label: string; value: string }[];
   highlights: string[];
 }
@@ -33,7 +37,6 @@ interface Subsystem {
 export function TourGallery() {
   const [activeTab, setActiveTab] = useState<string>("sites");
   const [selectedPhp, setSelectedPhp] = useState<string>("8.4");
-  const [activeFleetNode, setActiveFleetNode] = useState<string>("lon-01");
   const [doctorDiagnosing, setDoctorDiagnosing] = useState<boolean>(false);
   const [doctorScore, setDoctorScore] = useState<number>(98);
   const [rollbackSuccess, setRollbackSuccess] = useState<boolean>(false);
@@ -41,134 +44,134 @@ export function TourGallery() {
   const subsystems: Subsystem[] = [
     {
       id: "sites",
-      tag: "Runtime",
-      label: "Websites & PHP",
+      tag: "Hosting",
+      label: "Websites & WordPress",
       icon: Globe,
-      title: "Coexisting multi-PHP and Nginx virtual hosts",
+      title: "Host fast, modern websites with zero fuss",
+      userStory: "Easily launch WordPress, WooCommerce, custom PHP, or static sites. Add custom domains, enable HTTPS in 1 click, and never touch a raw server config file again.",
       description:
         "Dedicated Unix domain sockets for PHP 8.1, 8.2, 8.3, and 8.4 simultaneously. Direct FastCGI routing delivers sub-millisecond execution with zero Docker virtualization latency.",
-      cliCommand: "clouddeck sites list --runtime=php",
       specs: [
-        { label: "Execution latency", value: "< 0.18ms kernel socket" },
-        { label: "Pool footprint", value: "~14 MB per version" },
-        { label: "SSL automation", value: "Let's Encrypt + Wildcard" },
-        { label: "Opcache tuning", value: "1-click visual toggles" },
+        { label: "Site Load Speed", value: "Instant FastCGI" },
+        { label: "Memory Footprint", value: "Only ~14 MB per site" },
+        { label: "SSL Certificate", value: "Auto-renewing HTTPS" },
+        { label: "PHP Version", value: "Switchable in 1 click" },
       ],
       highlights: [
-        "Zero container overhead: bare-metal Linux performance",
-        "Isolated Unix domain sockets per PHP version",
-        "Visual php.ini memory limits and execution timeouts",
-        "Automated HTTPS with auto-renewing ACME certificates",
+        "Create WordPress or custom websites in seconds",
+        "Free automatic SSL certificates that renew by themselves",
+        "Switch between PHP versions per site with a simple dropdown",
+        "Clean, modern file management directly inside your browser",
       ],
     },
     {
       id: "appstore",
-      tag: "Applications",
-      label: "App store & Compose",
+      tag: "1-Click Apps",
+      label: "App Store & Docker",
       icon: LayoutGrid,
-      title: "1-click stacks and custom Docker Compose",
+      title: "Deploy popular web apps in 1 click",
+      userStory: "Install your favorite tools—like Ghost blogs, n8n automations, Plausible analytics, or Redis—with a single button. CloudDeck handles containers, ports, and domains automatically.",
       description:
         "Deploy production services or paste arbitrary multi-container docker-compose.yml files. CloudDeck isolates containers, injects non-conflicting ports, and auto-configures Nginx reverse proxying with TLS termination.",
-      cliCommand: "clouddeck appstore list && clouddeck apps status",
       specs: [
-        { label: "Curated catalog", value: "Redis, Mongo, Ghost, n8n, MinIO" },
-        { label: "Custom ingestion", value: "Arbitrary docker-compose.yml" },
-        { label: "Reverse proxying", value: "Automated Nginx upstream" },
-        { label: "Log streaming", value: "Live stdout/stderr stream" },
+        { label: "App Catalog", value: "Ghost, n8n, Redis, MinIO" },
+        { label: "Docker Integration", value: "Zero port conflicts" },
+        { label: "Web Proxy", value: "Automatic domain routing" },
+        { label: "Logs & Metrics", value: "Live view in panel" },
       ],
       highlights: [
-        "Curated 1-click catalog (Redis, MongoDB, Ghost, MinIO, PocketBase)",
-        "Paste custom compose YAML with auto-detected service ports",
-        "Auto-configured Nginx reverse proxy to external domains",
-        "Zero manual port conflicts with intelligent allocation",
+        "Curated 1-click catalog of popular open source web apps",
+        "Automated reverse proxy connects your domain to the app",
+        "No port collisions—CloudDeck assigns ports intelligently",
+        "Paste your own Docker Compose template whenever you want",
       ],
     },
     {
       id: "ai",
-      tag: "Diagnostics",
-      label: "Site Doctor & AI",
+      tag: "Peace of Mind",
+      label: "Self-Healing & Doctor",
       icon: Bot,
-      title: "Autonomous Site Doctor and coding agents",
+      title: "An automated doctor that fixes server issues for you",
+      userStory: "Never get stuck on server errors or broken configs. The built-in Site Doctor checks your system health 24/7 and fixes issues like blocked ports or permissions with 1 click.",
       description:
-        "Launch native coding agents (Claude Code, OpenAI Codex, Antigravity, Ollama, Hermes) directly in your server terminal. The autonomous Site Doctor runs deep system diagnostics with 1-click repair.",
-      cliCommand: "clouddeck doctor --fix",
+        "Launch native coding agents directly in your server terminal. The autonomous Site Doctor runs deep system diagnostics with 1-click auto-repair.",
       specs: [
-        { label: "Integrated agents", value: "Claude, Codex, Ollama, Hermes" },
-        { label: "Diagnostic scoring", value: "0–100 system health index" },
-        { label: "Remediation", value: "Autonomous 1-click auto-fix" },
-        { label: "Offline inference", value: "Direct Ollama local API" },
+        { label: "Health Scoring", value: "0–100 System Rating" },
+        { label: "Auto-Repair", value: "1-Click automated fix" },
+        { label: "Checks Covered", value: "Nginx, SSL, PHP & DB" },
+        { label: "AI Terminal", value: "Claude, Codex & Ollama" },
       ],
       highlights: [
-        "Native coding agent orchestrations inside web terminal",
-        "Autonomous Site Doctor diagnostics covering Nginx, PHP, MariaDB",
-        "1-click remediation for masked units, permissions, and socket locks",
-        "Offline local AI capability via local Ollama models",
+        "Instant 0–100 health diagnostic across all server services",
+        "1-click button to fix file permissions and service locks",
+        "Real-time alerts before your visitors notice any trouble",
+        "Built-in AI helper to answer technical questions in plain English",
       ],
     },
     {
       id: "fleet",
-      tag: "Infrastructure",
-      label: "Fleet multi-server",
+      tag: "Multi-Server",
+      label: "Fleet Management",
       icon: Server,
-      title: "Unified cluster mesh and node health",
+      title: "Control multiple servers from a single dashboard",
+      userStory: "Have servers across Hetzner, DigitalOcean, AWS, or local hardware? Manage all of them from one clean panel without logging in and out of different dashboards.",
       description:
         "Oversee multiple Linux servers across Hetzner, AWS, DigitalOcean, or on-premise hardware from one panel. Secure token handshakes stream node heartbeats, latency pings, and resource graphs.",
-      cliCommand: "clouddeck fleet status --all-nodes",
       specs: [
-        { label: "Node heartbeat", value: "15s interval via TLS" },
-        { label: "Cluster mesh", value: "Zero master bottlenecks" },
-        { label: "Cross-server auth", value: "Ed25519 node tokens" },
-        { label: "Context switch", value: "Instant 0-downtime switch" },
+        { label: "Server Sync", value: "Real-time heartbeat" },
+        { label: "Providers", value: "Any Linux VPS or bare metal" },
+        { label: "Security", value: "Encrypted token access" },
+        { label: "Switching", value: "1-Click instant switch" },
       ],
       highlights: [
-        "Single-deck control across distributed global server fleets",
-        "Live round-trip latency pings and hardware load metrics",
-        "Seamless context switching between local and remote agents",
-        "Centralized configuration rollback and health oversight",
+        "Manage unlimited Linux servers from one unified screen",
+        "Live CPU, memory, and disk usage graphs for every node",
+        "Switch between servers instantly with zero lag",
+        "No paid add-ons or expensive per-server licensing",
       ],
     },
     {
       id: "git",
-      tag: "Deployment",
-      label: "Git CI/CD & rollback",
+      tag: "Deployments",
+      label: "GitHub Sync & Rollback",
       icon: GitBranch,
-      title: "Zero-downtime releases and atomic rollback",
+      title: "Effortless code updates with instant undo",
+      userStory: "Push code to GitHub or GitLab and have your website update automatically. If a bad update ever breaks your site, restore the previous working version with a single click.",
       description:
         "Deploy directly from GitHub or GitLab. Every deployment creates an immutable release directory, runs build scripts, and switches the Nginx symlink atomically with 1-click instant rollback.",
-      cliCommand: "clouddeck git deploy && clouddeck git rollback",
       specs: [
-        { label: "Deployment strategy", value: "Atomic symlink swap" },
-        { label: "Rollback latency", value: "< 10ms zero-downtime" },
-        { label: "Webhook integration", value: "GitHub / GitLab push hooks" },
-        { label: "Release history", value: "Keep last 5 releases with logs" },
+        { label: "Deploy Time", value: "Zero-downtime swap" },
+        { label: "Rollback Speed", value: "Instant (< 1 second)" },
+        { label: "Git Support", value: "GitHub, GitLab & Webhooks" },
+        { label: "Safety", value: "Preserves previous 5 releases" },
       ],
       highlights: [
-        "Zero-downtime deployments via atomic symlink directory swapping",
-        "1-click rollback to any previous release commit",
-        "Copyable webhook deploy URLs for GitHub Actions and GitLab CI",
-        "Full stdout/stderr build logs captured for every deployment",
+        "Automatic deployment when you push to main/production",
+        "Zero downtime: visitors never see an error while upgrading",
+        "1-Click rollback button to immediately undo bad deploys",
+        "View complete build output logs directly inside the panel",
       ],
     },
     {
       id: "sec",
-      tag: "Security",
-      label: "Mail, DNS & security",
+      tag: "Protection",
+      label: "Email, DNS & Security",
       icon: Shield,
-      title: "PowerDNS, Postfix, and 2FA hardening",
+      title: "Built-in business email, DNS, and bulletproof security",
+      userStory: "Create custom email addresses (@yourdomain.com), manage DNS records, and protect your server with automated firewalls and 2-Factor Authentication out of the box.",
       description:
         "Built-in authoritative SQLite PowerDNS, production Postfix/Dovecot with automated RSA-2048 DKIM, hardware-level UFW firewall controls, and enterprise RFC 6238 TOTP two-factor authentication.",
-      cliCommand: "clouddeck security audit --firewall --auth",
       specs: [
-        { label: "DNS nameserver", value: "Authoritative PowerDNS" },
-        { label: "Mail encryption", value: "RSA-2048 DKIM & SPF/DMARC" },
-        { label: "2FA protection", value: "RFC 6238 TOTP + 8 recovery codes" },
-        { label: "Intrusion guard", value: "Fail2ban integration & UFW" },
+        { label: "Email Mailboxes", value: "Postfix + Dovecot + DKIM" },
+        { label: "DNS Manager", value: "PowerDNS (A, CNAME, MX)" },
+        { label: "Firewall Guard", value: "Automated Fail2ban & UFW" },
+        { label: "Account Security", value: "2-Factor Authenticator" },
       ],
       highlights: [
-        "Authoritative PowerDNS server with automated DKIM record sync",
-        "Complete Postfix & Dovecot mail stack with SHA-512 crypt storage",
-        "Enterprise two-factor authentication (TOTP) with backup tokens",
-        "Native UFW firewall rule orchestration and Fail2ban unban tools",
+        "Professional email addresses with automatic DKIM & SPF records",
+        "Manage your domain DNS records visually with zero confusion",
+        "Active firewall blocks brute-force attackers and spammers",
+        "Protected by standard Authenticator app 2FA (Google, 1Password)",
       ],
     },
   ];
@@ -191,37 +194,39 @@ export function TourGallery() {
   };
 
   return (
-    <section id="tour" className="border-t border-white/10 bg-[#080C10] py-16 sm:py-24">
+    <section id="tour" className="border-t border-white/10 bg-[#080C10] py-16 sm:py-24 relative overflow-hidden">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Section Header */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-mono font-medium text-[#74B8CC]">
-            <img src="/assets/favicon.svg" alt="CloudDeck Mark" className="h-3.5 w-3.5 rounded shrink-0" />
-            <span>Interactive feature tour</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#74B8CC]">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Interactive Feature Tour</span>
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[#F4F8FA] sm:text-4xl">
-            An integrated workbench for every layer of your stack
+            Everything made simple, fast, and visual
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[#8FA6B5]">
-            Bare-metal FastCGI speed, 1-click Docker Compose catalogs, autonomous Site Doctor self-healing, and distributed fleet oversight.
+            See how CloudDeck turns complicated server administration into easy, 1-click visual workflows anyone can manage.
           </p>
         </div>
 
         {/* Feature Navigation Tabs */}
-        <div className="mt-9 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" role="tablist">
+        <div className="mt-9 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6" role="tablist">
           {subsystems.map((sub) => {
             const SubIcon = sub.icon;
             const isActive = activeTab === sub.id;
             return (
-              <button
+              <motion.button
                 key={sub.id}
                 role="tab"
                 aria-selected={isActive}
                 type="button"
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveTab(sub.id)}
-                className={`group flex flex-col items-start rounded-xl border p-3.5 text-left transition-colors ${
+                className={`group flex flex-col items-start rounded-xl border p-3.5 text-left transition-all ${
                   isActive
-                    ? "border-[#74B8CC]/50 bg-[#121A22] shadow-subtle ring-1 ring-[#74B8CC]/30"
+                    ? "border-[#74B8CC]/60 bg-[#121A22] shadow-lg shadow-[#74B8CC]/10 ring-1 ring-[#74B8CC]/30"
                     : "border-white/10 bg-[#0D131A] hover:border-white/20 hover:bg-[#101720]"
                 }`}
               >
@@ -229,13 +234,13 @@ export function TourGallery() {
                   <div
                     className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
                       isActive
-                        ? "border-[#74B8CC]/40 bg-[#74B8CC]/10 text-[#74B8CC]"
+                        ? "border-[#74B8CC]/40 bg-[#74B8CC]/15 text-[#74B8CC]"
                         : "border-white/10 bg-white/5 text-[#8FA6B5] group-hover:text-[#F4F8FA]"
                     }`}
                   >
                     <SubIcon className="h-4 w-4" />
                   </div>
-                  <span className="font-mono text-[10px] text-[#546C7B]">
+                  <span className="text-[10px] uppercase font-semibold tracking-wider text-[#546C7B]">
                     {sub.tag}
                   </span>
                 </div>
@@ -246,412 +251,306 @@ export function TourGallery() {
                 >
                   {sub.label}
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
-        {/* Main Interactive Stage */}
-        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-[#0D131A] shadow-raised">
-          {/* Deck Chrome Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#080C10] px-5 py-3 sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <span className="h-2 w-2 rounded-full bg-[#10B981]" />
-              <span className="text-xs font-mono font-medium text-[#F4F8FA]">
-                subsystem://clouddeck/{current.id}
-              </span>
-              <span className="hidden sm:inline-block rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-mono text-[#8FA6B5]">
-                idle &lt; 50MB
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 font-mono text-xs text-[#8FA6B5]">
-              <span className="hidden md:inline-block text-[#546C7B]">cli:</span>
-              <code className="rounded border border-white/10 bg-[#0D131A] px-2.5 py-1 text-[11px] text-[#74B8CC]">
-                {current.cliCommand}
-              </code>
-            </div>
-          </div>
-
-          {/* Two-Column Stage Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-12">
-            {/* Left Column: Subsystem Details */}
-            <div className="p-6 sm:p-7 lg:col-span-5 lg:border-r lg:border-white/10 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#121A22] text-[#74B8CC]">
-                    <current.icon className="h-5 w-5" />
+        {/* Active Subsystem Interactive Showcase Card */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-[#0D131A] p-5 sm:p-8 shadow-raised">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+            >
+              {/* Left Column: Friendly Explanation */}
+              <div className="lg:col-span-6 flex flex-col justify-between h-full">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-md bg-[#74B8CC]/10 px-2.5 py-1 text-xs font-semibold text-[#74B8CC]">
+                    <current.icon className="h-3.5 w-3.5" />
+                    <span>{current.label}</span>
                   </div>
+
+                  <h3 className="mt-3 text-xl sm:text-2xl font-semibold tracking-tight text-[#F4F8FA]">
+                    {current.title}
+                  </h3>
+
+                  <p className="mt-3 text-sm text-[#8FA6B5] leading-relaxed">
+                    {current.userStory}
+                  </p>
+
+                  <div className="mt-6 space-y-2.5">
+                    {current.highlights.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-[#F4F8FA]/90">
+                        <Check className="h-4 w-4 shrink-0 text-[#10B981] mt-0.5" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-8 grid grid-cols-2 gap-3 pt-6 border-t border-white/10">
+                  {current.specs.map((spec, idx) => (
+                    <div key={idx} className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                      <div className="text-[11px] text-[#8FA6B5]">{spec.label}</div>
+                      <div className="mt-0.5 text-xs sm:text-sm font-semibold text-[#F4F8FA]">{spec.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Visual Interactive Widget */}
+              <div className="lg:col-span-6 rounded-xl border border-white/10 bg-[#080C10] p-4 sm:p-6 shadow-inner">
+                {current.id === "sites" && (
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-[#F4F8FA]">
-                      {current.title}
-                    </h3>
-                    <p className="font-mono text-xs text-[#74B8CC]">
-                      Zero-root bare metal execution
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-xs sm:text-sm text-[#8FA6B5] leading-relaxed">
-                  {current.description}
-                </p>
-
-                {/* Specs Grid */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {current.specs.map((spec) => (
-                    <div
-                      key={spec.label}
-                      className="rounded-lg border border-white/10 bg-[#080C10] p-2.5"
-                    >
-                      <div className="text-[10px] font-mono text-[#546C7B]">
-                        {spec.label}
-                      </div>
-                      <div className="mt-0.5 font-mono text-xs font-semibold text-[#F4F8FA]">
-                        {spec.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Highlights List */}
-                <ul className="space-y-2 pt-1 text-xs text-[#8FA6B5]">
-                  {current.highlights.map((h) => (
-                    <li key={h} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#10B981]" />
-                      <span>{h}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                <a
-                  href="#install"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#74B8CC] px-4 py-2 text-xs font-semibold text-[#080C10] hover:bg-[#8fd2e5] transition-colors"
-                >
-                  <span>Quickstart install</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-                <span className="font-mono text-[11px] text-[#546C7B]">
-                  Open-source MIT
-                </span>
-              </div>
-            </div>
-
-            {/* Right Column: Simulated Live Subsystem Deck */}
-            <div className="bg-[#080C10] p-6 sm:p-7 lg:col-span-7 flex flex-col justify-center">
-              {activeTab === "sites" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">Active Virtual Hosts</span>
-                    </div>
-                    <span className="rounded bg-[#10B981]/10 px-2 py-0.5 font-mono text-[11px] font-medium text-[#10B981]">
-                      14 sites active
-                    </span>
-                  </div>
-
-                  {/* Interactive PHP Version Socket Switcher */}
-                  <div className="rounded-xl border border-white/10 bg-[#0D131A] p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-[#F4F8FA]">api.clouddeck.dev</span>
-                      <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-400">
-                        TLS 1.3 Active
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">Live Website Preview</span>
+                      <span className="text-[11px] text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-ping" />
+                        Online &amp; Fast
                       </span>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-mono text-[#8FA6B5]">
-                        FastCGI PHP pool socket:
-                      </label>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {["8.1", "8.2", "8.3", "8.4"].map((ver) => (
-                          <button
-                            key={ver}
-                            type="button"
-                            onClick={() => setSelectedPhp(ver)}
-                            className={`rounded-lg py-1.5 font-mono text-xs font-medium transition-colors ${
-                              selectedPhp === ver
-                                ? "bg-[#74B8CC] text-[#080C10] font-semibold"
-                                : "border border-white/10 bg-white/5 text-[#8FA6B5] hover:text-[#F4F8FA]"
-                            }`}
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-lg border border-white/10 bg-[#0D131A] p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-semibold text-[#F4F8FA]">example-blog.com</div>
+                          <div className="text-[11px] text-[#8FA6B5]">WordPress 6.7 • Nginx FastCGI</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[#8FA6B5]">PHP:</span>
+                          <select
+                            value={selectedPhp}
+                            onChange={(e) => setSelectedPhp(e.target.value)}
+                            className="rounded-md border border-white/10 bg-[#121A22] px-2 py-1 text-xs text-[#74B8CC] font-mono focus:outline-none"
                           >
-                            PHP {ver}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-white/10 bg-[#080C10] p-2.5 font-mono text-[11px] text-[#8FA6B5] space-y-1">
-                      <div className="text-[#546C7B]"># Active FastCGI upstream socket:</div>
-                      <div className="text-[#74B8CC]">
-                        fastcgi_pass unix:/run/php/php{selectedPhp}-fpm.sock;
-                      </div>
-                      <div className="text-[#546C7B]">
-                        fastcgi_index index.php; # Socket latency: 0.14ms kernel IPC
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Vhost List */}
-                  <div className="space-y-1.5">
-                    {[
-                      { domain: "portal.example.com", runtime: "PHP 8.4", root: "/www/portal.example.com/public", ssl: "Wildcard" },
-                      { domain: "docs.internal.net", runtime: "Static SPA", root: "/www/docs.internal.net/dist", ssl: "Let's Encrypt" },
-                      { domain: "checkout.store.io", runtime: "Node.js", root: "/www/checkout.store.io/dist", ssl: "Auto-Renew" },
-                    ].map((site) => (
-                      <div
-                        key={site.domain}
-                        className="flex items-center justify-between rounded-lg border border-white/10 bg-[#0D131A] px-3 py-2 text-xs"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="font-medium text-[#F4F8FA]">{site.domain}</div>
-                          <div className="font-mono text-[10px] text-[#546C7B]">{site.root}</div>
-                        </div>
-                        <div className="flex items-center gap-2 font-mono text-[11px]">
-                          <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[#8FA6B5]">
-                            {site.runtime}
-                          </span>
-                          <span className="text-emerald-400">✓ {site.ssl}</span>
+                            <option value="8.4">8.4 (Latest)</option>
+                            <option value="8.3">8.3</option>
+                            <option value="8.2">8.2</option>
+                            <option value="8.1">8.1</option>
+                          </select>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {activeTab === "appstore" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <LayoutGrid className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">Docker Compose Subsystem</span>
+                      <div className="rounded-lg border border-white/10 bg-[#0D131A] p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-semibold text-[#F4F8FA]">client-app.io</div>
+                          <div className="text-[11px] text-[#8FA6B5]">Node.js Next.js • Reverse Proxy</div>
+                        </div>
+                        <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded">SSL Active</span>
+                      </div>
+
+                      <div className="rounded-lg border border-white/10 bg-[#0D131A] p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-semibold text-[#F4F8FA]">portfolio.dev</div>
+                          <div className="text-[11px] text-[#8FA6B5]">Static HTML / CSS • CDN Ready</div>
+                        </div>
+                        <span className="text-xs text-[#74B8CC] bg-[#74B8CC]/10 px-2 py-0.5 rounded">0.05ms Load</span>
+                      </div>
                     </div>
-                    <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#74B8CC]">
-                      Custom YAML supported
-                    </span>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {[
-                      { name: "Ghost Publishing", port: ":2368", url: "blog.domain.com", status: "Running", mem: "62 MB" },
-                      { name: "Redis Cache Store", port: ":6379", url: "redis.internal:6379", status: "Running", mem: "8 MB" },
-                      { name: "MinIO S3 Storage", port: ":9000", url: "s3.storage.dev", status: "Running", mem: "48 MB" },
-                      { name: "PocketBase Backend", port: ":8090", url: "api.pocketbase.io", status: "Running", mem: "24 MB" },
-                    ].map((app) => (
-                      <div
-                        key={app.name}
-                        className="rounded-xl border border-white/10 bg-[#0D131A] p-3 space-y-1.5"
-                      >
+                {current.id === "appstore" && (
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">1-Click Application Center</span>
+                      <span className="text-[11px] text-[#74B8CC]">Ready to Install</span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <motion.div whileHover={{ scale: 1.02 }} className="rounded-lg border border-white/10 bg-[#0D131A] p-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[#F4F8FA]">{app.name}</span>
-                          <span className="font-mono text-[10px] text-emerald-400">
-                            {app.status}
-                          </span>
+                          <span className="text-xs font-semibold text-[#F4F8FA]">WordPress</span>
+                          <span className="text-[10px] text-[#10B981] bg-[#10B981]/15 px-1.5 py-0.5 rounded">CMS</span>
                         </div>
-                        <div className="space-y-0.5 font-mono text-[11px]">
-                          <div className="text-[#8FA6B5]">Port: <span className="text-[#74B8CC]">{app.port}</span></div>
-                          <div className="text-[#546C7B] truncate">Proxy: {app.url}</div>
+                        <p className="mt-1 text-[11px] text-[#8FA6B5]">World&apos;s #1 site builder</p>
+                        <button type="button" className="mt-3 w-full rounded bg-white/5 py-1 text-xs text-[#74B8CC] hover:bg-white/10 transition-colors">
+                          Install in 1-Click
+                        </button>
+                      </motion.div>
+
+                      <motion.div whileHover={{ scale: 1.02 }} className="rounded-lg border border-white/10 bg-[#0D131A] p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-[#F4F8FA]">Ghost</span>
+                          <span className="text-[10px] text-[#FAAA93] bg-[#FAAA93]/15 px-1.5 py-0.5 rounded">Publishing</span>
                         </div>
-                        <div className="flex items-center justify-between border-t border-white/10 pt-1.5 text-[10px] font-mono text-[#546C7B]">
-                          <span>RAM: {app.mem}</span>
-                          <span className="text-[#74B8CC]">Nginx upstream ✓</span>
+                        <p className="mt-1 text-[11px] text-[#8FA6B5]">Modern newsletter &amp; blog</p>
+                        <button type="button" className="mt-3 w-full rounded bg-white/5 py-1 text-xs text-[#74B8CC] hover:bg-white/10 transition-colors">
+                          Install in 1-Click
+                        </button>
+                      </motion.div>
+
+                      <motion.div whileHover={{ scale: 1.02 }} className="rounded-lg border border-white/10 bg-[#0D131A] p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-[#F4F8FA]">n8n Workflow</span>
+                          <span className="text-[10px] text-[#74B8CC] bg-[#74B8CC]/15 px-1.5 py-0.5 rounded">Automation</span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                        <p className="mt-1 text-[11px] text-[#8FA6B5]">Zapier alternative</p>
+                        <button type="button" className="mt-3 w-full rounded bg-white/5 py-1 text-xs text-[#74B8CC] hover:bg-white/10 transition-colors">
+                          Install in 1-Click
+                        </button>
+                      </motion.div>
 
-                  <div className="rounded-lg border border-white/10 bg-[#0D131A] p-2.5 font-mono text-[11px] text-[#8FA6B5] flex items-center justify-between">
-                    <span>Deploy custom multi-container compose:</span>
-                    <span className="text-[#74B8CC]">POST /v1/appstore/custom</span>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "ai" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Bot className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">Autonomous Site Doctor</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRunDoctor}
-                      disabled={doctorDiagnosing}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[11px] text-[#74B8CC] hover:bg-white/10 transition-colors"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${doctorDiagnosing ? "animate-spin" : ""}`} />
-                      <span>{doctorDiagnosing ? "Diagnosing..." : "Run diagnostic fix"}</span>
-                    </button>
-                  </div>
-
-                  {/* Doctor Health Score Gauge */}
-                  <div className="rounded-xl border border-white/10 bg-[#0D131A] p-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-[11px] font-mono text-[#8FA6B5]">Diagnostic health index</div>
-                      <div className="mt-0.5 text-3xl font-semibold font-mono text-[#10B981]">
-                        {doctorScore} <span className="text-sm font-normal text-[#8FA6B5]">/ 100</span>
-                      </div>
-                      <div className="text-xs text-[#8FA6B5] mt-0.5">8 system subsystems probed &amp; operational</div>
-                    </div>
-                    <div className="text-right font-mono text-[11px] space-y-1">
-                      <div className="text-emerald-400">✓ Nginx syntax valid</div>
-                      <div className="text-emerald-400">✓ PHP sockets responsive</div>
-                      <div className="text-emerald-400">✓ SSL auto-renew configured</div>
+                      <motion.div whileHover={{ scale: 1.02 }} className="rounded-lg border border-white/10 bg-[#0D131A] p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-[#F4F8FA]">Plausible</span>
+                          <span className="text-[10px] text-[#10B981] bg-[#10B981]/15 px-1.5 py-0.5 rounded">Analytics</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-[#8FA6B5]">Privacy-friendly analytics</p>
+                        <button type="button" className="mt-3 w-full rounded bg-white/5 py-1 text-xs text-[#74B8CC] hover:bg-white/10 transition-colors">
+                          Install in 1-Click
+                        </button>
+                      </motion.div>
                     </div>
                   </div>
+                )}
 
-                  {/* Coding Agents Launcher preview */}
-                  <div className="rounded-xl border border-white/10 bg-[#080C10] p-3 font-mono text-xs space-y-2">
-                    <div className="text-[#546C7B]"># Supported developer AI agents in server terminal:</div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="rounded border border-white/10 bg-[#0D131A] p-2 text-[#F4F8FA]">
-                        <span className="text-[#74B8CC]">claude</span> --mode=code
+                {current.id === "ai" && (
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">Site Doctor Diagnostic Tool</span>
+                      <span className="text-[11px] font-mono text-[#10B981]">Health Score: {doctorScore}/100</span>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5 text-xs">
+                        <span className="text-[#8FA6B5]">Nginx Configuration</span>
+                        <span className="text-[#10B981]">Valid syntax ✓</span>
                       </div>
-                      <div className="rounded border border-white/10 bg-[#0D131A] p-2 text-[#F4F8FA]">
-                        <span className="text-[#74B8CC]">codex</span> --stream
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5 text-xs">
+                        <span className="text-[#8FA6B5]">SSL Certificate Expiry</span>
+                        <span className="text-[#10B981]">Valid (82 days left) ✓</span>
                       </div>
-                      <div className="rounded border border-white/10 bg-[#0D131A] p-2 text-[#F4F8FA]">
-                        <span className="text-[#74B8CC]">ollama</span> run deepseek-coder
-                      </div>
-                      <div className="rounded border border-white/10 bg-[#0D131A] p-2 text-[#F4F8FA]">
-                        <span className="text-[#74B8CC]">hermes</span> diagnose --auto
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5 text-xs">
+                        <span className="text-[#8FA6B5]">Database Connections</span>
+                        <span className="text-[#10B981]">Responsive (0.8ms) ✓</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {activeTab === "fleet" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Server className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">Distributed Cluster Nodes</span>
+                    <div className="mt-5 pt-3 border-t border-white/10 flex justify-between items-center">
+                      <span className="text-xs text-[#8FA6B5]">Everything running optimal</span>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={handleRunDoctor}
+                        disabled={doctorDiagnosing}
+                        className="flex items-center gap-1.5 rounded-lg bg-[#74B8CC] px-3.5 py-1.5 text-xs font-semibold text-[#080C10] hover:bg-[#8fd2e5] transition-colors"
+                      >
+                        <HeartPulse className={`h-3.5 w-3.5 ${doctorDiagnosing ? "animate-spin" : ""}`} />
+                        <span>{doctorDiagnosing ? "Diagnosing..." : "Run Health Check"}</span>
+                      </motion.button>
                     </div>
-                    <span className="font-mono text-[11px] text-[#10B981]">3 nodes in mesh</span>
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    {[
-                      { id: "lon-01", name: "srv-lon-01 (Primary Node)", region: "London, UK", ping: "12ms", ram: "44MB", cpu: "2.8%", sites: 8 },
-                      { id: "nyc-02", name: "srv-nyc-02 (Worker Node)", region: "New York, USA", ping: "36ms", ram: "48MB", cpu: "4.2%", sites: 14 },
-                      { id: "fra-01", name: "srv-fra-01 (Edge Node)", region: "Frankfurt, DE", ping: "18ms", ram: "39MB", cpu: "1.9%", sites: 6 },
-                    ].map((node) => {
-                      const isNodeActive = activeFleetNode === node.id;
-                      return (
-                        <div
-                          key={node.id}
-                          onClick={() => setActiveFleetNode(node.id)}
-                          className={`cursor-pointer rounded-xl border p-3 transition-colors ${
-                            isNodeActive
-                              ? "border-[#74B8CC]/50 bg-[#121A22] ring-1 ring-[#74B8CC]/30"
-                              : "border-white/10 bg-[#0D131A] hover:border-white/20 hover:bg-[#101720]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-[#F4F8FA]">{node.name}</span>
-                            </div>
-                            <span className="font-mono text-[11px] text-[#74B8CC]">{node.ping}</span>
-                          </div>
-                          <div className="mt-1.5 flex items-center justify-between font-mono text-[10px] text-[#8FA6B5]">
-                            <span>{node.region}</span>
-                            <span>RAM: {node.ram}</span>
-                            <span>CPU: {node.cpu}</span>
-                            <span className="text-[#F4F8FA]">{node.sites} sites</span>
+                {current.id === "fleet" && (
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">Global Server Fleet</span>
+                      <span className="text-[11px] text-[#10B981]">3 Nodes Connected</span>
+                    </div>
+
+                    <div className="mt-4 space-y-2.5 text-xs">
+                      <div className="p-3 rounded-lg bg-[#0D131A] border border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[#10B981]" />
+                          <div>
+                            <div className="font-semibold text-[#F4F8FA]">Frankfurt Primary</div>
+                            <div className="text-[11px] text-[#8FA6B5]">Hetzner Cloud • 12 Sites</div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="rounded-lg border border-white/10 bg-[#0D131A] p-2.5 font-mono text-[11px] text-[#8FA6B5] flex items-center justify-between">
-                    <span>Active node target: <span className="text-[#F4F8FA]">srv-{activeFleetNode}</span></span>
-                    <span className="text-[#10B981]">Context switched</span>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "git" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <GitBranch className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">Atomic Releases &amp; Rollback</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRollback}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[11px] text-[#FAAA93] hover:bg-white/10 transition-colors"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>{rollbackSuccess ? "Swapped to #141!" : "Rollback to #141"}</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 font-mono text-xs">
-                    <div className="rounded-xl border border-[#74B8CC]/40 bg-[#121A22] p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F4F8FA] font-semibold">Release #142 (active)</span>
-                        <span className="text-emerald-400 font-mono text-[10px]">CURRENT UPSTREAM</span>
+                        <span className="text-[#74B8CC] font-mono">1.2% CPU</span>
                       </div>
-                      <div className="text-[11px] text-[#8FA6B5]">Commit: <span className="text-[#74B8CC]">4b3e90a</span> — fix(panel): resolve runtime detection</div>
-                      <div className="text-[10px] text-[#546C7B]">Symlink: /www/api.dev -&gt; /opt/releases/api.dev/20261126-0600</div>
-                    </div>
 
-                    <div className="rounded-xl border border-white/10 bg-[#0D131A] p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#F4F8FA]">Release #141</span>
-                        <span className="text-[#8FA6B5] text-[10px]">PREVIOUS CLEAN (Ready)</span>
+                      <div className="p-3 rounded-lg bg-[#0D131A] border border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[#10B981]" />
+                          <div>
+                            <div className="font-semibold text-[#F4F8FA]">New York Replica</div>
+                            <div className="text-[11px] text-[#8FA6B5]">DigitalOcean • 6 Sites</div>
+                          </div>
+                        </div>
+                        <span className="text-[#74B8CC] font-mono">0.8% CPU</span>
                       </div>
-                      <div className="text-[11px] text-[#8FA6B5]">Commit: <span className="text-[#74B8CC]">9a5fa26</span> — fix(services): enhance recovery</div>
-                      <div className="text-[10px] text-[#546C7B]">Symlink: /opt/releases/api.dev/20261124-1230</div>
+
+                      <div className="p-3 rounded-lg bg-[#0D131A] border border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[#10B981]" />
+                          <div>
+                            <div className="font-semibold text-[#F4F8FA]">Local Office Backup</div>
+                            <div className="text-[11px] text-[#8FA6B5]">Bare Metal • 2 Sites</div>
+                          </div>
+                        </div>
+                        <span className="text-[#74B8CC] font-mono">0.4% CPU</span>
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="rounded-lg border border-white/10 bg-[#0D131A] p-2.5 font-mono text-[11px] text-[#8FA6B5] flex items-center justify-between">
-                    <span>Webhook deploy endpoint:</span>
-                    <span className="text-[#74B8CC]">POST /v1/sites/:dom/git/webhook</span>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "sec" && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-[#74B8CC]" />
-                      <span className="text-xs font-semibold text-[#F4F8FA]">PowerDNS &amp; Production Mail</span>
+                {current.id === "git" && (
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">Automated Deployment Log</span>
+                      <span className="text-[11px] text-[#10B981]">Zero Downtime</span>
                     </div>
-                    <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#10B981]">
-                      DKIM 2048 Signed
-                    </span>
-                  </div>
 
-                  <div className="rounded-xl border border-white/10 bg-[#0D131A] p-3.5 space-y-2 font-mono text-xs">
-                    <div className="flex items-center justify-between text-[#F4F8FA]">
-                      <span>DNS Zone: clouddeck.dakshraman.in</span>
-                      <span className="text-[#74B8CC]">PowerDNS SQLite</span>
+                    <div className="mt-4 p-3 rounded-lg bg-[#0D131A] border border-white/5 text-xs font-mono space-y-1">
+                      <div className="text-[#10B981]">✓ Git commit e48a92 received from GitHub</div>
+                      <div className="text-[#8FA6B5]">→ Installing dependencies and building site...</div>
+                      <div className="text-[#8FA6B5]">→ Swapping active release symlink...</div>
+                      <div className="text-[#74B8CC]">✓ Deployment successful in 1.4 seconds!</div>
                     </div>
-                    <div className="space-y-1 text-[11px] text-[#8FA6B5] border-t border-white/10 pt-2">
-                      <div>A &nbsp;&nbsp;&nbsp;&nbsp; @ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 198.51.100.24 (TTL 300)</div>
-                      <div>MX &nbsp;&nbsp;&nbsp; 10 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mail.clouddeck.dakshraman.in</div>
-                      <div>TXT &nbsp;&nbsp; default._domainkey &nbsp; &quot;v=DKIM1; k=rsa; p=MIIBIjANBg...&quot;</div>
-                      <div>TXT &nbsp;&nbsp; _dmarc &nbsp; &quot;v=DMARC1; p=reject; rua=mailto:dmarc@...&quot;</div>
-                    </div>
-                  </div>
 
-                  <div className="rounded-lg border border-white/10 bg-[#0D131A] p-2.5 font-mono text-[11px] text-[#8FA6B5] flex items-center justify-between">
-                    <span>Roundcube Webmail SSO:</span>
-                    <span className="text-[#10B981]">Direct One-Click Login ✓</span>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-xs text-[#8FA6B5]">Something went wrong?</span>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={handleRollback}
+                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                          rollbackSuccess
+                            ? "border-[#10B981] bg-[#10B981]/15 text-[#10B981]"
+                            : "border-white/10 bg-white/5 text-[#F4F8FA] hover:bg-white/10"
+                        }`}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>{rollbackSuccess ? "Restored Previous Version!" : "1-Click Undo / Rollback"}</span>
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+
+                {current.id === "sec" && (
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                      <span className="text-xs font-semibold text-[#F4F8FA]">Security Shield</span>
+                      <span className="text-[11px] text-[#10B981] bg-[#10B981]/15 px-2 py-0.5 rounded-full">Active Defense</span>
+                    </div>
+
+                    <div className="mt-4 space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5">
+                        <span className="text-[#F4F8FA]">Custom Business Mailbox</span>
+                        <span className="text-[#10B981]">DKIM Signed ✓</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5">
+                        <span className="text-[#F4F8FA]">Automated Firewall</span>
+                        <span className="text-[#10B981]">Blocking Bad Traffic ✓</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0D131A] border border-white/5">
+                        <span className="text-[#F4F8FA]">Two-Factor Authentication</span>
+                        <span className="text-[#10B981]">Enabled (TOTP) ✓</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </section>
