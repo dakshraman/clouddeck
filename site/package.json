@@ -1,6 +1,6 @@
 {
   "name": "clouddeck-site",
-  "version": "0.6.59",
+  "version": "0.6.60",
   "private": true,
   "engines": {
     "node": ">=20"
